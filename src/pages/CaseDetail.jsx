@@ -4,6 +4,7 @@ import { useCaseStore } from '../store/caseStore'
 import TabBar from '../components/ui/TabBar'
 import Badge from '../components/ui/Badge'
 import HearingList from '../components/case/HearingList'
+import KakaoParser from '../components/case/KakaoParser'
 import Toast from '../components/ui/Toast'
 
 const TABS = [
@@ -77,9 +78,7 @@ export default function CaseDetail() {
         )}
 
         {activeTab === 'kakao' && (
-          <div className="text-center py-16 text-gray-500 text-sm">
-            Step 5에서 카카오톡 파서가 구현됩니다
-          </div>
+          <KakaoParser caseData={currentCase} />
         )}
 
         {activeTab === 'email' && (
