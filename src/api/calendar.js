@@ -105,10 +105,19 @@ const CASE_NUMBER_RE = /(\d{4}\s*[가-힣]{1,3}\s*\d+)/
 const COURT_KEYWORDS = /법원|변론|조정|선고|증인|감정|법정|기일/
 
 /**
- * Google Calendar에서 기일 이벤트 가져오기
- * 엘박스 등에서 동기화된 기일을 사건번호로 매칭
+ * 사용자의 모든 캘린더 목록 조회
  */
-export async function fetchCalendarEvents(timeMin, timeMax) {
+async function listCalendars() {
+  const data = await calendarRequest(
+    `${CALENDAR_API}/users/me/calendarList`
+  )
+  return data?.items || []
+}
+
+/**
+ * 특정 캘린더에서 이벤트 조회
+ */
+async function fetchEventsFromCalendar(calendarId, timeMin, timeMax) {
   const params = new URLSearchParams({
     timeMin: new Date(timeMin).toISOString(),
     timeMax: new Date(timeMax).toISOString(),
@@ -117,19 +126,37 @@ export async function fetchCalendarEvents(timeMin, timeMax) {
     orderBy: 'startTime',
   })
 
-  const data = await calendarRequest(
-    `${CALENDAR_API}/calendars/primary/events?${params.toString()}`
-  )
+  try {
+    const data = await calendarRequest(
+      `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`
+    )
+    return data?.items || []
+  } catch {
+    return []
+  }
+}
 
-  return (data?.items || [])
+/**
+ * Google Calendar에서 기일 이벤트 가져오기
+ * 모든 캘린더를 검색하여 엘박스 등에서 동기화된 기일 포함
+ */
+export async function fetchCalendarEvents(timeMin, timeMax) {
+  // 모든 캘린더에서 이벤트 수집
+  const calendars = await listCalendars()
+  const allItems = []
+
+  for (const cal of calendars) {
+    const events = await fetchEventsFromCalendar(cal.id, timeMin, timeMax)
+    allItems.push(...events)
+  }
+
+  return allItems
     .filter((ev) => {
       const summary = ev.summary || ''
-      // 사건번호 패턴 또는 법원 관련 키워드가 있는 이벤트
       return CASE_NUMBER_RE.test(summary) || COURT_KEYWORDS.test(summary)
     })
     .map((ev) => {
       const summary = ev.summary || ''
-      // 사건번호 추출 (띄어쓰기 무시)
       const caseNumberMatch = summary.replace(/\s/g, '').match(CASE_NUMBER_RE)
       return {
         id: ev.id,
