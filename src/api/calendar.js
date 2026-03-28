@@ -97,6 +97,58 @@ export async function updateCalendarEvent(eventId, hearing) {
   )
 }
 
+// 한국 사건번호 패턴: 2023가합102415, 2024누36267 등
+const CASE_NUMBER_RE = /(\d{4}[가-힣]{1,3}\d+)/
+
+/**
+ * Google Calendar에서 기일 이벤트 가져오기
+ * 엘박스 등에서 동기화된 기일을 사건번호로 매칭
+ * @param {string} timeMin - 조회 시작일 (ISO string)
+ * @param {string} timeMax - 조회 종료일 (ISO string)
+ */
+export async function fetchCalendarEvents(timeMin, timeMax) {
+  const params = new URLSearchParams({
+    timeMin: new Date(timeMin).toISOString(),
+    timeMax: new Date(timeMax).toISOString(),
+    maxResults: '250',
+    singleEvents: 'true',
+    orderBy: 'startTime',
+  })
+
+  const data = await calendarRequest(
+    `${CALENDAR_API}/calendars/primary/events?${params.toString()}`
+  )
+
+  return (data?.items || [])
+    .filter((ev) => CASE_NUMBER_RE.test(ev.summary || ''))
+    .map((ev) => {
+      const caseNumberMatch = ev.summary.match(CASE_NUMBER_RE)
+      return {
+        id: ev.id,
+        calendarEventId: ev.id,
+        summary: ev.summary || '',
+        caseNumber: caseNumberMatch ? caseNumberMatch[1] : '',
+        datetime: ev.start?.dateTime || ev.start?.date || '',
+        endDatetime: ev.end?.dateTime || ev.end?.date || '',
+        location: ev.location || '',
+        description: ev.description || '',
+      }
+    })
+}
+
+/**
+ * 특정 사건번호에 해당하는 캘린더 이벤트만 필터
+ */
+export function matchEventsToCaseNumber(events, caseNumber) {
+  if (!caseNumber) return []
+  // 사건번호에서 공백 제거 후 비교
+  const normalized = caseNumber.replace(/\s/g, '')
+  return events.filter((ev) => {
+    const evNum = ev.caseNumber.replace(/\s/g, '')
+    return evNum === normalized || ev.summary.replace(/\s/g, '').includes(normalized)
+  })
+}
+
 export async function deleteCalendarEvent(eventId) {
   return calendarRequest(
     `${CALENDAR_API}/calendars/primary/events/${eventId}`,
