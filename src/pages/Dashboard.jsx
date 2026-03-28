@@ -8,6 +8,7 @@ import ConsultationCard from '../components/case/ConsultationCard'
 import CaseForm from '../components/case/CaseForm'
 import ConsultationForm from '../components/case/ConsultationForm'
 import Modal from '../components/ui/Modal'
+import MiniCalendar from '../components/ui/MiniCalendar'
 import Toast from '../components/ui/Toast'
 
 function getDday(dateStr) {
@@ -19,6 +20,13 @@ function formatDate(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+}
+
+function formatTime(dateStr) {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  if (d.getHours() === 0 && d.getMinutes() === 0) return null
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 const CASE_STATUS_FILTERS = [
@@ -77,36 +85,45 @@ export default function Dashboard() {
     }
   }, [cases, consultations])
 
-  // ─── 다가오는 일정 통합 ───
-  const upcomingEvents = useMemo(() => {
+  // ─── 캘린더 이벤트 (전체 기일 + 마감일) ───
+  const calendarEvents = useMemo(() => {
     const events = []
 
     cases.forEach((c) => {
-      const d = getDday(c.nextHearingDate)
-      if (d !== null && d >= 0 && d <= 14 && c.status !== '종결') {
+      if (c.nextHearingDate && c.status !== '종결') {
         events.push({
           type: 'hearing',
           label: `[${c.caseNumber || '번호 미정'}] ${c.clientName}`,
           date: c.nextHearingDate,
-          dday: d,
+          time: formatTime(c.nextHearingDate),
+          caseId: c.id,
+          dday: getDday(c.nextHearingDate),
         })
       }
     })
 
     consultations.forEach((c) => {
-      const d = getDday(c.deadline)
-      if (d !== null && d >= 0 && d <= 14 && c.status !== '완료') {
+      if (c.deadline && c.status !== '완료') {
         events.push({
           type: 'deadline',
           label: `[자문] ${c.clientName} — ${c.subject || c.type}`,
           date: c.deadline,
-          dday: d,
+          time: null,
+          caseId: c.id,
+          dday: getDday(c.deadline),
         })
       }
     })
 
-    return events.sort((a, b) => a.dday - b.dday)
+    return events
   }, [cases, consultations])
+
+  // ─── 다가오는 일정 (14일 이내) ───
+  const upcomingEvents = useMemo(() => {
+    return calendarEvents
+      .filter((ev) => ev.dday !== null && ev.dday >= 0 && ev.dday <= 14)
+      .sort((a, b) => a.dday - b.dday)
+  }, [calendarEvents])
 
   // ─── 필터 + 검색 ───
   const statusFilters = dashboardTab === 'cases' ? CASE_STATUS_FILTERS : CONSULT_STATUS_FILTERS
@@ -171,7 +188,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-900">LegalDesk</h1>
+          <h1 onClick={() => navigate('/')} className="text-lg font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors">LegalDesk</h1>
           <div className="flex items-center gap-3">
             {user?.picture && (
               <img src={user.picture} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
@@ -209,30 +226,54 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 다가오는 일정 배너 */}
-        {upcomingEvents.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-amber-800 mb-2">
-              다가오는 일정 ({upcomingEvents.length}건)
-            </h3>
-            <div className="space-y-1">
-              {upcomingEvents.slice(0, 5).map((ev, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                    ev.type === 'hearing' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
-                  }`}>
-                    {ev.dday === 0 ? 'D-Day' : `D-${ev.dday}`}
-                  </span>
-                  <span className="text-gray-700">{ev.label}</span>
-                  <span className="text-gray-400 text-xs">{formatDate(ev.date)}</span>
+        {/* 캘린더 + 다가오는 일정 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-1">
+            <MiniCalendar
+              events={calendarEvents}
+              onEventClick={(ev) => ev.caseId && navigate(`/case/${ev.caseId}`)}
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 h-full">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                다가오는 일정
+              </h3>
+              {upcomingEvents.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4">14일 이내 예정된 일정이 없습니다</p>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {upcomingEvents.map((ev, i) => (
+                    <div
+                      key={i}
+                      onClick={() => ev.caseId && navigate(`/case/${ev.caseId}`)}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    >
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold min-w-[3rem] text-center ${
+                        ev.dday === 0
+                          ? 'bg-red-600 text-white'
+                          : ev.dday <= 3
+                            ? 'bg-red-100 text-red-700'
+                            : ev.type === 'hearing'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {ev.dday === 0 ? 'D-Day' : `D-${ev.dday}`}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-800 truncate">{ev.label}</p>
+                        <p className="text-xs text-gray-400">
+                          {formatDate(ev.date)}{ev.time ? ` ${ev.time}` : ''}
+                          {' · '}{ev.type === 'hearing' ? '기일' : '마감'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {upcomingEvents.length > 5 && (
-                <p className="text-xs text-amber-600">...외 {upcomingEvents.length - 5}건</p>
               )}
             </div>
           </div>
-        )}
+        </div>
 
         {/* 사건/자문 탭 + 검색 + 새로 만들기 */}
         <div className="flex flex-col sm:flex-row gap-3">
