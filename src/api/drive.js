@@ -9,6 +9,7 @@ const JSON_MIME = 'application/json'
 const ROOT_FOLDER_NAME = 'LegalDesk'
 const DATA_FOLDER_NAME = 'data'
 const CASES_FOLDER_NAME = 'cases'
+const CONSULTATIONS_FOLDER_NAME = 'consultations'
 const FILES_FOLDER_NAME = 'files'
 const CASES_INDEX_NAME = 'cases.json'
 
@@ -147,6 +148,9 @@ export async function initializeDriveStructure() {
   // Find or create: LegalDesk/data/cases/
   const casesFolder = await findOrCreateFolder(CASES_FOLDER_NAME, dataFolder.id)
 
+  // Find or create: LegalDesk/data/consultations/
+  const consultationsFolder = await findOrCreateFolder(CONSULTATIONS_FOLDER_NAME, dataFolder.id)
+
   // Find or create: LegalDesk/files/
   const filesFolder = await findOrCreateFolder(FILES_FOLDER_NAME, root.id)
 
@@ -154,17 +158,27 @@ export async function initializeDriveStructure() {
   let casesFile = await findFile(CASES_INDEX_NAME, dataFolder.id)
   if (!casesFile) {
     const initialData = {
-      version: '1.0',
+      version: '2.0',
       updatedAt: new Date().toISOString(),
       cases: [],
+      consultations: [],
     }
     casesFile = await createJsonFile(CASES_INDEX_NAME, dataFolder.id, initialData)
+  } else {
+    // v1 → v2 마이그레이션
+    const data = await readJsonFile(casesFile.id)
+    if (data.version === '1.0' || !data.consultations) {
+      data.version = '2.0'
+      data.consultations = data.consultations || []
+      await updateJsonFile(casesFile.id, data)
+    }
   }
 
   return {
     rootId: root.id,
     dataFolderId: dataFolder.id,
     casesFolderId: casesFolder.id,
+    consultationsFolderId: consultationsFolder.id,
     filesFolderId: filesFolder.id,
     casesFileId: casesFile.id,
   }

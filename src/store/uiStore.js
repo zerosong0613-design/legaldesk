@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 
 export const useUiStore = create((set) => ({
+  // 대시보드 탭
+  dashboardTab: 'cases', // 'cases' | 'consultations'
+
   // 사건 필터
   statusFilter: null, // null = 전체, '접수' | '진행' | '종결' | '보류'
   searchQuery: '',
@@ -13,6 +16,7 @@ export const useUiStore = create((set) => ({
   // 토스트
   toast: null,
 
+  setDashboardTab: (tab) => set({ dashboardTab: tab, statusFilter: null, searchQuery: '' }),
   setStatusFilter: (filter) => set({ statusFilter: filter }),
   setSearchQuery: (query) => set({ searchQuery: query }),
 
