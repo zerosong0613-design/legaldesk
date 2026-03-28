@@ -97,20 +97,22 @@ export async function updateCalendarEvent(eventId, hearing) {
   )
 }
 
-// 한국 사건번호 패턴: 2023가합102415, 2024누36267 등
-const CASE_NUMBER_RE = /(\d{4}[가-힣]{1,3}\d+)/
+// 한국 사건번호 패턴: 2023가합102415, 2024나91606 등
+const CASE_NUMBER_RE = /(\d{4}\s*[가-힣]{1,3}\s*\d+)/
+
+// 엘박스 형태: [에스케이] 변론 | 수원지방법원-2024나91606 | 법정동 제206호 법정
+// 법원 관련 키워드
+const COURT_KEYWORDS = /법원|변론|조정|선고|증인|감정|법정|기일/
 
 /**
  * Google Calendar에서 기일 이벤트 가져오기
  * 엘박스 등에서 동기화된 기일을 사건번호로 매칭
- * @param {string} timeMin - 조회 시작일 (ISO string)
- * @param {string} timeMax - 조회 종료일 (ISO string)
  */
 export async function fetchCalendarEvents(timeMin, timeMax) {
   const params = new URLSearchParams({
     timeMin: new Date(timeMin).toISOString(),
     timeMax: new Date(timeMax).toISOString(),
-    maxResults: '250',
+    maxResults: '500',
     singleEvents: 'true',
     orderBy: 'startTime',
   })
@@ -120,13 +122,19 @@ export async function fetchCalendarEvents(timeMin, timeMax) {
   )
 
   return (data?.items || [])
-    .filter((ev) => CASE_NUMBER_RE.test(ev.summary || ''))
+    .filter((ev) => {
+      const summary = ev.summary || ''
+      // 사건번호 패턴 또는 법원 관련 키워드가 있는 이벤트
+      return CASE_NUMBER_RE.test(summary) || COURT_KEYWORDS.test(summary)
+    })
     .map((ev) => {
-      const caseNumberMatch = ev.summary.match(CASE_NUMBER_RE)
+      const summary = ev.summary || ''
+      // 사건번호 추출 (띄어쓰기 무시)
+      const caseNumberMatch = summary.replace(/\s/g, '').match(CASE_NUMBER_RE)
       return {
         id: ev.id,
         calendarEventId: ev.id,
-        summary: ev.summary || '',
+        summary,
         caseNumber: caseNumberMatch ? caseNumberMatch[1] : '',
         datetime: ev.start?.dateTime || ev.start?.date || '',
         endDatetime: ev.end?.dateTime || ev.end?.date || '',
@@ -141,11 +149,12 @@ export async function fetchCalendarEvents(timeMin, timeMax) {
  */
 export function matchEventsToCaseNumber(events, caseNumber) {
   if (!caseNumber) return []
-  // 사건번호에서 공백 제거 후 비교
-  const normalized = caseNumber.replace(/\s/g, '')
+  // 사건번호에서 공백, 하이픈 제거 후 비교
+  const normalized = caseNumber.replace(/[\s\-]/g, '')
   return events.filter((ev) => {
-    const evNum = ev.caseNumber.replace(/\s/g, '')
-    return evNum === normalized || ev.summary.replace(/\s/g, '').includes(normalized)
+    const evNum = ev.caseNumber.replace(/[\s\-]/g, '')
+    const evSummary = ev.summary.replace(/[\s\-]/g, '')
+    return evNum === normalized || evSummary.includes(normalized)
   })
 }
 

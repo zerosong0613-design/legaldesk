@@ -57,10 +57,18 @@ export default function HearingList({ caseData }) {
       const timeMax = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())
 
       const allEvents = await fetchCalendarEvents(timeMin.toISOString(), timeMax.toISOString())
-      const matched = matchEventsToCaseNumber(allEvents, caseData.caseNumber)
+
+      // 사건번호로 매칭 시도, 없으면 법원 관련 전체 이벤트 표시
+      let matched = matchEventsToCaseNumber(allEvents, caseData.caseNumber)
+
+      if (matched.length === 0 && allEvents.length > 0) {
+        // 매칭 실패 시 모든 법원 이벤트를 보여줘서 사용자가 확인 가능
+        matched = allEvents
+        showToast(`사건번호 매칭 없음. 캘린더의 법원 이벤트 ${allEvents.length}개를 표시합니다.`, 'info')
+      }
 
       if (matched.length === 0) {
-        showToast('캘린더에서 매칭되는 기일을 찾을 수 없습니다.', 'info')
+        showToast('캘린더에서 법원 관련 이벤트를 찾을 수 없습니다.', 'info')
         setCalendarEvents([])
         return
       }
