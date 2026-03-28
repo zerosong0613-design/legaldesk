@@ -118,11 +118,9 @@ export default function Dashboard() {
     return events
   }, [cases, consultations])
 
-  // ─── 다가오는 일정 (14일 이내) ───
-  const upcomingEvents = useMemo(() => {
-    return calendarEvents
-      .filter((ev) => ev.dday !== null && ev.dday >= 0 && ev.dday <= 14)
-      .sort((a, b) => a.dday - b.dday)
+  // ─── 전체 일정 (날짜순 정렬) ───
+  const sortedEvents = useMemo(() => {
+    return [...calendarEvents].sort((a, b) => new Date(a.date) - new Date(b.date))
   }, [calendarEvents])
 
   // ─── 필터 + 검색 ───
@@ -237,38 +235,45 @@ export default function Dashboard() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl border border-gray-200 p-4 h-full">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                다가오는 일정
+                일정 ({sortedEvents.length})
               </h3>
-              {upcomingEvents.length === 0 ? (
-                <p className="text-sm text-gray-400 py-4">14일 이내 예정된 일정이 없습니다</p>
+              {sortedEvents.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4">등록된 일정이 없습니다</p>
               ) : (
-                <div className="space-y-2 max-h-72 overflow-y-auto">
-                  {upcomingEvents.map((ev, i) => (
-                    <div
-                      key={i}
-                      onClick={() => ev.caseId && navigate(`/case/${ev.caseId}`)}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    >
-                      <span className={`px-2 py-0.5 rounded text-xs font-semibold min-w-[3rem] text-center ${
-                        ev.dday === 0
-                          ? 'bg-red-600 text-white'
-                          : ev.dday <= 3
-                            ? 'bg-red-100 text-red-700'
-                            : ev.type === 'hearing'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-orange-100 text-orange-700'
-                      }`}>
-                        {ev.dday === 0 ? 'D-Day' : `D-${ev.dday}`}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800 truncate">{ev.label}</p>
-                        <p className="text-xs text-gray-400">
-                          {formatDate(ev.date)}{ev.time ? ` ${ev.time}` : ''}
-                          {' · '}{ev.type === 'hearing' ? '기일' : '마감'}
-                        </p>
+                <div className="space-y-1 max-h-80 overflow-y-auto">
+                  {sortedEvents.map((ev, i) => {
+                    const isPast = ev.dday !== null && ev.dday < 0
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => ev.caseId && navigate(`/case/${ev.caseId}`)}
+                        className={`flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer ${isPast ? 'opacity-50' : ''}`}
+                      >
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold min-w-[3.5rem] text-center ${
+                          ev.dday === null
+                            ? 'bg-gray-100 text-gray-500'
+                            : ev.dday < 0
+                              ? 'bg-gray-100 text-gray-400'
+                              : ev.dday === 0
+                                ? 'bg-red-600 text-white'
+                                : ev.dday <= 7
+                                  ? 'bg-red-100 text-red-700'
+                                  : ev.type === 'hearing'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-orange-100 text-orange-700'
+                        }`}>
+                          {ev.dday === null ? '-' : ev.dday === 0 ? 'D-Day' : ev.dday > 0 ? `D-${ev.dday}` : `D+${Math.abs(ev.dday)}`}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm truncate ${isPast ? 'text-gray-400' : 'text-gray-800'}`}>{ev.label}</p>
+                          <p className="text-xs text-gray-400">
+                            {formatDate(ev.date)}{ev.time ? ` ${ev.time}` : ''}
+                            {' · '}{ev.type === 'hearing' ? '기일' : '마감'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
