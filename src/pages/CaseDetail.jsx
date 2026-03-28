@@ -5,6 +5,7 @@ import TabBar from '../components/ui/TabBar'
 import Badge from '../components/ui/Badge'
 import HearingList from '../components/case/HearingList'
 import KakaoParser from '../components/case/KakaoParser'
+import Timeline from '../components/case/Timeline'
 import Toast from '../components/ui/Toast'
 
 const TABS = [
@@ -19,7 +20,7 @@ export default function CaseDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { currentCase, loadCaseDetail, isLoading } = useCaseStore()
-  const [activeTab, setActiveTab] = useState('hearings')
+  const [activeTab, setActiveTab] = useState('timeline')
 
   useEffect(() => {
     loadCaseDetail(id)
@@ -68,9 +69,7 @@ export default function CaseDetail() {
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         {activeTab === 'timeline' && (
-          <div className="text-center py-16 text-gray-500 text-sm">
-            Step 6에서 타임라인이 구현됩니다
-          </div>
+          <Timeline caseData={currentCase} />
         )}
 
         {activeTab === 'hearings' && (
