@@ -76,7 +76,7 @@ export const useAuthStore = create((set, get) => ({
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
       access_type: 'offline',
-      prompt: 'consent',
+      prompt: 'select_account consent',
     })
 
     window.location.href = `${AUTH_ENDPOINT}?${params.toString()}`
