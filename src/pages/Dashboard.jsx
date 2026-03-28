@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../auth/useAuth'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
@@ -21,6 +22,7 @@ function getDday(dateStr) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const { user, logout } = useAuthStore()
   const { cases, createCase, updateCase, deleteCase, error: caseError } = useCaseStore()
   const {
@@ -208,9 +210,7 @@ export default function Dashboard() {
               <CaseCard
                 key={c.id}
                 caseData={c}
-                onClick={() => {
-                  // Step 4에서 사건 상세 페이지로 이동
-                }}
+                onClick={() => navigate(`/case/${c.id}`)}
                 onEdit={(data) => openModal('editCase', data)}
                 onDelete={(data) => openModal('deleteConfirm', data)}
               />

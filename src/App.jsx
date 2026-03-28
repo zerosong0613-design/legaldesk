@@ -5,6 +5,7 @@ import { useCaseStore } from './store/caseStore'
 import GoogleAuth from './auth/GoogleAuth'
 import AuthCallback from './auth/AuthCallback'
 import Dashboard from './pages/Dashboard'
+import CaseDetail from './pages/CaseDetail'
 
 function AppContent() {
   const { user, isLoading: authLoading, initialize } = useAuthStore()
@@ -59,7 +60,12 @@ function AppContent() {
     )
   }
 
-  return <Dashboard />
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/case/:id" element={<CaseDetail />} />
+    </Routes>
+  )
 }
 
 function App() {
@@ -67,7 +73,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="*" element={<AppContent />} />
+        <Route path="/*" element={<AppContent />} />
       </Routes>
     </BrowserRouter>
   )
