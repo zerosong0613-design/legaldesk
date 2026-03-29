@@ -8,7 +8,6 @@ const SCOPES = [
 ].join(' ')
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
-const CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET
 const REDIRECT_URI = `${window.location.origin}/auth/callback`
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
@@ -97,7 +96,6 @@ export const useAuthStore = create((set, get) => ({
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
           code,
           code_verifier: codeVerifier,
           grant_type: 'authorization_code',
@@ -154,7 +152,6 @@ export const useAuthStore = create((set, get) => ({
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
           grant_type: 'refresh_token',
           refresh_token: refreshToken,
         }),
