@@ -219,7 +219,7 @@ export async function listFilesInFolder(folderId) {
   if (!folderId) return []
   const q = `'${folderId}' in parents and trashed=false`
   const res = await driveRequest(
-    `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,iconLink)&orderBy=modifiedTime desc&pageSize=100`
+    `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType,size,description,createdTime,modifiedTime,webViewLink,iconLink)&orderBy=modifiedTime desc&pageSize=100`
   )
   const data = await res.json()
   return data.files || []
@@ -247,4 +247,24 @@ export async function uploadFileToDrive(folderId, file) {
 
 export async function getFileDownloadUrl(fileId) {
   return `${DRIVE_API}/files/${fileId}?alt=media`
+}
+
+export async function createSubFolder(parentId, name) {
+  return createFolder(name, parentId)
+}
+
+export async function updateFileDescription(fileId, description) {
+  const res = await driveRequest(`${DRIVE_API}/files/${fileId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': JSON_MIME },
+    body: JSON.stringify({ description }),
+  })
+  return res.json()
+}
+
+export async function getFileMetadata(fileId) {
+  const res = await driveRequest(
+    `${DRIVE_API}/files/${fileId}?fields=id,name,mimeType,size,description,createdTime,modifiedTime,webViewLink`
+  )
+  return res.json()
 }
