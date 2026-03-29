@@ -3,34 +3,42 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   AppShell, Group, Title, Text, Button, Avatar, Box,
   UnstyledButton, Container, ThemeIcon, Stack, Burger,
-  NavLink, Badge, Divider, Tooltip,
+  NavLink, Badge, Divider,
 } from '@mantine/core'
 import {
   IconLogout, IconHome, IconScale, IconFileText,
-  IconReceipt, IconUsers, IconBuilding, IconCalendar,
-  IconMenu2, IconChevronLeft,
+  IconReceipt, IconUsers, IconBuilding,
 } from '@tabler/icons-react'
 import { useAuthStore } from '../../auth/useAuth'
 import { useCaseStore } from '../../store/caseStore'
+import { useUiStore } from '../../store/uiStore'
 import Toast from './Toast'
-
-const NAV_ITEMS = [
-  { path: '/', label: '\uB300\uC2DC\uBCF4\uB4DC', icon: IconHome, color: 'indigo' },
-  { path: '/billing', label: '\uBE44\uC6A9 \uAD00\uB9AC', icon: IconReceipt, color: 'teal' },
-  { path: '/workspace', label: '\uC791\uC5C5\uACF5\uAC04', icon: IconUsers, color: 'orange' },
-]
 
 export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
   const { workspace, cases, consultations } = useCaseStore()
+  const { dashboardTab, setDashboardTab } = useUiStore()
   const [navOpened, setNavOpened] = useState(false)
 
   const isShared = workspace?.type === 'shared'
+  const isDashboard = location.pathname === '/'
 
   const activeCases = cases.filter((c) => c.status === '\uC9C4\uD589' || c.status === '\uC811\uC218').length
   const activeConsults = consultations.filter((c) => c.status === '\uC9C4\uD589' || c.status === '\uC811\uC218').length
+
+  const handleNavCases = () => {
+    setDashboardTab('cases')
+    navigate('/')
+    setNavOpened(false)
+  }
+
+  const handleNavConsultations = () => {
+    setDashboardTab('consultations')
+    navigate('/')
+    setNavOpened(false)
+  }
 
   return (
     <AppShell
@@ -81,31 +89,77 @@ export default function Layout({ children }) {
       <AppShell.Navbar bg="white" p="xs">
         <AppShell.Section grow>
           <Stack gap={2}>
-            {NAV_ITEMS.map((item) => {
-              const isActive = location.pathname === item.path
-              const Icon = item.icon
-              return (
-                <NavLink
-                  key={item.path}
-                  label={item.label}
-                  leftSection={<Icon size={18} />}
-                  active={isActive}
-                  color={item.color}
-                  variant="light"
-                  onClick={() => {
-                    navigate(item.path)
-                    setNavOpened(false)
-                  }}
-                  rightSection={
-                    item.path === '/' ? (
-                      <Badge size="xs" variant="light" color="indigo">{activeCases + activeConsults}</Badge>
-                    ) : item.path === '/workspace' && isShared ? (
-                      <Badge size="xs" variant="dot" color="teal">{'\uACF5\uC720'}</Badge>
-                    ) : null
-                  }
-                />
-              )
-            })}
+            {/* \uB300\uC2DC\uBCF4\uB4DC */}
+            <NavLink
+              label={'\uB300\uC2DC\uBCF4\uB4DC'}
+              leftSection={<IconHome size={18} />}
+              active={isDashboard && !['cases', 'consultations'].includes(dashboardTab)}
+              color="indigo"
+              variant="light"
+              onClick={() => {
+                navigate('/')
+                setNavOpened(false)
+              }}
+            />
+
+            <Divider my={6} label={'\uC5C5\uBB34'} labelPosition="left" fz="xs" />
+
+            {/* \uC0AC\uAC74 \uAD00\uB9AC */}
+            <NavLink
+              label={'\uC0AC\uAC74 \uAD00\uB9AC'}
+              leftSection={<IconScale size={18} />}
+              active={isDashboard && dashboardTab === 'cases'}
+              color="blue"
+              variant="light"
+              onClick={handleNavCases}
+              rightSection={
+                <Badge size="xs" variant="light" color="blue">{activeCases}</Badge>
+              }
+            />
+
+            {/* \uC790\uBB38 \uAD00\uB9AC */}
+            <NavLink
+              label={'\uC790\uBB38 \uAD00\uB9AC'}
+              leftSection={<IconFileText size={18} />}
+              active={isDashboard && dashboardTab === 'consultations'}
+              color="grape"
+              variant="light"
+              onClick={handleNavConsultations}
+              rightSection={
+                <Badge size="xs" variant="light" color="grape">{activeConsults}</Badge>
+              }
+            />
+
+            <Divider my={6} label={'\uAD00\uB9AC'} labelPosition="left" fz="xs" />
+
+            {/* \uBE44\uC6A9 \uAD00\uB9AC */}
+            <NavLink
+              label={'\uBE44\uC6A9 \uAD00\uB9AC'}
+              leftSection={<IconReceipt size={18} />}
+              active={location.pathname === '/billing'}
+              color="teal"
+              variant="light"
+              onClick={() => {
+                navigate('/billing')
+                setNavOpened(false)
+              }}
+            />
+
+            {/* \uC791\uC5C5\uACF5\uAC04 */}
+            <NavLink
+              label={'\uC791\uC5C5\uACF5\uAC04'}
+              leftSection={<IconUsers size={18} />}
+              active={location.pathname === '/workspace'}
+              color="orange"
+              variant="light"
+              onClick={() => {
+                navigate('/workspace')
+                setNavOpened(false)
+              }}
+              rightSection={
+                isShared ? <Badge size="xs" variant="dot" color="teal">{'\uACF5\uC720'}</Badge> : null
+              }
+            />
           </Stack>
         </AppShell.Section>
 
