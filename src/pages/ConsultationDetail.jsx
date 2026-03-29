@@ -349,93 +349,97 @@ function InfoTab({ caseData }) {
   const phones = caseData.clientPhones?.length > 0 ? caseData.clientPhones : (caseData.clientPhone ? [caseData.clientPhone] : [])
 
   return (
-    <Stack gap="md">
-      {/* \uB9C8\uAC10\uC77C \uAD00\uB9AC */}
-      <DeadlineCard caseData={caseData} onUpdate={handleUpdate} />
+    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+      {/* 자문 정보 */}
+      <Stack gap="md">
+        <DeadlineCard caseData={caseData} onUpdate={handleUpdate} />
 
-      {/* \uC790\uBB38 \uC815\uBCF4 */}
-      <Card padding="md">
-        <Group justify="space-between" mb="md">
-          <Text size="sm" fw={600}>{'\uC790\uBB38 \uC815\uBCF4'}</Text>
-          <Button
-            variant="subtle"
-            color="gray"
-            size="xs"
-            leftSection={<IconEdit size={14} />}
-            onClick={startEdit}
-          >
-            {'\uC218\uC815'}
-          </Button>
-        </Group>
+        <Card padding="lg">
+          <Group justify="space-between" mb="md">
+            <Text size="sm" fw={600}>{'\uC790\uBB38 \uC815\uBCF4'}</Text>
+            <Button
+              variant="subtle"
+              color="gray"
+              size="xs"
+              leftSection={<IconEdit size={14} />}
+              onClick={startEdit}
+            >
+              {'\uC218\uC815'}
+            </Button>
+          </Group>
 
+          <Stack gap="sm">
+            <SimpleGrid cols={2}>
+              <div>
+                <Text size="xs" c="dimmed">{'\uC758\uB8B0\uC778'}</Text>
+                <Text size="sm" fw={500}>{caseData.clientName}</Text>
+              </div>
+              <div>
+                <Text size="xs" c="dimmed">{'\uC790\uBB38 \uC720\uD615'}</Text>
+                <Text size="sm">{caseData.type || '-'}</Text>
+              </div>
+            </SimpleGrid>
+
+            <SimpleGrid cols={2}>
+              <div>
+                <Text size="xs" c="dimmed">{'\uC0C1\uD0DC'}</Text>
+                <Badge status={caseData.status} />
+              </div>
+              <div>
+                <Text size="xs" c="dimmed">{'\uB4F1\uB85D\uC77C'}</Text>
+                <Text size="sm">{caseData.openedAt || '-'}</Text>
+              </div>
+            </SimpleGrid>
+
+            {caseData.subject && (
+              <div>
+                <Text size="xs" c="dimmed">{'\uC8FC\uC81C'}</Text>
+                <Text size="sm">{caseData.subject}</Text>
+              </div>
+            )}
+
+            {caseData.tags?.length > 0 && (
+              <div>
+                <Text size="xs" c="dimmed" mb={4}>{'\uD0DC\uADF8'}</Text>
+                <Group gap={4}>
+                  {caseData.tags.map((tag) => (
+                    <MantineBadge key={tag} variant="light" color="gray" size="xs">
+                      {tag}
+                    </MantineBadge>
+                  ))}
+                </Group>
+              </div>
+            )}
+
+            {caseData.note && (
+              <div>
+                <Text size="xs" c="dimmed">{'\uBA54\uBAA8'}</Text>
+                <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{caseData.note}</Text>
+              </div>
+            )}
+          </Stack>
+        </Card>
+      </Stack>
+
+      {/* 연락처 */}
+      <Card padding="lg">
+        <Text size="sm" fw={600} mb="md">{'\uC5F0\uB77D\uCC98'}</Text>
         <Stack gap="sm">
-          <SimpleGrid cols={2}>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC758\uB8B0\uC778'}</Text>
-              <Text size="sm" fw={500}>{caseData.clientName}</Text>
-            </div>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC790\uBB38 \uC720\uD615'}</Text>
-              <Text size="sm">{caseData.type || '-'}</Text>
-            </div>
-          </SimpleGrid>
-
-          <SimpleGrid cols={2}>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC0C1\uD0DC'}</Text>
-              <Badge status={caseData.status} />
-            </div>
-            <div>
-              <Text size="xs" c="dimmed">{'\uB4F1\uB85D\uC77C'}</Text>
-              <Text size="sm">{caseData.openedAt || '-'}</Text>
-            </div>
-          </SimpleGrid>
-
-          {caseData.subject && (
-            <div>
-              <Text size="xs" c="dimmed">{'\uC8FC\uC81C'}</Text>
-              <Text size="sm">{caseData.subject}</Text>
-            </div>
-          )}
-
-          {/* \uC774\uBA54\uC77C \uBAA9\uB85D */}
-          <SimpleGrid cols={2}>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC774\uBA54\uC77C'}</Text>
-              {emails.length > 0 ? emails.map((e, i) => (
-                <Text key={i} size="sm">{e}</Text>
-              )) : <Text size="sm" c="dimmed">-</Text>}
-            </div>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC804\uD654\uBC88\uD638'}</Text>
-              {phones.length > 0 ? phones.map((p, i) => (
-                <Text key={i} size="sm">{p}</Text>
-              )) : <Text size="sm" c="dimmed">-</Text>}
-            </div>
-          </SimpleGrid>
-
-          {caseData.tags?.length > 0 && (
-            <div>
-              <Text size="xs" c="dimmed" mb={4}>{'\uD0DC\uADF8'}</Text>
-              <Group gap={4}>
-                {caseData.tags.map((tag) => (
-                  <MantineBadge key={tag} variant="light" color="gray" size="xs">
-                    {tag}
-                  </MantineBadge>
-                ))}
-              </Group>
-            </div>
-          )}
-
-          {caseData.note && (
-            <div>
-              <Text size="xs" c="dimmed">{'\uBA54\uBAA8'}</Text>
-              <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{caseData.note}</Text>
-            </div>
-          )}
+          <div>
+            <Text size="xs" c="dimmed">{'\uC774\uBA54\uC77C'}</Text>
+            {emails.length > 0 ? emails.map((e, i) => (
+              <Text key={i} size="sm">{e}</Text>
+            )) : <Text size="sm" c="dimmed">-</Text>}
+          </div>
+          <div>
+            <Text size="xs" c="dimmed">{'\uC804\uD654\uBC88\uD638'}</Text>
+            {phones.length > 0 ? phones.map((p, i) => (
+              <Text key={i} size="sm">{p}</Text>
+            )) : <Text size="sm" c="dimmed">-</Text>}
+          </div>
         </Stack>
       </Card>
-    </Stack>
+    </SimpleGrid>
   )
 }
 
@@ -473,9 +477,9 @@ export default function ConsultationDetail() {
           borderBottom: '1px solid var(--mantine-color-gray-2)',
         }}
       >
-        <Container size="md" py="sm">
+        <Container size="xl" py="sm">
           <Group gap="sm" mb="sm">
-            <ActionIcon variant="subtle" color="gray" onClick={() => navigate('/')}>
+            <ActionIcon variant="subtle" color="gray" onClick={() => navigate('/consultations')}>
               <IconArrowLeft size={18} />
             </ActionIcon>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -513,12 +517,10 @@ export default function ConsultationDetail() {
       </Box>
 
       {/* Content */}
-      <Container size="md" py="lg">
+      <Container size="xl" py="lg">
         {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
         {activeTab === 'kakao' && <KakaoParser caseData={currentCase} />}
-
         {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
-
         {activeTab === 'info' && <InfoTab caseData={currentCase} />}
       </Container>
     </>

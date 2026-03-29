@@ -517,7 +517,7 @@ function RetainerPanel({ retainers, cases, consultations, getItemName, onSave })
           </Stack>
         </Center>
       ) : (
-        <Stack gap="md">
+        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
           {retainers.map((ret) => (
             <RetainerCard
               key={ret.id}
@@ -528,7 +528,7 @@ function RetainerPanel({ retainers, cases, consultations, getItemName, onSave })
               onPaymentConfirm={handlePaymentConfirm}
             />
           ))}
-        </Stack>
+        </SimpleGrid>
       )}
 
       {/* 수임 계약 등록 모달 */}

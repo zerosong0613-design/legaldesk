@@ -255,8 +255,8 @@ function InfoTab({ caseData }) {
   }
 
   return (
-    <Stack gap="md">
-      <Card padding="md">
+    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+      <Card padding="lg">
         <Group justify="space-between" mb="md">
           <Text size="sm" fw={600}>{'\uC0AC\uAC74 \uC815\uBCF4'}</Text>
           <Button size="xs" variant="subtle" color="gray" leftSection={<IconEdit size={14} />} onClick={startEdit}>
@@ -346,7 +346,7 @@ function InfoTab({ caseData }) {
         </Stack>
       </Card>
 
-      <Card padding="md">
+      <Card padding="lg">
         <Text size="sm" fw={600} mb="md">{'\uC5F0\uB77D\uCC98'}</Text>
         <Stack gap="sm">
           <SimpleGrid cols={2}>
@@ -376,7 +376,7 @@ function InfoTab({ caseData }) {
           )}
         </Stack>
       </Card>
-    </Stack>
+    </SimpleGrid>
   )
 }
 
@@ -410,9 +410,9 @@ export default function CaseDetail() {
           borderBottom: '1px solid var(--mantine-color-gray-2)',
         }}
       >
-        <Container size="md" py="sm">
+        <Container size="xl" py="sm">
           <Group gap="sm" mb="sm">
-            <ActionIcon variant="subtle" color="gray" onClick={() => navigate('/')}>
+            <ActionIcon variant="subtle" color="gray" onClick={() => navigate('/cases')}>
               <IconArrowLeft size={18} />
             </ActionIcon>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -441,7 +441,7 @@ export default function CaseDetail() {
       </Box>
 
       {/* \uCF58\uD150\uCE20 */}
-      <Container size="md" py="lg">
+      <Container size="xl" py="lg">
         {activeTab === 'info' && <InfoTab caseData={currentCase} />}
         {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
         {activeTab === 'hearings' && <HearingList caseData={currentCase} />}
