@@ -142,6 +142,37 @@ export const useScheduleStore = create((set, get) => ({
     }
   },
 
+  importFromCalendar: async (calendarEvents) => {
+    const { schedulesFileId } = get()
+    if (!schedulesFileId || !calendarEvents?.length) return 0
+
+    set({ isLoading: true, error: null })
+    try {
+      const data = await readSchedulesIndex(schedulesFileId)
+
+      const newSchedules = calendarEvents.map((ev) => ({
+        id: `S-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: ev.summary,
+        datetime: ev.datetime,
+        endDatetime: ev.endDatetime || null,
+        type: '기타',
+        location: ev.location || '',
+        note: ev.description || '',
+        allDay: ev.allDay || false,
+        calendarEventId: ev.calendarEventId,
+        createdAt: new Date().toISOString(),
+      }))
+
+      data.schedules.push(...newSchedules)
+      await writeSchedulesIndex(schedulesFileId, data)
+      set({ schedules: data.schedules, isLoading: false })
+      return newSchedules.length
+    } catch (err) {
+      set({ error: `일정 가져오기 실패: ${err.message}`, isLoading: false })
+      return 0
+    }
+  },
+
   reset: () => {
     set({
       schedules: [],

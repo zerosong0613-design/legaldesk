@@ -185,6 +185,34 @@ export function matchEventsToCaseNumber(events, caseNumber) {
   })
 }
 
+/**
+ * Google Calendar에서 모든 이벤트 가져오기 (법원 필터 없음)
+ * 일정 가져오기용 — 법원 키워드 관계없이 전체 이벤트 반환
+ */
+export async function fetchAllCalendarEvents(timeMin, timeMax) {
+  const calendars = await listCalendars()
+  const allItems = []
+
+  for (const cal of calendars) {
+    const events = await fetchEventsFromCalendar(cal.id, timeMin, timeMax)
+    allItems.push(...events)
+  }
+
+  return allItems
+    .filter((ev) => ev.summary)
+    .map((ev) => ({
+      id: ev.id,
+      calendarEventId: ev.id,
+      summary: ev.summary || '',
+      datetime: ev.start?.dateTime || ev.start?.date || '',
+      endDatetime: ev.end?.dateTime || ev.end?.date || '',
+      allDay: !ev.start?.dateTime,
+      location: ev.location || '',
+      description: ev.description || '',
+    }))
+    .sort((a, b) => new Date(a.datetime) - new Date(b.datetime))
+}
+
 // --- 일정(스케줄) 캘린더 연동 ---
 
 export async function createScheduleCalendarEvent(schedule) {

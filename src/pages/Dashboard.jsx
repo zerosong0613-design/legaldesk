@@ -1,14 +1,15 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Group, Text, Badge, Card,
-  SimpleGrid, TextInput, Stack, Box,
+  Group, Text, Badge, Card, Button, Checkbox,
+  SimpleGrid, TextInput, Stack, Box, Alert,
   UnstyledButton, Container, ThemeIcon, ActionIcon,
 } from '@mantine/core'
 import {
   IconSearch, IconScale,
-  IconFileText, IconClock, IconArrowRight, IconPlus,
+  IconFileText, IconClock, IconArrowRight, IconPlus, IconCalendarEvent,
 } from '@tabler/icons-react'
+import { fetchAllCalendarEvents } from '../api/calendar'
 import { useCaseStore } from '../store/caseStore'
 import { useScheduleStore } from '../store/scheduleStore'
 import { useUiStore } from '../store/uiStore'
@@ -65,10 +66,61 @@ function matchesQuery(item, q) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { cases, consultations } = useCaseStore()
-  const { schedules, createSchedule, updateSchedule, deleteSchedule } = useScheduleStore()
+  const { schedules, createSchedule, updateSchedule, deleteSchedule, importFromCalendar } = useScheduleStore()
   const { searchQuery, setSearchQuery } = useUiStore()
+  const showToast = useUiStore((s) => s.showToast)
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
   const [editingSchedule, setEditingSchedule] = useState(null)
+  const [calImportEvents, setCalImportEvents] = useState(null)
+  const [calImportSelected, setCalImportSelected] = useState(new Set())
+  const [isImporting, setIsImporting] = useState(false)
+
+  const handleFetchCalendarEvents = async () => {
+    setIsImporting(true)
+    try {
+      const now = new Date()
+      const timeMin = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const timeMax = new Date(now.getFullYear(), now.getMonth() + 3, now.getDate())
+      const allEvents = await fetchAllCalendarEvents(timeMin.toISOString(), timeMax.toISOString())
+
+      // 이미 가져온 이벤트 제외
+      const existingCalIds = new Set(schedules.map((s) => s.calendarEventId).filter(Boolean))
+      const newEvents = allEvents.filter((ev) => !existingCalIds.has(ev.calendarEventId))
+
+      setCalImportEvents(newEvents)
+      setCalImportSelected(new Set(newEvents.map((ev) => ev.id)))
+      if (newEvents.length === 0) showToast('가져올 새 일정이 없습니다.', 'info')
+    } catch (err) {
+      showToast(`캘린더 조회 실패: ${err.message}`, 'error')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const handleImportSelected = async () => {
+    if (!calImportEvents || calImportSelected.size === 0) return
+    setIsImporting(true)
+    try {
+      const selected = calImportEvents.filter((ev) => calImportSelected.has(ev.id))
+      const count = await importFromCalendar(selected)
+      setCalImportEvents(null)
+      setCalImportSelected(new Set())
+      showToast(`${count}개 일정을 가져왔습니다.`, 'success')
+    } catch (err) {
+      showToast(`가져오기 실패: ${err.message}`, 'error')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const toggleImportEvent = (id) => {
+    setCalImportSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const stats = useMemo(() => {
     const activeCases = cases.filter((c) => c.status === '\uC9C4\uD589' || c.status === '\uC811\uC218')
@@ -328,16 +380,77 @@ export default function Dashboard() {
               <Text size="sm" fw={600}>
                 {'\uC77C\uC815'} ({sortedEvents.length})
               </Text>
-              <ActionIcon
-                variant="light"
-                color="blue"
-                size="sm"
-                onClick={() => { setEditingSchedule(null); setScheduleModalOpen(true) }}
-              >
-                <IconPlus size={14} />
-              </ActionIcon>
+              <Group gap={4}>
+                <ActionIcon
+                  variant="light"
+                  color="teal"
+                  size="sm"
+                  onClick={handleFetchCalendarEvents}
+                  loading={isImporting}
+                  title="캘린더에서 가져오기"
+                >
+                  <IconCalendarEvent size={14} />
+                </ActionIcon>
+                <ActionIcon
+                  variant="light"
+                  color="blue"
+                  size="sm"
+                  onClick={() => { setEditingSchedule(null); setScheduleModalOpen(true) }}
+                  title="일정 추가"
+                >
+                  <IconPlus size={14} />
+                </ActionIcon>
+              </Group>
             </Group>
-            {sortedEvents.length === 0 ? (
+            {/* 캘린더 가져오기 패널 */}
+            {calImportEvents !== null && calImportEvents.length > 0 && (
+              <Alert color="teal" radius="md" mb="sm">
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={600}>
+                    캘린더에서 {calImportEvents.length}개 일정 발견
+                  </Text>
+                  <Group gap="xs">
+                    <Button variant="subtle" size="xs" onClick={() => { setCalImportEvents(null); setCalImportSelected(new Set()) }}>
+                      닫기
+                    </Button>
+                    <Button
+                      color="teal" size="xs"
+                      onClick={handleImportSelected}
+                      loading={isImporting}
+                      disabled={calImportSelected.size === 0}
+                    >
+                      선택 가져오기 ({calImportSelected.size})
+                    </Button>
+                  </Group>
+                </Group>
+                <Stack gap={4} mah={200} style={{ overflowY: 'auto' }}>
+                  {calImportEvents.map((ev) => (
+                    <Group key={ev.id} gap="sm" wrap="nowrap">
+                      <Checkbox
+                        size="xs"
+                        checked={calImportSelected.has(ev.id)}
+                        onChange={() => toggleImportEvent(ev.id)}
+                      />
+                      <Text size="xs" c="dimmed" ff="monospace" style={{ flexShrink: 0 }}>
+                        {formatDate(ev.datetime)}{formatTime(ev.datetime) ? ` ${formatTime(ev.datetime)}` : ''}
+                      </Text>
+                      <Text size="sm" truncate style={{ flex: 1 }}>{ev.summary}</Text>
+                    </Group>
+                  ))}
+                </Stack>
+              </Alert>
+            )}
+
+            {calImportEvents !== null && calImportEvents.length === 0 && (
+              <Alert color="teal" radius="md" mb="sm">
+                <Group justify="space-between">
+                  <Text size="sm">가져올 새 일정이 없습니다.</Text>
+                  <Button variant="subtle" size="xs" onClick={() => setCalImportEvents(null)}>닫기</Button>
+                </Group>
+              </Alert>
+            )}
+
+            {sortedEvents.length === 0 && calImportEvents === null ? (
               <Text size="sm" c="dimmed" py="lg">{'\uB4F1\uB85D\uB41C \uC77C\uC815\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
             ) : (
               <Stack gap={4} mah={320} style={{ overflowY: 'auto' }}>
