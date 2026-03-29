@@ -16,7 +16,7 @@ import {
   IconTrendingDown, IconCalendarStats, IconArrowUpRight,
   IconArrowDownRight, IconMinus, IconFileInvoice,
   IconContract, IconCoin, IconClipboardList,
-  IconPaperclip, IconAlertCircle,
+  IconPaperclip, IconAlertCircle, IconMail,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
@@ -793,11 +793,224 @@ function DisbursementPanel({ disbursements, cases, consultations, getItemName, o
 }
 
 // ==================================================
+// Gmail 발송 유틸리티
+// ==================================================
+
+function buildInvoiceEmailBody(invoice, caseInfo) {
+  const itemRows = (invoice.lineItems || []).map((li) =>
+    `${li.label}${li.note ? ` (${li.note})` : ''}\t${formatCurrency(li.amount)}`
+  ).join('\n')
+
+  return [
+    `안녕하세요, ${invoice.clientName} 님.`,
+    '',
+    '아래와 같이 청구서를 발송합니다.',
+    '',
+    `청구번호: ${invoice.invoiceNumber}`,
+    `사건: ${caseInfo.sub || ''} ${caseInfo.name}`,
+    '',
+    '───────────────────────────',
+    '항목\t\t\t금액',
+    '───────────────────────────',
+    itemRows,
+    '───────────────────────────',
+    `소계\t\t\t${formatCurrency(invoice.subtotal)}`,
+    invoice.vatAmount > 0 ? `부가세 (10%)\t\t${formatCurrency(invoice.vatAmount)}` : '',
+    `합계\t\t\t${formatCurrency(invoice.total)}`,
+    '───────────────────────────',
+    '',
+    `납부기한: ${formatDate(invoice.dueDate)}`,
+    '',
+    '감사합니다.',
+  ].filter(Boolean).join('\n')
+}
+
+function openGmailCompose(to, subject, body) {
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  window.open(gmailUrl, '_blank')
+}
+
+// ==================================================
+// 청구서 상세 모달
+// ==================================================
+
+function InvoiceDetailModal({ invoice, caseInfo, isOpen, onClose, onSend, onPaymentConfirm, onDelete }) {
+  if (!invoice) return null
+  const st = INVOICE_STATUSES[invoice.status] || INVOICE_STATUSES.draft
+  const isOverdue = invoice.status !== 'paid' && invoice.status !== 'cancelled' && invoice.dueDate && new Date(invoice.dueDate) < new Date()
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="청구서 상세">
+      <Stack gap="md">
+        {/* 헤더 정보 */}
+        <Card padding="md" bg="gray.0">
+          <Group justify="space-between" mb="sm">
+            <Text size="lg" fw={700} ff="monospace">{invoice.invoiceNumber}</Text>
+            <Badge color={isOverdue ? 'red' : st.color} variant="light" size="lg">
+              {isOverdue ? '연체' : st.label}
+            </Badge>
+          </Group>
+          <SimpleGrid cols={2} spacing="xs">
+            <Box>
+              <Text size="xs" c="dimmed">수신인</Text>
+              <Text size="sm" fw={500}>{invoice.clientName}</Text>
+              {invoice.clientEmail && <Text size="xs" c="dimmed">{invoice.clientEmail}</Text>}
+            </Box>
+            <Box>
+              <Text size="xs" c="dimmed">사건</Text>
+              <Text size="sm" fw={500}>{caseInfo.name}</Text>
+              {caseInfo.sub && <Text size="xs" c="dimmed">{caseInfo.sub}</Text>}
+            </Box>
+            <Box>
+              <Text size="xs" c="dimmed">발행일</Text>
+              <Text size="sm">{formatDate(invoice.issueDate)}</Text>
+            </Box>
+            <Box>
+              <Text size="xs" c="dimmed">납부기한</Text>
+              <Text size="sm" c={isOverdue ? 'red' : undefined} fw={isOverdue ? 600 : 400}>{formatDate(invoice.dueDate)}</Text>
+            </Box>
+          </SimpleGrid>
+        </Card>
+
+        {/* 항목 명세 */}
+        <Box>
+          <Text size="sm" fw={600} mb="xs">청구 항목</Text>
+          <Table verticalSpacing="xs">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>항목</Table.Th>
+                <Table.Th>비고</Table.Th>
+                <Table.Th ta="right">금액</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {(invoice.lineItems || []).map((li, i) => (
+                <Table.Tr key={i}>
+                  <Table.Td><Text size="sm" fw={500}>{li.label}</Text></Table.Td>
+                  <Table.Td><Text size="xs" c="dimmed">{li.note || '-'}</Text></Table.Td>
+                  <Table.Td ta="right"><Text size="sm" fw={600}>{formatCurrency(li.amount)}</Text></Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Box>
+
+        {/* 합계 */}
+        <Card padding="sm" bg="indigo.0">
+          <Group justify="space-between">
+            <Text size="sm">소계</Text>
+            <Text size="sm" fw={500}>{formatCurrency(invoice.subtotal)}</Text>
+          </Group>
+          {invoice.vatAmount > 0 && (
+            <Group justify="space-between" mt={4}>
+              <Text size="sm">부가세 (10%)</Text>
+              <Text size="sm" fw={500}>{formatCurrency(invoice.vatAmount)}</Text>
+            </Group>
+          )}
+          <Divider my="xs" />
+          <Group justify="space-between">
+            <Text size="sm" fw={700}>합계</Text>
+            <Text size="lg" fw={700} c="indigo">{formatCurrency(invoice.total)}</Text>
+          </Group>
+          {invoice.total >= 10000 && <Text size="xs" c="dimmed" ta="right">{numberToKorean(invoice.total)}</Text>}
+        </Card>
+
+        {/* 입금 정보 */}
+        {invoice.status === 'paid' && (
+          <Card padding="sm" bg="green.0">
+            <Group gap="xs">
+              <IconCheck size={16} color="var(--mantine-color-green-7)" />
+              <Text size="sm" fw={500} c="green.8">입금 확인 완료</Text>
+            </Group>
+            <Text size="xs" c="dimmed" mt={4}>
+              입금액: {formatCurrency(invoice.paidAmount)} · 입금일: {formatDate(invoice.paidAt)}
+            </Text>
+          </Card>
+        )}
+
+        {/* 발송 이력 */}
+        {invoice.sentAt && (
+          <Text size="xs" c="dimmed">이메일 발송: {formatDate(invoice.sentAt)}</Text>
+        )}
+
+        {/* 액션 버튼 */}
+        <Divider />
+        <Group justify="space-between">
+          <Button variant="subtle" color="red" size="xs" leftSection={<IconTrash size={14} />} onClick={() => { onDelete(invoice.id); onClose() }}>
+            삭제
+          </Button>
+          <Group gap="sm">
+            {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+              <>
+                <Button variant="light" color="teal" size="sm" leftSection={<IconCheck size={14} />} onClick={() => onPaymentConfirm(invoice)}>
+                  입금 확인
+                </Button>
+                <Button variant="filled" size="sm" leftSection={<IconMail size={14} />} onClick={() => onSend(invoice)}>
+                  이메일 발송
+                </Button>
+              </>
+            )}
+            {invoice.status === 'paid' && (
+              <Button variant="light" size="sm" leftSection={<IconMail size={14} />} onClick={() => onSend(invoice)}>
+                이메일 재발송
+              </Button>
+            )}
+          </Group>
+        </Group>
+      </Stack>
+    </Modal>
+  )
+}
+
+// ==================================================
+// 입금 확인 모달 (청구서용)
+// ==================================================
+
+function InvoicePaymentForm({ invoice, onSubmit, onCancel }) {
+  const [amount, setAmount] = useState(String(invoice?.total || ''))
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [memo, setMemo] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    try { await onSubmit(invoice.id, Number(amount), date, memo) } finally { setIsSubmitting(false) }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Stack gap="sm">
+        <Card padding="sm" bg="gray.0">
+          <Group justify="space-between">
+            <Text size="sm" c="dimmed">청구번호</Text>
+            <Text size="sm" fw={500} ff="monospace">{invoice?.invoiceNumber}</Text>
+          </Group>
+          <Group justify="space-between" mt={4}>
+            <Text size="sm" c="dimmed">청구 금액</Text>
+            <Text size="sm" fw={600} c="indigo">{formatCurrency(invoice?.total)}</Text>
+          </Group>
+        </Card>
+        <AmountInput label="실제 입금액" required withAsterisk value={amount} onChange={setAmount} />
+        <TextInput label="입금일" type="date" value={date} onChange={(e) => setDate(e.currentTarget.value)} required />
+        <TextInput label="메모" placeholder="예: 국민은행 이체 확인" value={memo} onChange={(e) => setMemo(e.currentTarget.value)} />
+        <Group justify="flex-end" gap="sm" mt="sm">
+          <Button variant="default" onClick={onCancel}>취소</Button>
+          <Button type="submit" loading={isSubmitting} color="teal" leftSection={<IconCheck size={14} />}>입금 확인 저장</Button>
+        </Group>
+      </Stack>
+    </form>
+  )
+}
+
+// ==================================================
 // 섹션 ③ 청구서 이력 패널
 // ==================================================
 
 function InvoicePanel({ invoices, retainers, disbursements, cases, consultations, getItemName, onSave }) {
-  const { openModal, closeModal, isModalOpen, modalType, showToast } = useUiStore()
+  const { openModal, closeModal, isModalOpen, modalType, modalData, showToast } = useUiStore()
+  const [selectedInvoice, setSelectedInvoice] = useState(null)
+  const [detailOpen, setDetailOpen] = useState(false)
 
   const handleCreate = async (formData) => {
     const newInvoices = [...invoices, { ...formData, createdAt: new Date().toISOString() }]
@@ -806,12 +1019,33 @@ function InvoicePanel({ invoices, retainers, disbursements, cases, consultations
     showToast('청구서가 생성되었습니다.', 'success')
   }
 
-  const handleStatusChange = async (id, status, paidAmount, paidAt) => {
+  const handlePaymentConfirm = async (invoiceId, paidAmount, paidAt, memo) => {
     const newInvoices = invoices.map((inv) =>
-      inv.id === id ? { ...inv, status, paidAmount: paidAmount || inv.paidAmount, paidAt: paidAt || inv.paidAt } : inv
+      inv.id === invoiceId ? { ...inv, status: 'paid', paidAmount, paidAt, paymentMemo: memo } : inv
     )
     await onSave('invoices', newInvoices)
-    showToast('청구서 상태가 변경되었습니다.', 'success')
+    closeModal()
+    setDetailOpen(false)
+    showToast('입금이 확인되었습니다.', 'success')
+  }
+
+  const handleSendEmail = (invoice) => {
+    const caseInfo = getItemName(invoice.caseId)
+    const caseObj = cases.find((c) => c.id === invoice.caseId)
+    const consultObj = consultations.find((c) => c.id === invoice.caseId)
+    const clientEmail = caseObj?.clientEmail || consultObj?.clientEmail || ''
+
+    const subject = `[${caseInfo.sub || ''}] 수임료 청구서 (${formatDate(invoice.issueDate)})`
+    const body = buildInvoiceEmailBody(invoice, caseInfo)
+
+    openGmailCompose(clientEmail, subject, body)
+
+    // 발송 상태 업데이트
+    const newInvoices = invoices.map((inv) =>
+      inv.id === invoice.id ? { ...inv, status: inv.status === 'draft' ? 'sent' : inv.status, sentAt: new Date().toISOString(), clientEmail } : inv
+    )
+    onSave('invoices', newInvoices)
+    showToast('Gmail 작성 창이 열렸습니다.', 'success')
   }
 
   const handleDelete = async (id) => {
@@ -820,6 +1054,16 @@ function InvoicePanel({ invoices, retainers, disbursements, cases, consultations
     showToast('청구서가 삭제되었습니다.', 'success')
   }
 
+  const openDetail = (inv) => {
+    setSelectedInvoice(inv)
+    setDetailOpen(true)
+  }
+
+  const sortedInvoices = useMemo(() =>
+    [...invoices].sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate)),
+    [invoices]
+  )
+
   return (
     <Stack gap="md">
       {invoices.length === 0 ? (
@@ -827,74 +1071,117 @@ function InvoicePanel({ invoices, retainers, disbursements, cases, consultations
           <Stack align="center" gap="sm">
             <ThemeIcon size={48} radius="xl" variant="light" color="blue"><IconFileInvoice size={24} /></ThemeIcon>
             <Text c="dimmed" size="sm">발행된 청구서가 없습니다</Text>
-            <Text size="xs" c="dimmed">수임 계약과 실비를 등록한 후 청구서를 발행할 수 있습니다.</Text>
-            {(retainers.length > 0 || disbursements.length > 0) && (
-              <Button variant="subtle" leftSection={<IconPlus size={14} />} onClick={() => openModal('createInvoice')}>
-                청구서 발행
-              </Button>
-            )}
+            <Text size="xs" c="dimmed">청구서를 발행하고 이메일로 발송할 수 있습니다.</Text>
+            <Button variant="subtle" leftSection={<IconPlus size={14} />} onClick={() => openModal('createInvoice')}>
+              청구서 발행
+            </Button>
           </Stack>
         </Center>
       ) : (
-        <Card padding={0}>
-          <Table.ScrollContainer minWidth={700}>
-            <Table striped={false} highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>청구번호</Table.Th>
-                  <Table.Th>발행일</Table.Th>
-                  <Table.Th>사건/자문</Table.Th>
-                  <Table.Th>금액</Table.Th>
-                  <Table.Th>상태</Table.Th>
-                  <Table.Th>납부기한</Table.Th>
-                  <Table.Th style={{ width: 80 }}></Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {invoices.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate)).map((inv) => {
-                  const item = getItemName(inv.caseId)
-                  const st = INVOICE_STATUSES[inv.status] || INVOICE_STATUSES.draft
-                  const isOverdue = inv.status !== 'paid' && inv.status !== 'cancelled' && inv.dueDate && new Date(inv.dueDate) < new Date()
-                  return (
-                    <Table.Tr key={inv.id}>
-                      <Table.Td><Text size="sm" ff="monospace" fw={500}>{inv.invoiceNumber}</Text></Table.Td>
-                      <Table.Td><Text size="sm">{formatDate(inv.issueDate)}</Text></Table.Td>
-                      <Table.Td>
-                        <Text size="sm" fw={500}>{item.name}</Text>
-                        {item.sub && <Text size="xs" c="dimmed">{item.sub}</Text>}
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" fw={600}>{formatCurrency(inv.total)}</Text>
-                        {inv.total >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(inv.total)}</Text>}
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge color={isOverdue ? 'red' : st.color} variant="light" size="sm">
-                          {isOverdue ? '❌ 연체' : `${st.icon} ${st.label}`}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" c={isOverdue ? 'red' : 'dimmed'}>{formatDate(inv.dueDate)}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap={4} wrap="nowrap">
-                          {inv.status !== 'paid' && inv.status !== 'cancelled' && (
-                            <Button variant="light" size="xs" color="teal" onClick={() => handleStatusChange(inv.id, 'paid', inv.total, new Date().toISOString().split('T')[0])}>
-                              입금확인
-                            </Button>
-                          )}
-                          <UnstyledButton onClick={() => handleDelete(inv.id)}>
-                            <IconTrash size={14} color="var(--mantine-color-red-5)" />
-                          </UnstyledButton>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  )
-                })}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
-        </Card>
+        <Stack gap="md">
+          {/* 요약 */}
+          <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+            <Card padding="sm" bg="gray.0">
+              <Text size="xs" c="dimmed">전체</Text>
+              <Text size="lg" fw={700}>{invoices.length}건</Text>
+            </Card>
+            <Card padding="sm" bg="green.0">
+              <Text size="xs" c="dimmed">완납</Text>
+              <Text size="lg" fw={700} c="green">{invoices.filter((i) => i.status === 'paid').length}건</Text>
+            </Card>
+            <Card padding="sm" bg="orange.0">
+              <Text size="xs" c="dimmed">미입금</Text>
+              <Text size="lg" fw={700} c="orange">{invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').length}건</Text>
+            </Card>
+            <Card padding="sm" bg="red.0">
+              <Text size="xs" c="dimmed">연체</Text>
+              <Text size="lg" fw={700} c="red">{invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled' && i.dueDate && new Date(i.dueDate) < new Date()).length}건</Text>
+            </Card>
+          </SimpleGrid>
+
+          {/* 청구서 목록 */}
+          <Card padding={0}>
+            <Table.ScrollContainer minWidth={700}>
+              <Table striped={false} highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>청구번호</Table.Th>
+                    <Table.Th>발행일</Table.Th>
+                    <Table.Th>사건/자문</Table.Th>
+                    <Table.Th>항목</Table.Th>
+                    <Table.Th ta="right">금액</Table.Th>
+                    <Table.Th>상태</Table.Th>
+                    <Table.Th>납부기한</Table.Th>
+                    <Table.Th style={{ width: 120 }}></Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {sortedInvoices.map((inv) => {
+                    const item = getItemName(inv.caseId)
+                    const st = INVOICE_STATUSES[inv.status] || INVOICE_STATUSES.draft
+                    const isOverdue = inv.status !== 'paid' && inv.status !== 'cancelled' && inv.dueDate && new Date(inv.dueDate) < new Date()
+                    const itemCount = (inv.lineItems || []).length
+                    const firstItem = (inv.lineItems || [])[0]?.label || ''
+                    return (
+                      <Table.Tr key={inv.id} style={{ cursor: 'pointer' }} onClick={() => openDetail(inv)}>
+                        <Table.Td><Text size="sm" ff="monospace" fw={500} c="indigo">{inv.invoiceNumber}</Text></Table.Td>
+                        <Table.Td><Text size="sm">{formatDate(inv.issueDate)}</Text></Table.Td>
+                        <Table.Td>
+                          <Text size="sm" fw={500}>{item.name}</Text>
+                          {item.sub && <Text size="xs" c="dimmed">{item.sub}</Text>}
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="xs" c="dimmed">
+                            {firstItem}{itemCount > 1 ? ` 외 ${itemCount - 1}건` : ''}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          <Text size="sm" fw={600}>{formatCurrency(inv.total)}</Text>
+                          {inv.total >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(inv.total)}</Text>}
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge color={isOverdue ? 'red' : st.color} variant="light" size="sm">
+                            {isOverdue ? '연체' : st.label}
+                          </Badge>
+                          {inv.sentAt && <Text size="xs" c="dimmed" mt={2}>발송됨</Text>}
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm" c={isOverdue ? 'red' : 'dimmed'}>{formatDate(inv.dueDate)}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Group gap={4} wrap="nowrap" onClick={(e) => e.stopPropagation()}>
+                            {inv.status !== 'paid' && inv.status !== 'cancelled' && (
+                              <Button variant="light" size="xs" color="blue" onClick={() => handleSendEmail(inv)}>
+                                발송
+                              </Button>
+                            )}
+                            {inv.status !== 'paid' && inv.status !== 'cancelled' && (
+                              <Button variant="light" size="xs" color="teal" onClick={() => { setSelectedInvoice(inv); openModal('invoicePayment') }}>
+                                입금
+                              </Button>
+                            )}
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    )
+                  })}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          </Card>
+        </Stack>
       )}
+
+      {/* 청구서 상세 모달 */}
+      <InvoiceDetailModal
+        invoice={selectedInvoice}
+        caseInfo={selectedInvoice ? getItemName(selectedInvoice.caseId) : { name: '', sub: '' }}
+        isOpen={detailOpen}
+        onClose={() => { setDetailOpen(false); setSelectedInvoice(null) }}
+        onSend={handleSendEmail}
+        onPaymentConfirm={(inv) => { setDetailOpen(false); setSelectedInvoice(inv); openModal('invoicePayment') }}
+        onDelete={handleDelete}
+      />
 
       {/* 청구서 생성 모달 */}
       <Modal isOpen={isModalOpen && modalType === 'createInvoice'} onClose={closeModal} title="청구서 발행">
@@ -908,9 +1195,24 @@ function InvoicePanel({ invoices, retainers, disbursements, cases, consultations
           onCancel={closeModal}
         />
       </Modal>
+
+      {/* 입금 확인 모달 */}
+      <Modal isOpen={isModalOpen && modalType === 'invoicePayment'} onClose={closeModal} title="입금 확인">
+        {selectedInvoice && (
+          <InvoicePaymentForm
+            invoice={selectedInvoice}
+            onSubmit={handlePaymentConfirm}
+            onCancel={closeModal}
+          />
+        )}
+      </Modal>
     </Stack>
   )
 }
+
+// ==================================================
+// 청구서 발행 폼
+// ==================================================
 
 function InvoiceForm({ cases, consultations, retainers, disbursements, getItemName, onSubmit, onCancel }) {
   const allItems = useMemo(() => {
@@ -922,13 +1224,23 @@ function InvoiceForm({ cases, consultations, retainers, disbursements, getItemNa
 
   const [caseId, setCaseId] = useState('')
   const [selectedItems, setSelectedItems] = useState([])
+  const [customItems, setCustomItems] = useState([])
   const [vatOption, setVatOption] = useState('excluded')
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() + 14)
     return d.toISOString().split('T')[0]
   })
+  const [clientEmail, setClientEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // 사건 선택 시 이메일 자동 채우기
+  useEffect(() => {
+    if (!caseId) return
+    const c = cases.find((x) => x.id === caseId)
+    const co = consultations.find((x) => x.id === caseId)
+    setClientEmail(c?.clientEmail || co?.clientEmail || '')
+  }, [caseId, cases, consultations])
 
   // 선택한 사건의 청구 가능 항목
   const availableItems = useMemo(() => {
@@ -954,18 +1266,39 @@ function InvoiceForm({ cases, consultations, retainers, disbursements, getItemNa
     setSelectedItems((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key])
   }
 
-  const subtotal = availableItems.filter((i) => selectedItems.includes(i.key)).reduce((s, i) => s + i.amount, 0)
+  // 커스텀 항목 추가/삭제
+  const addCustomItem = () => {
+    setCustomItems([...customItems, { id: `custom-${Date.now()}`, label: '', amount: '', note: '' }])
+  }
+  const updateCustomItem = (id, field, value) => {
+    setCustomItems(customItems.map((ci) => ci.id === id ? { ...ci, [field]: value } : ci))
+  }
+  const removeCustomItem = (id) => {
+    setCustomItems(customItems.filter((ci) => ci.id !== id))
+  }
+
+  // 합계 계산
+  const selectedTotal = availableItems.filter((i) => selectedItems.includes(i.key)).reduce((s, i) => s + i.amount, 0)
+  const customTotal = customItems.reduce((s, ci) => s + (Number(ci.amount) || 0), 0)
+  const subtotal = selectedTotal + customTotal
   const vatAmount = vatOption === 'excluded' ? Math.round(subtotal * 0.1) : vatOption === 'included' ? Math.round(subtotal - subtotal / 1.1) : 0
   const total = vatOption === 'excluded' ? subtotal + vatAmount : subtotal
 
+  const hasItems = selectedItems.length > 0 || customItems.some((ci) => ci.label && ci.amount)
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!caseId || selectedItems.length === 0) return
+    if (!caseId || !hasItems) return
     setIsSubmitting(true)
 
     const now = new Date()
     const invoiceNumber = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}`
     const item = getItemName(caseId)
+
+    const lineItems = [
+      ...availableItems.filter((i) => selectedItems.includes(i.key)).map((i) => ({ label: i.label, amount: i.amount, note: i.note })),
+      ...customItems.filter((ci) => ci.label && ci.amount).map((ci) => ({ label: ci.label, amount: Number(ci.amount), note: ci.note })),
+    ]
 
     try {
       await onSubmit({
@@ -976,8 +1309,8 @@ function InvoiceForm({ cases, consultations, retainers, disbursements, getItemNa
         issueDate: new Date().toISOString().split('T')[0],
         dueDate,
         clientName: item.name,
-        clientEmail: '',
-        lineItems: availableItems.filter((i) => selectedItems.includes(i.key)).map((i) => ({ label: i.label, amount: i.amount, note: i.note })),
+        clientEmail,
+        lineItems,
         subtotal,
         vatAmount,
         total,
@@ -993,15 +1326,16 @@ function InvoiceForm({ cases, consultations, retainers, disbursements, getItemNa
   return (
     <form onSubmit={handleSubmit}>
       <Stack gap="sm">
-        <Select label="사건 / 자문" placeholder="선택하세요" data={allItems} value={caseId} onChange={(v) => { setCaseId(v); setSelectedItems([]) }} searchable required withAsterisk />
+        <Select label="사건 / 자문" placeholder="선택하세요" data={allItems} value={caseId} onChange={(v) => { setCaseId(v); setSelectedItems([]); setCustomItems([]) }} searchable required withAsterisk />
 
-        {caseId && availableItems.length === 0 && (
-          <Text size="sm" c="dimmed" ta="center" py="md">청구 가능한 항목이 없습니다. 수임 계약이나 실비를 먼저 등록하세요.</Text>
+        {caseId && (
+          <TextInput label="의뢰인 이메일" placeholder="client@example.com" value={clientEmail} onChange={(e) => setClientEmail(e.currentTarget.value)} />
         )}
 
-        {availableItems.length > 0 && (
+        {/* 등록된 항목에서 선택 */}
+        {caseId && availableItems.length > 0 && (
           <>
-            <Text size="sm" fw={500}>청구 항목 선택</Text>
+            <Text size="sm" fw={500} mt="xs">등록된 항목에서 선택</Text>
             <Stack gap={6}>
               {availableItems.map((item) => (
                 <Card key={item.key} padding="xs" withBorder style={{ cursor: 'pointer', backgroundColor: selectedItems.includes(item.key) ? 'var(--mantine-color-indigo-0)' : undefined }} onClick={() => toggleItem(item.key)}>
@@ -1018,9 +1352,35 @@ function InvoiceForm({ cases, consultations, retainers, disbursements, getItemNa
                 </Card>
               ))}
             </Stack>
+          </>
+        )}
 
+        {/* 직접 항목 추가 */}
+        {caseId && (
+          <>
+            <Divider label="직접 항목 추가" labelPosition="left" />
+            {customItems.map((ci) => (
+              <Card key={ci.id} padding="xs" withBorder>
+                <Group gap="xs" align="flex-end">
+                  <TextInput placeholder="항목명" value={ci.label} onChange={(e) => updateCustomItem(ci.id, 'label', e.currentTarget.value)} style={{ flex: 2 }} size="sm" />
+                  <TextInput placeholder="금액" value={ci.amount ? formatWithCommas(String(ci.amount)) : ''} onChange={(e) => updateCustomItem(ci.id, 'amount', stripNonDigits(e.currentTarget.value))} style={{ flex: 1 }} size="sm" />
+                  <TextInput placeholder="비고" value={ci.note} onChange={(e) => updateCustomItem(ci.id, 'note', e.currentTarget.value)} style={{ flex: 1 }} size="sm" />
+                  <UnstyledButton onClick={() => removeCustomItem(ci.id)}>
+                    <IconX size={16} color="var(--mantine-color-red-5)" />
+                  </UnstyledButton>
+                </Group>
+              </Card>
+            ))}
+            <Button variant="subtle" size="xs" leftSection={<IconPlus size={14} />} onClick={addCustomItem}>
+              항목 추가
+            </Button>
+          </>
+        )}
+
+        {/* 합계 */}
+        {caseId && hasItems && (
+          <>
             <Divider />
-
             <Radio.Group label="부가세" value={vatOption} onChange={setVatOption}>
               <Group gap="lg" mt={4}>
                 <Radio value="excluded" label="별도" />
@@ -1054,7 +1414,7 @@ function InvoiceForm({ cases, consultations, retainers, disbursements, getItemNa
 
         <Group justify="flex-end" gap="sm" mt="sm">
           <Button variant="default" onClick={onCancel}>취소</Button>
-          <Button type="submit" loading={isSubmitting} disabled={!caseId || selectedItems.length === 0} leftSection={<IconFileInvoice size={14} />}>청구서 생성</Button>
+          <Button type="submit" loading={isSubmitting} disabled={!caseId || !hasItems} leftSection={<IconFileInvoice size={14} />}>청구서 생성</Button>
         </Group>
       </Stack>
     </form>
