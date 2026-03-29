@@ -18,7 +18,6 @@ import KakaoParser from '../components/case/KakaoParser'
 import Timeline from '../components/case/Timeline'
 import EmailList from '../components/case/EmailList'
 import DocumentList from '../components/case/DocumentList'
-import Toast from '../components/ui/Toast'
 import { getDday } from '../utils/dateUtils'
 
 const CASE_TYPES = ['\uBBFC\uC0AC', '\uD615\uC0AC', '\uAC00\uC0AC', '\uD589\uC815', '\uAE30\uD0C0']
@@ -400,7 +399,7 @@ export default function CaseDetail() {
   }
 
   return (
-    <Box mih="100vh" bg="#f0f2f5">
+    <>
       {/* Sticky \uD5E4\uB354 */}
       <Box
         bg="white"
@@ -451,7 +450,6 @@ export default function CaseDetail() {
         {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
       </Container>
 
-      <Toast />
-    </Box>
+    </>
   )
 }

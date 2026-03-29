@@ -5,6 +5,7 @@ import { useAuthStore } from './auth/useAuth'
 import { useCaseStore } from './store/caseStore'
 import GoogleAuth from './auth/GoogleAuth'
 import AuthCallback from './auth/AuthCallback'
+import Layout from './components/ui/Layout'
 import Dashboard from './pages/Dashboard'
 import CaseDetail from './pages/CaseDetail'
 import ConsultationDetail from './pages/ConsultationDetail'
@@ -60,13 +61,15 @@ function AppContent() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/case/:id" element={<CaseDetail />} />
-      <Route path="/consultation/:id" element={<ConsultationDetail />} />
-      <Route path="/billing" element={<Billing />} />
-      <Route path="/workspace" element={<WorkspaceSettings />} />
-    </Routes>
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/case/:id" element={<CaseDetail />} />
+        <Route path="/consultation/:id" element={<ConsultationDetail />} />
+        <Route path="/billing" element={<Billing />} />
+        <Route path="/workspace" element={<WorkspaceSettings />} />
+      </Routes>
+    </Layout>
   )
 }
 

@@ -1,18 +1,17 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  AppShell, Group, Title, Text, Button, Avatar, Card,
-  Stack, Container, UnstyledButton, TextInput, Badge,
+  Group, Text, Button, Avatar, Card,
+  Stack, Container, TextInput, Badge,
   ActionIcon, ThemeIcon, Center, Loader, Alert, Box,
   SimpleGrid, Divider,
 } from '@mantine/core'
 import {
-  IconLogout, IconArrowLeft, IconUsers, IconFolder,
+  IconArrowLeft, IconUsers, IconFolder,
   IconPlus, IconCheck, IconX, IconTrash, IconShare,
   IconUser, IconBuilding, IconMail, IconRefresh,
   IconLink, IconExternalLink, IconSearch,
 } from '@tabler/icons-react'
-import { useAuthStore } from '../auth/useAuth'
 import { useCaseStore } from '../store/caseStore'
 import {
   findSharedLegalDeskFolders,
@@ -21,7 +20,6 @@ import {
   shareFolderWithEmail,
   listFolderPermissions,
 } from '../api/drive'
-import Toast from '../components/ui/Toast'
 import { useUiStore } from '../store/uiStore'
 
 function WorkspaceCard({ ws, isCurrent, onSelect }) {
@@ -77,7 +75,6 @@ function WorkspaceCard({ ws, isCurrent, onSelect }) {
 
 export default function WorkspaceSettings() {
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
   const { workspace, switchWorkspace, driveRootId } = useCaseStore()
   const { showToast } = useUiStore()
 
@@ -213,38 +210,8 @@ export default function WorkspaceSettings() {
   }
 
   return (
-    <AppShell header={{ height: 56 }} bg="#f0f2f5">
-      <AppShell.Header bg="#1d2124" style={{ borderBottom: 'none' }}>
-        <Container size="xl" h="100%">
-          <Group h="100%" justify="space-between">
-            <Group gap="sm">
-              <UnstyledButton onClick={() => navigate('/')}>
-                <Title order={4} c="white" ff="'Noto Serif KR', serif">LegalDesk</Title>
-              </UnstyledButton>
-              <Text c="gray.5" size="sm">|</Text>
-              <Text c="gray.3" size="sm" fw={500}>{'\uC791\uC5C5\uACF5\uAC04 \uC124\uC815'}</Text>
-            </Group>
-            <Group gap="sm">
-              {user?.picture && <Avatar src={user.picture} size="sm" radius="xl" />}
-              <Text size="sm" c="gray.4" visibleFrom="sm">{user?.name}</Text>
-              <Button
-                variant="subtle"
-                color="gray"
-                size="xs"
-                leftSection={<IconLogout size={14} />}
-                onClick={logout}
-                styles={{ root: { color: 'var(--mantine-color-gray-5)' } }}
-              >
-                {'\uB85C\uADF8\uC544\uC6C3'}
-              </Button>
-            </Group>
-          </Group>
-        </Container>
-      </AppShell.Header>
-
-      <AppShell.Main>
-        <Container size="sm" py="lg">
-          <Stack gap="lg">
+    <Container size="sm" py="lg">
+      <Stack gap="lg">
             {/* Back + Title */}
             <Group gap="sm">
               <ActionIcon variant="subtle" color="gray" onClick={() => navigate('/')}>
@@ -494,11 +461,7 @@ export default function WorkspaceSettings() {
                 </Alert>
               </>
             )}
-          </Stack>
-        </Container>
-      </AppShell.Main>
-
-      <Toast />
-    </AppShell>
+      </Stack>
+    </Container>
   )
 }

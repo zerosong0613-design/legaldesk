@@ -1,23 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  AppShell, Group, Title, Text, Button, Avatar, Card,
+  Group, Text, Button, Card,
   SimpleGrid, Stack, Box, Container, UnstyledButton,
   TextInput, Select, Badge, ActionIcon, Alert, Textarea,
   Table, ThemeIcon, Center, Loader, Collapse,
 } from '@mantine/core'
 import {
-  IconLogout, IconArrowLeft, IconPlus, IconReceipt,
+  IconArrowLeft, IconPlus, IconReceipt,
   IconCash, IconCreditCard, IconTrash, IconEdit,
   IconSearch, IconChartBar, IconCheck, IconX,
   IconChevronDown, IconChevronUp,
 } from '@tabler/icons-react'
-import { useAuthStore } from '../auth/useAuth'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import { readCasesIndex, writeCasesIndex } from '../api/drive'
 import Modal from '../components/ui/Modal'
-import Toast from '../components/ui/Toast'
 
 // --- \uAE08\uC561 \uD3EC\uB9F7 \uC720\uD2F8\uB9AC\uD2F0 ---
 
@@ -307,7 +305,6 @@ function BillingRow({ bill, getItemName, navigate, onEdit, onDelete, isExpanded,
 
 export default function Billing() {
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
   const { cases, consultations, casesFileId } = useCaseStore()
   const { showToast, isModalOpen, modalType, openModal, closeModal } = useUiStore()
   const [billings, setBillings] = useState([])
@@ -397,37 +394,8 @@ export default function Billing() {
   }, [billings, filterType, searchQuery])
 
   return (
-    <AppShell header={{ height: 56 }} bg="#f0f2f5">
-      <AppShell.Header bg="#1d2124" style={{ borderBottom: 'none' }}>
-        <Container size="xl" h="100%">
-          <Group h="100%" justify="space-between">
-            <Group gap="sm">
-              <UnstyledButton onClick={() => navigate('/')}>
-                <Title order={4} c="white" ff="'Noto Serif KR', serif">LegalDesk</Title>
-              </UnstyledButton>
-              <Text c="gray.5" size="sm">|</Text>
-              <Text c="gray.3" size="sm" fw={500}>{'\uBE44\uC6A9 \uAD00\uB9AC'}</Text>
-            </Group>
-            <Group gap="sm">
-              {user?.picture && <Avatar src={user.picture} size="sm" radius="xl" />}
-              <Text size="sm" c="gray.4" visibleFrom="sm">{user?.name}</Text>
-              <Button
-                variant="subtle"
-                color="gray"
-                size="xs"
-                leftSection={<IconLogout size={14} />}
-                onClick={logout}
-                styles={{ root: { color: 'var(--mantine-color-gray-5)' } }}
-              >
-                {'\uB85C\uADF8\uC544\uC6C3'}
-              </Button>
-            </Group>
-          </Group>
-        </Container>
-      </AppShell.Header>
-
-      <AppShell.Main>
-        <Container size="xl" py="lg">
+    <>
+      <Container size="xl" py="lg">
           <Stack gap="lg">
             {/* Back + Title */}
             <Group gap="sm">
@@ -600,7 +568,6 @@ export default function Billing() {
             )}
           </Stack>
         </Container>
-      </AppShell.Main>
 
       {/* \uC0C8 \uBE44\uC6A9 \uB4F1\uB85D \uBAA8\uB2EC (\uC0DD\uC131\uB9CC) */}
       <Modal isOpen={isModalOpen && modalType === 'createBilling'} onClose={closeModal} title={'\uBE44\uC6A9 \uB4F1\uB85D'}>
@@ -611,8 +578,6 @@ export default function Billing() {
           onCancel={closeModal}
         />
       </Modal>
-
-      <Toast />
-    </AppShell>
+    </>
   )
 }

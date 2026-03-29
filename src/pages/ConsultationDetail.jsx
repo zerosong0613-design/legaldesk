@@ -17,7 +17,6 @@ import Timeline from '../components/case/Timeline'
 import DocumentList from '../components/case/DocumentList'
 import ConsultationForm from '../components/case/ConsultationForm'
 import Modal from '../components/ui/Modal'
-import Toast from '../components/ui/Toast'
 import { readCaseDetail, writeCaseDetail } from '../api/drive'
 import { createCalendarEvent, deleteCalendarEvent } from '../api/calendar'
 import { formatDateWithDay, getDday } from '../utils/dateUtils'
@@ -259,7 +258,7 @@ export default function ConsultationDetail() {
 
   if (isLoading || !currentCase) {
     return (
-      <Center mih="100vh" bg="#f0f2f5">
+      <Center mih="50vh">
         <Loader color="indigo" size="md" />
       </Center>
     )
@@ -270,7 +269,7 @@ export default function ConsultationDetail() {
   const isUrgent = dday !== null && dday >= 0 && dday <= 7
 
   return (
-    <Box mih="100vh" bg="#f0f2f5">
+    <>
       {/* Sticky header */}
       <Box
         bg="white"
@@ -329,8 +328,6 @@ export default function ConsultationDetail() {
 
         {activeTab === 'info' && <InfoTab caseData={currentCase} />}
       </Container>
-
-      <Toast />
-    </Box>
+    </>
   )
 }

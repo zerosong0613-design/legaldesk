@@ -1,16 +1,14 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  AppShell, Group, Title, Text, Button, Avatar, Badge, Card,
+  Group, Text, Button, Badge, Card,
   SimpleGrid, TextInput, SegmentedControl, Stack, Box, Alert,
   UnstyledButton, Container, ThemeIcon,
 } from '@mantine/core'
 import {
-  IconSearch, IconPlus, IconLogout, IconScale,
-  IconFileText, IconClock, IconArrowRight, IconReceipt,
-  IconUsers, IconBuilding,
+  IconSearch, IconPlus, IconScale,
+  IconFileText, IconClock, IconArrowRight,
 } from '@tabler/icons-react'
-import { useAuthStore } from '../auth/useAuth'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import CaseCard from '../components/case/CaseCard'
@@ -19,7 +17,6 @@ import CaseForm from '../components/case/CaseForm'
 import ConsultationForm from '../components/case/ConsultationForm'
 import Modal from '../components/ui/Modal'
 import MiniCalendar from '../components/ui/MiniCalendar'
-import Toast from '../components/ui/Toast'
 
 function getDday(dateStr) {
   if (!dateStr) return null
@@ -85,13 +82,12 @@ function matchesQuery(item, q) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
+  const listRef = useRef(null)
   const {
     cases, consultations,
     createCase, updateCase, deleteCase,
     createConsultation, updateConsultation, deleteConsultation,
     error: storeError,
-    workspace,
   } = useCaseStore()
   const {
     dashboardTab, setDashboardTab,
@@ -233,82 +229,48 @@ export default function Dashboard() {
     return <Badge color={color} variant={variant} ff="monospace" size="sm" miw={56}>{label}</Badge>
   }
 
-  return (
-    <AppShell header={{ height: 56 }} bg="#f0f2f5">
-      <AppShell.Header bg="#1d2124" style={{ borderBottom: 'none' }}>
-        <Container size="xl" h="100%">
-          <Group h="100%" justify="space-between">
-            <UnstyledButton onClick={() => navigate('/')}>
-              <Title order={4} c="white" ff="'Noto Serif KR', serif">LegalDesk</Title>
-            </UnstyledButton>
-            <Group gap="sm">
-              <Button
-                variant="subtle"
-                color="gray"
-                size="xs"
-                leftSection={<IconReceipt size={14} />}
-                onClick={() => navigate('/billing')}
-                styles={{ root: { color: 'var(--mantine-color-gray-4)' } }}
-              >
-                {'\uBE44\uC6A9\uAD00\uB9AC'}
-              </Button>
-              <Button
-                variant="subtle"
-                color="gray"
-                size="xs"
-                leftSection={workspace?.type === 'shared' ? <IconBuilding size={14} /> : <IconUsers size={14} />}
-                onClick={() => navigate('/workspace')}
-                styles={{ root: { color: workspace?.type === 'shared' ? 'var(--mantine-color-teal-4)' : 'var(--mantine-color-gray-4)' } }}
-              >
-                {workspace?.type === 'shared' ? (workspace.label || '\uACF5\uC720') : '\uC791\uC5C5\uACF5\uAC04'}
-              </Button>
-              {user?.picture && <Avatar src={user.picture} size="sm" radius="xl" />}
-              <Text size="sm" c="gray.4" visibleFrom="sm">{user?.name}</Text>
-              <Button
-                variant="subtle"
-                color="gray"
-                size="xs"
-                leftSection={<IconLogout size={14} />}
-                onClick={logout}
-                styles={{ root: { color: 'var(--mantine-color-gray-5)' } }}
-              >
-                {'\uB85C\uADF8\uC544\uC6C3'}
-              </Button>
-            </Group>
-          </Group>
-        </Container>
-      </AppShell.Header>
+  const scrollToList = () => {
+    listRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
-      <AppShell.Main>
-        <Container size="xl" py="lg">
-          <Stack gap="lg">
-            {/* 통계 카드 */}
+  const handleStatClick = (tab, filter) => {
+    setDashboardTab(tab)
+    setStatusFilter(filter)
+    setSearchQuery('')
+    setTimeout(scrollToList, 100)
+  }
+
+  return (
+    <>
+    <Container size="xl" py="lg">
+      <Stack gap="lg">
+            {/* \uD1B5\uACC4 \uCE74\uB4DC (\uD074\uB9AD\uC2DC \uD574\uB2F9 \uBAA9\uB85D\uC73C\uB85C \uC774\uB3D9) */}
             <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
-              <Card padding="md">
+              <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => handleStatClick('cases', null)}>
                 <Text size="xs" c="dimmed" mb={4}>{'\uC9C4\uD589\uC911 \uC0AC\uAC74'}</Text>
                 <Group gap={4} align="baseline">
-                  <Text size="xl" fw={700}>{stats.activeCases}</Text>
+                  <Text size="xl" fw={700} c="indigo">{stats.activeCases}</Text>
                   <Text size="sm" c="dimmed">{'\uAC74'}</Text>
                 </Group>
               </Card>
-              <Card padding="md">
+              <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => handleStatClick('cases', null)}>
                 <Text size="xs" c="dimmed" mb={4}>{'\uC774\uBC88\uC8FC \uAE30\uC77C'}</Text>
                 <Group gap={4} align="baseline">
                   <Text size="xl" fw={700} c={stats.thisWeekHearings > 0 ? 'red' : undefined}>{stats.thisWeekHearings}</Text>
                   <Text size="sm" c="dimmed">{'\uAC74'}</Text>
                 </Group>
               </Card>
-              <Card padding="md">
+              <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => handleStatClick('consultations', null)}>
                 <Text size="xs" c="dimmed" mb={4}>{'\uB9C8\uAC10 \uC784\uBC15 \uC790\uBB38'}</Text>
                 <Group gap={4} align="baseline">
                   <Text size="xl" fw={700} c={stats.urgentDeadlines > 0 ? 'orange' : undefined}>{stats.urgentDeadlines}</Text>
                   <Text size="sm" c="dimmed">{'\uAC74'}</Text>
                 </Group>
               </Card>
-              <Card padding="md">
+              <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => handleStatClick('consultations', null)}>
                 <Text size="xs" c="dimmed" mb={4}>{'\uC9C4\uD589\uC911 \uC790\uBB38'}</Text>
                 <Group gap={4} align="baseline">
-                  <Text size="xl" fw={700}>{stats.activeConsults}</Text>
+                  <Text size="xl" fw={700} c="indigo">{stats.activeConsults}</Text>
                   <Text size="sm" c="dimmed">{'\uAC74'}</Text>
                 </Group>
               </Card>
@@ -431,7 +393,8 @@ export default function Dashboard() {
               </Card>
             )}
 
-            {/* ─── 통합 검색 바 ─── */}
+            {/* ─── \uD1B5\uD569 \uAC80\uC0C9 \uBC14 ─── */}
+            <div ref={listRef} />
             <Group gap="sm" wrap="wrap">
               {!isSearching && (
                 <SegmentedControl
@@ -602,9 +565,8 @@ export default function Dashboard() {
             )}
           </Stack>
         </Container>
-      </AppShell.Main>
 
-      {/* 모달들 */}
+      {/* \uBAA8\uB2EC\uB4E4 */}
       <Modal isOpen={isModalOpen && modalType === 'createCase'} onClose={closeModal} title={'\uC0C8 \uC0AC\uAC74 \uB4F1\uB85D'}>
         <CaseForm onSubmit={handleCreateCase} onCancel={closeModal} />
       </Modal>
@@ -631,8 +593,6 @@ export default function Dashboard() {
           </Group>
         </Stack>
       </Modal>
-
-      <Toast />
-    </AppShell>
+    </>
   )
 }
