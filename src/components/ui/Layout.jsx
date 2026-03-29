@@ -11,7 +11,6 @@ import {
 } from '@tabler/icons-react'
 import { useAuthStore } from '../../auth/useAuth'
 import { useCaseStore } from '../../store/caseStore'
-import { useUiStore } from '../../store/uiStore'
 import Toast from './Toast'
 
 export default function Layout({ children }) {
@@ -19,7 +18,6 @@ export default function Layout({ children }) {
   const location = useLocation()
   const { user, logout } = useAuthStore()
   const { workspace, cases, consultations } = useCaseStore()
-  const { dashboardTab, setDashboardTab } = useUiStore()
   const [navOpened, setNavOpened] = useState(false)
 
   const isShared = workspace?.type === 'shared'
@@ -29,14 +27,12 @@ export default function Layout({ children }) {
   const activeConsults = consultations.filter((c) => c.status === '\uC9C4\uD589' || c.status === '\uC811\uC218').length
 
   const handleNavCases = () => {
-    setDashboardTab('cases')
-    navigate('/')
+    navigate('/cases')
     setNavOpened(false)
   }
 
   const handleNavConsultations = () => {
-    setDashboardTab('consultations')
-    navigate('/')
+    navigate('/consultations')
     setNavOpened(false)
   }
 
@@ -93,7 +89,7 @@ export default function Layout({ children }) {
             <NavLink
               label={'\uB300\uC2DC\uBCF4\uB4DC'}
               leftSection={<IconHome size={18} />}
-              active={isDashboard && !['cases', 'consultations'].includes(dashboardTab)}
+              active={isDashboard}
               color="indigo"
               variant="light"
               onClick={() => {
@@ -108,7 +104,7 @@ export default function Layout({ children }) {
             <NavLink
               label={'\uC0AC\uAC74 \uAD00\uB9AC'}
               leftSection={<IconScale size={18} />}
-              active={isDashboard && dashboardTab === 'cases'}
+              active={location.pathname === '/cases'}
               color="blue"
               variant="light"
               onClick={handleNavCases}
@@ -121,7 +117,7 @@ export default function Layout({ children }) {
             <NavLink
               label={'\uC790\uBB38 \uAD00\uB9AC'}
               leftSection={<IconFileText size={18} />}
-              active={isDashboard && dashboardTab === 'consultations'}
+              active={location.pathname === '/consultations'}
               color="grape"
               variant="light"
               onClick={handleNavConsultations}

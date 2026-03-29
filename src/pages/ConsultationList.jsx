@@ -1,0 +1,158 @@
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Group, Text, Button, Badge, Card, SimpleGrid, TextInput,
+  Stack, Alert, Container,
+} from '@mantine/core'
+import { IconSearch, IconPlus, IconFileText } from '@tabler/icons-react'
+import { useCaseStore } from '../store/caseStore'
+import { useUiStore } from '../store/uiStore'
+import ConsultationCard from '../components/case/ConsultationCard'
+import ConsultationForm from '../components/case/ConsultationForm'
+import Modal from '../components/ui/Modal'
+
+const STATUS_FILTERS = [
+  { label: '\uC804\uCCB4', value: null },
+  { label: '\uC811\uC218', value: '\uC811\uC218' },
+  { label: '\uC9C4\uD589', value: '\uC9C4\uD589' },
+  { label: '\uC644\uB8CC', value: '\uC644\uB8CC' },
+  { label: '\uBCF4\uB958', value: '\uBCF4\uB958' },
+]
+
+function matchesQuery(item, q) {
+  return (
+    item.clientName?.toLowerCase().includes(q) ||
+    item.subject?.toLowerCase().includes(q) ||
+    item.type?.toLowerCase().includes(q) ||
+    item.tags?.some((t) => t.toLowerCase().includes(q))
+  )
+}
+
+export default function ConsultationList() {
+  const navigate = useNavigate()
+  const {
+    consultations, createConsultation, updateConsultation, deleteConsultation,
+    error: storeError,
+  } = useCaseStore()
+  const { isModalOpen, modalType, modalData, openModal, closeModal, showToast } = useUiStore()
+
+  const [statusFilter, setStatusFilter] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filtered = useMemo(() => {
+    let result = consultations
+    if (statusFilter) result = result.filter((c) => c.status === statusFilter)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter((c) => matchesQuery(c, q))
+    }
+    return result.sort((a, b) => new Date(b.lastActivityAt || 0) - new Date(a.lastActivityAt || 0))
+  }, [consultations, statusFilter, searchQuery])
+
+  const handleCreate = async (data) => {
+    const result = await createConsultation(data)
+    if (result) { closeModal(); showToast('\uC790\uBB38\uC774 \uC0DD\uC131\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success') }
+  }
+  const handleEdit = async (data) => {
+    await updateConsultation(modalData.id, data)
+    closeModal(); showToast('\uC790\uBB38\uC774 \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
+  }
+  const handleDelete = async () => {
+    await deleteConsultation(modalData.id)
+    closeModal(); showToast('\uC790\uBB38\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
+  }
+
+  return (
+    <>
+      <Container size="xl" py="lg">
+        <Stack gap="lg">
+          {/* \uD5E4\uB354 */}
+          <Group justify="space-between">
+            <Group gap="xs">
+              <IconFileText size={22} color="var(--mantine-color-grape-6)" />
+              <Text size="lg" fw={700}>{'\uC790\uBB38 \uAD00\uB9AC'}</Text>
+              <Badge variant="light" color="grape" size="lg">{consultations.length}</Badge>
+            </Group>
+            <Button leftSection={<IconPlus size={16} />} color="grape" onClick={() => openModal('createConsultation')}>
+              {'\uC0C8 \uC790\uBB38'}
+            </Button>
+          </Group>
+
+          {/* \uAC80\uC0C9 + \uD544\uD130 */}
+          <TextInput
+            placeholder={'\uC758\uB8B0\uC778\uBA85, \uC8FC\uC81C, \uC720\uD615, \uD0DC\uADF8...'}
+            leftSection={<IconSearch size={16} />}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.currentTarget.value)}
+          />
+
+          <Group gap="xs">
+            {STATUS_FILTERS.map((f) => {
+              const count = f.value ? consultations.filter((c) => c.status === f.value).length : consultations.length
+              return (
+                <Button
+                  key={f.label}
+                  variant={statusFilter === f.value ? 'filled' : 'default'}
+                  size="xs"
+                  onClick={() => setStatusFilter(f.value)}
+                >
+                  {f.label} ({count})
+                </Button>
+              )
+            })}
+          </Group>
+
+          {storeError && <Alert color="red">{storeError}</Alert>}
+
+          {/* \uBAA9\uB85D */}
+          {filtered.length === 0 ? (
+            <Stack align="center" py="xl" gap="xs">
+              <Text c="dimmed">
+                {consultations.length === 0
+                  ? '\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC790\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'
+                  : '\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}
+              </Text>
+              {consultations.length === 0 && (
+                <Button variant="subtle" color="grape" onClick={() => openModal('createConsultation')}>
+                  {'\uCCAB \uBC88\uC9F8 \uC790\uBB38 \uB4F1\uB85D\uD558\uAE30'}
+                </Button>
+              )}
+            </Stack>
+          ) : (
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+              {filtered.map((c) => (
+                <ConsultationCard
+                  key={c.id}
+                  data={c}
+                  onClick={() => navigate(`/consultation/${c.id}`)}
+                  onEdit={(data) => openModal('editConsultation', data)}
+                  onDelete={(data) => openModal('deleteConfirm', data)}
+                />
+              ))}
+            </SimpleGrid>
+          )}
+        </Stack>
+      </Container>
+
+      <Modal isOpen={isModalOpen && modalType === 'createConsultation'} onClose={closeModal} title={'\uC0C8 \uC790\uBB38 \uB4F1\uB85D'}>
+        <ConsultationForm onSubmit={handleCreate} onCancel={closeModal} />
+      </Modal>
+      <Modal isOpen={isModalOpen && modalType === 'editConsultation'} onClose={closeModal} title={'\uC790\uBB38 \uC218\uC815'}>
+        <ConsultationForm initialData={modalData} onSubmit={handleEdit} onCancel={closeModal} />
+      </Modal>
+      <Modal isOpen={isModalOpen && modalType === 'deleteConfirm'} onClose={closeModal} title={'\uC0AD\uC81C \uD655\uC778'}>
+        <Stack>
+          <Text size="sm" c="dimmed">
+            <Text span fw={600}>{modalData?.clientName}</Text>
+            {modalData?.subject && ` \u2014 ${modalData.subject}`}
+            {'\uC744(\uB97C) \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C? \uC774 \uC791\uC5C5\uC740 \uB418\uB3CC\uB9B4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.'}
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={closeModal}>{'\uCDE8\uC18C'}</Button>
+            <Button color="red" onClick={handleDelete}>{'\uC0AD\uC81C'}</Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </>
+  )
+}

@@ -7,6 +7,8 @@ import GoogleAuth from './auth/GoogleAuth'
 import AuthCallback from './auth/AuthCallback'
 import Layout from './components/ui/Layout'
 import Dashboard from './pages/Dashboard'
+import CaseList from './pages/CaseList'
+import ConsultationList from './pages/ConsultationList'
 import CaseDetail from './pages/CaseDetail'
 import ConsultationDetail from './pages/ConsultationDetail'
 import Billing from './pages/Billing'
@@ -64,6 +66,8 @@ function AppContent() {
     <Layout>
       <Routes>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/cases" element={<CaseList />} />
+        <Route path="/consultations" element={<ConsultationList />} />
         <Route path="/case/:id" element={<CaseDetail />} />
         <Route path="/consultation/:id" element={<ConsultationDetail />} />
         <Route path="/billing" element={<Billing />} />
