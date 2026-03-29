@@ -16,7 +16,7 @@ import {
   IconTrendingDown, IconCalendarStats, IconArrowUpRight,
   IconArrowDownRight, IconMinus, IconFileInvoice,
   IconContract, IconCoin, IconClipboardList,
-  IconPaperclip, IconAlertCircle, IconMail,
+  IconPaperclip, IconAlertCircle, IconMail, IconSettings,
 } from '@tabler/icons-react'
 import { useRef, useCallback } from 'react'
 import { useCaseStore } from '../store/caseStore'
@@ -65,6 +65,34 @@ const PAYMENT_STATUS = {
 }
 
 const MONTH_NAMES = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
+
+// --- 빌링 설정 (localStorage) ---
+
+const BILLING_CONFIG_KEY = 'legaldesk_billing_config'
+
+const DEFAULT_BILLING_CONFIG = {
+  officeName: '',
+  lawyerName: '',
+  bizNumber: '',
+  bankAccount: '',
+  contactPhone: '',
+  defaultDueDays: 14,
+  defaultVat: 'excluded',
+  emailSignature: '',
+}
+
+function loadBillingConfig() {
+  try {
+    const raw = localStorage.getItem(BILLING_CONFIG_KEY)
+    return raw ? { ...DEFAULT_BILLING_CONFIG, ...JSON.parse(raw) } : { ...DEFAULT_BILLING_CONFIG }
+  } catch {
+    return { ...DEFAULT_BILLING_CONFIG }
+  }
+}
+
+function saveBillingConfig(config) {
+  localStorage.setItem(BILLING_CONFIG_KEY, JSON.stringify(config))
+}
 
 // --- 금액 유틸리티 ---
 
@@ -797,12 +825,13 @@ function DisbursementPanel({ disbursements, cases, consultations, getItemName, o
 // Gmail 발송 유틸리티
 // ==================================================
 
-function buildInvoiceEmailBody(invoice, caseInfo) {
+function buildInvoiceEmailBody(invoice, caseInfo, config) {
+  const cfg = config || loadBillingConfig()
   const itemRows = (invoice.lineItems || []).map((li) =>
     `${li.label}${li.note ? ` (${li.note})` : ''}\t${formatCurrency(li.amount)}`
   ).join('\n')
 
-  return [
+  const lines = [
     `안녕하세요, ${invoice.clientName} 님.`,
     '',
     '아래와 같이 청구서를 발송합니다.',
@@ -821,9 +850,26 @@ function buildInvoiceEmailBody(invoice, caseInfo) {
     '───────────────────────────',
     '',
     `납부기한: ${formatDate(invoice.dueDate)}`,
-    '',
-    '감사합니다.',
-  ].filter(Boolean).join('\n')
+  ]
+
+  if (cfg.bankAccount) lines.push(`납부계좌: ${cfg.bankAccount}`)
+  if (cfg.contactPhone) lines.push(`문의: ${cfg.contactPhone}`)
+
+  lines.push('')
+  lines.push('감사합니다.')
+
+  if (cfg.emailSignature) {
+    lines.push('')
+    lines.push(cfg.emailSignature)
+  }
+
+  if (cfg.officeName || cfg.lawyerName) {
+    lines.push('')
+    if (cfg.officeName) lines.push(cfg.officeName)
+    if (cfg.lawyerName) lines.push(cfg.lawyerName)
+  }
+
+  return lines.filter(Boolean).join('\n')
 }
 
 function openGmailCompose(to, subject, body) {
@@ -835,7 +881,8 @@ function openGmailCompose(to, subject, body) {
 // PDF 청구서 생성 (jsPDF + html2canvas)
 // ==================================================
 
-function buildInvoiceHtml(invoice, caseInfo) {
+function buildInvoiceHtml(invoice, caseInfo, config) {
+  const cfg = config || loadBillingConfig()
   const itemRows = (invoice.lineItems || []).map((li) =>
     `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;">${li.label}</td>
@@ -846,6 +893,13 @@ function buildInvoiceHtml(invoice, caseInfo) {
 
   return `
     <div style="font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;width:560px;padding:40px;color:#222;line-height:1.6;">
+      ${(cfg.officeName || cfg.lawyerName || cfg.bizNumber) ? `
+      <div style="text-align:right;margin-bottom:8px;font-size:13px;color:#555;">
+        ${cfg.officeName ? `<div style="font-weight:600;">${cfg.officeName}</div>` : ''}
+        ${cfg.lawyerName ? `<div>${cfg.lawyerName}</div>` : ''}
+        ${cfg.bizNumber ? `<div style="font-size:12px;color:#888;">사업자등록번호: ${cfg.bizNumber}</div>` : ''}
+      </div>` : ''}
+
       <div style="text-align:center;margin-bottom:32px;">
         <h1 style="font-size:28px;font-weight:700;letter-spacing:8px;margin:0;">청 구 서</h1>
       </div>
@@ -907,6 +961,8 @@ function buildInvoiceHtml(invoice, caseInfo) {
 
       <div style="border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-bottom:24px;">
         <div style="font-size:13px;margin-bottom:4px;"><strong>납부기한:</strong> ${formatDate(invoice.dueDate)}</div>
+        ${cfg.bankAccount ? `<div style="font-size:13px;margin-bottom:4px;"><strong>납부계좌:</strong> ${cfg.bankAccount}</div>` : ''}
+        ${cfg.contactPhone ? `<div style="font-size:13px;"><strong>문의:</strong> ${cfg.contactPhone}</div>` : ''}
       </div>
 
       <div style="text-align:center;font-size:12px;color:#aaa;margin-top:32px;padding-top:16px;border-top:1px solid #eee;">
@@ -1565,6 +1621,146 @@ function InvoiceForm({ cases, consultations, retainers, disbursements, getItemNa
 }
 
 // ==================================================
+// 빌링 설정 패널
+// ==================================================
+
+function BillingSettingsPanel() {
+  const { showToast } = useUiStore()
+  const [config, setConfig] = useState(() => loadBillingConfig())
+  const [isSaved, setIsSaved] = useState(true)
+
+  const handleChange = (field, value) => {
+    setConfig({ ...config, [field]: value })
+    setIsSaved(false)
+  }
+
+  const handleSave = () => {
+    saveBillingConfig(config)
+    setIsSaved(true)
+    showToast('빌링 설정이 저장되었습니다.', 'success')
+  }
+
+  return (
+    <Stack gap="lg">
+      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+        {/* 사무소 정보 */}
+        <Card padding="lg">
+          <Text fw={600} mb="md">사무소 정보</Text>
+          <Text size="xs" c="dimmed" mb="md">청구서 PDF 상단과 이메일 서명에 표시됩니다.</Text>
+          <Stack gap="sm">
+            <TextInput
+              label="사무소명"
+              placeholder="법률사무소 OO"
+              value={config.officeName}
+              onChange={(e) => handleChange('officeName', e.currentTarget.value)}
+            />
+            <TextInput
+              label="대표 변호사명"
+              placeholder="홍길동"
+              value={config.lawyerName}
+              onChange={(e) => handleChange('lawyerName', e.currentTarget.value)}
+            />
+            <TextInput
+              label="사업자등록번호"
+              placeholder="000-00-00000"
+              value={config.bizNumber}
+              onChange={(e) => handleChange('bizNumber', e.currentTarget.value)}
+            />
+            <TextInput
+              label="문의 전화번호"
+              placeholder="02-0000-0000"
+              value={config.contactPhone}
+              onChange={(e) => handleChange('contactPhone', e.currentTarget.value)}
+            />
+          </Stack>
+        </Card>
+
+        {/* 결제 정보 */}
+        <Card padding="lg">
+          <Text fw={600} mb="md">결제 정보</Text>
+          <Text size="xs" c="dimmed" mb="md">청구서 하단의 납부 안내에 표시됩니다.</Text>
+          <Stack gap="sm">
+            <Textarea
+              label="납부 계좌"
+              placeholder="OO은행 000-000000-00000 (예금주: 홍길동)"
+              value={config.bankAccount}
+              onChange={(e) => handleChange('bankAccount', e.currentTarget.value)}
+              minRows={2}
+            />
+            <TextInput
+              label="기본 납부기한 (일)"
+              placeholder="14"
+              type="number"
+              value={String(config.defaultDueDays || '')}
+              onChange={(e) => handleChange('defaultDueDays', Number(e.currentTarget.value) || 14)}
+              description="청구서 발행일로부터의 기본 납부기한"
+            />
+            <Radio.Group
+              label="부가세 기본값"
+              value={config.defaultVat || 'excluded'}
+              onChange={(v) => handleChange('defaultVat', v)}
+            >
+              <Group gap="lg" mt={4}>
+                <Radio value="excluded" label="별도" />
+                <Radio value="included" label="포함" />
+                <Radio value="exempt" label="면세" />
+              </Group>
+            </Radio.Group>
+          </Stack>
+        </Card>
+      </SimpleGrid>
+
+      {/* 이메일 서명 */}
+      <Card padding="lg">
+        <Text fw={600} mb="md">이메일 서명</Text>
+        <Text size="xs" c="dimmed" mb="md">청구서 이메일 본문 하단에 자동 삽입됩니다.</Text>
+        <Textarea
+          placeholder="법률사무소 OO&#10;대표변호사 홍길동&#10;서울시 강남구 ...&#10;Tel: 02-0000-0000"
+          value={config.emailSignature}
+          onChange={(e) => handleChange('emailSignature', e.currentTarget.value)}
+          minRows={4}
+        />
+      </Card>
+
+      {/* 미리보기 */}
+      {(config.officeName || config.bankAccount) && (
+        <Card padding="lg" bg="gray.0">
+          <Text fw={600} mb="md">청구서 미리보기</Text>
+          <Box style={{ fontFamily: 'monospace', fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+            {config.officeName && <Text size="sm" fw={600}>{config.officeName}{config.lawyerName ? ` / ${config.lawyerName}` : ''}</Text>}
+            {config.bizNumber && <Text size="xs" c="dimmed">사업자등록번호: {config.bizNumber}</Text>}
+            <Text size="lg" fw={700} ta="center" my="md" style={{ letterSpacing: 8 }}>청 구 서</Text>
+            <Text size="sm">청구번호: INV-20260329-001</Text>
+            <Text size="sm">수신: 김의뢰인 귀하</Text>
+            <Divider my="xs" />
+            <Text size="sm">착수금{'\t\t'}3,000,000원</Text>
+            <Text size="sm">인지대{'\t\t'}   32,000원</Text>
+            <Divider my="xs" />
+            <Text size="sm" fw={600}>합계{'\t\t'}3,032,000원</Text>
+            <Divider my="xs" />
+            <Text size="sm">납부기한: 2026.04.12</Text>
+            {config.bankAccount && <Text size="sm">납부계좌: {config.bankAccount}</Text>}
+            {config.contactPhone && <Text size="sm">문의: {config.contactPhone}</Text>}
+          </Box>
+        </Card>
+      )}
+
+      {/* 저장 버튼 */}
+      <Group justify="flex-end">
+        <Button
+          leftSection={<IconCheck size={16} />}
+          onClick={handleSave}
+          disabled={isSaved}
+          color={isSaved ? 'gray' : 'indigo'}
+        >
+          {isSaved ? '저장됨' : '설정 저장'}
+        </Button>
+      </Group>
+    </Stack>
+  )
+}
+
+// ==================================================
 // 통계 패널
 // ==================================================
 
@@ -1909,6 +2105,7 @@ export default function Billing() {
                   {invoices.length > 0 && <Badge size="xs" variant="light" color="blue" ml={6}>{invoices.length}</Badge>}
                 </Tabs.Tab>
                 <Tabs.Tab value="stats" leftSection={<IconChartBar size={16} />}>통계 분석</Tabs.Tab>
+                <Tabs.Tab value="settings" leftSection={<IconSettings size={16} />}>설정</Tabs.Tab>
               </Tabs.List>
 
               <Tabs.Panel value="retainers" pt="md">
@@ -1945,6 +2142,10 @@ export default function Billing() {
 
               <Tabs.Panel value="stats" pt="md">
                 <StatsPanel retainers={retainers} disbursements={disbursements} invoices={invoices} />
+              </Tabs.Panel>
+
+              <Tabs.Panel value="settings" pt="md">
+                <BillingSettingsPanel />
               </Tabs.Panel>
             </Tabs>
           </>
