@@ -115,31 +115,54 @@ export default function EmailList({ caseData }) {
   const [error, setError] = useState(null)
   const [loaded, setLoaded] = useState(false)
 
-  const clientEmail = caseData.clientEmail
+  // Support both single email and array of emails
+  const clientEmails = (() => {
+    const emails = []
+    if (caseData.clientEmails?.length > 0) {
+      emails.push(...caseData.clientEmails.filter(Boolean))
+    } else if (caseData.clientEmail) {
+      emails.push(caseData.clientEmail)
+    }
+    return emails
+  })()
+
+  const hasEmail = clientEmails.length > 0
 
   const loadEmails = useCallback(async () => {
-    if (!clientEmail) return
+    if (!hasEmail) return
     setIsLoading(true)
     setError(null)
     try {
-      const results = await getThreadsByEmail(clientEmail, 20)
-      setThreads(results)
+      // Search all emails and merge results
+      const allResults = []
+      const seenIds = new Set()
+      for (const email of clientEmails) {
+        const results = await getThreadsByEmail(email, 20)
+        for (const t of results) {
+          if (!seenIds.has(t.id)) {
+            seenIds.add(t.id)
+            allResults.push(t)
+          }
+        }
+      }
+      allResults.sort((a, b) => b.timestamp - a.timestamp)
+      setThreads(allResults)
       setLoaded(true)
     } catch (err) {
       setError(err.message)
     } finally {
       setIsLoading(false)
     }
-  }, [clientEmail])
+  }, [clientEmails.join(','), hasEmail])
 
   // Auto-load on first render if email exists
   useEffect(() => {
-    if (clientEmail && !loaded) {
+    if (hasEmail && !loaded) {
       loadEmails()
     }
-  }, [clientEmail, loaded, loadEmails])
+  }, [hasEmail, loaded, loadEmails])
 
-  if (!clientEmail) {
+  if (!hasEmail) {
     return (
       <Center py="xl">
         <Stack align="center" gap="md">
@@ -175,7 +198,9 @@ export default function EmailList({ caseData }) {
       <Group justify="space-between">
         <Group gap="xs">
           <Text size="sm" fw={600}>{'\uC774\uBA54\uC77C'}</Text>
-          <Badge variant="light" color="indigo" size="sm">{clientEmail}</Badge>
+          {clientEmails.map((email) => (
+            <Badge key={email} variant="light" color="indigo" size="sm">{email}</Badge>
+          ))}
           {loaded && (
             <Text size="xs" c="dimmed">{threads.length}{'\uAC74'}</Text>
           )}
