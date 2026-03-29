@@ -833,20 +833,18 @@ function buildInvoiceEmailBody(invoice, caseInfo, config) {
 
   const lines = [
     `안녕하세요, ${invoice.clientName} 님.`,
-    '',
     '아래와 같이 청구서를 발송합니다.',
     '',
     `청구번호: ${invoice.invoiceNumber}`,
     `사건: ${caseInfo.sub || ''} ${caseInfo.name}`,
-    '',
     '───────────────────────────',
-    '항목\t\t\t금액',
+    '항목\t금액',
     '───────────────────────────',
     itemRows,
     '───────────────────────────',
-    `소계\t\t\t${formatCurrency(invoice.subtotal)}`,
-    invoice.vatAmount > 0 ? `부가세 (10%)\t\t${formatCurrency(invoice.vatAmount)}` : '',
-    `합계\t\t\t${formatCurrency(invoice.total)}`,
+    `소계\t${formatCurrency(invoice.subtotal)}`,
+    invoice.vatAmount > 0 ? `부가세 (10%)\t${formatCurrency(invoice.vatAmount)}` : null,
+    `합계\t${formatCurrency(invoice.total)}`,
     '───────────────────────────',
     '',
     `납부기한: ${formatDate(invoice.dueDate)}`,
@@ -854,9 +852,8 @@ function buildInvoiceEmailBody(invoice, caseInfo, config) {
 
   if (cfg.bankAccount) lines.push(`납부계좌: ${cfg.bankAccount}`)
   if (cfg.contactPhone) lines.push(`문의: ${cfg.contactPhone}`)
-
-  lines.push('')
   lines.push('감사합니다.')
+  lines.push('')
 
   if (cfg.emailSignature) {
     lines.push('')
@@ -869,7 +866,7 @@ function buildInvoiceEmailBody(invoice, caseInfo, config) {
     if (cfg.lawyerName) lines.push(cfg.lawyerName)
   }
 
-  return lines.filter(Boolean).join('\n')
+  return lines.filter((l) => l !== null).join('\n')
 }
 
 function openGmailCompose(to, subject, body) {
@@ -1233,7 +1230,7 @@ function InvoicePanel({ invoices, retainers, disbursements, cases, consultations
     }
 
     // 2) Gmail 작성 창 열기 (PDF 첨부 안내 포함)
-    const subject = `[${caseInfo.sub || ''}] 수임료 청구서 (${formatDate(invoice.issueDate)})`
+    const subject = `[${caseInfo.sub || ''}] 수임료 청구서 (${formatDate(invoice.issueDate)}) 청구번호: ${invoice.invoiceNumber}`
     const body = buildInvoiceEmailBody(invoice, caseInfo)
     const bodyWithAttachNote = body + '\n\n※ 청구서 PDF 파일이 다운로드되었습니다.\n   이 이메일에 첨부하여 발송해 주세요.'
 
