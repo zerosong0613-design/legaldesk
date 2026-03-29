@@ -1,6 +1,6 @@
 # LegalDesk — 현재 진행 상태
 
-## 마지막 업데이트: 2026-03-28
+## 마지막 업데이트: 2026-03-29
 
 ## 배포 정보
 - **URL**: https://legaldesk-one.vercel.app
@@ -40,27 +40,43 @@
 - [x] Vercel SPA 라우팅 (vercel.json)
 - [x] LegalDesk 로고 클릭 → 홈 이동
 
+### Phase 1.7 — UI 개편 + 자문 상세 ✅
+- [x] Tailwind → Mantine UI v8 전환 (Dark Command 디자인)
+- [x] 카카오톡 말풍선 뷰 (좌/우 정렬, 배치별 삭제, 내 이름 선택)
+- [x] 타임라인 카드 리디자인 (캘린더 제목 파싱, 요일 표시)
+- [x] 기일 카드 개선 (액센트 바, D-day, 위치 아이콘)
+- [x] **Step 9**: ConsultationDetail 페이지 (4탭: 타임라인, 카톡, 문서, 정보)
+  - `/consultation/:id` 라우트 + 대시보드 네비게이션 분리
+  - 마감일 관리 (Calendar 연동) + DeadlineCard 컴포넌트
+  - 자문 정보 표시/편집 (ConsultationForm 재사용)
+  - 기존 Timeline, KakaoParser 재사용
+- [x] **Step 10**: 최근 활동 + 통합 검색
+  - 대시보드 "최근 활동" 섹션 (사건+자문 통합, 최신 5개)
+  - 통합 검색 (사건+자문 동시 검색, 타입 뱃지 표시)
+  - 검색 결과에서 올바른 상세 페이지로 이동
+
+---
+
+### Phase 2 — 연동 ✅
+- [x] Gmail 스레드 연동 (`src/api/gmail.js` + `EmailList.jsx`)
+  - 의뢰인 이메일로 자동 검색, 스레드 목록 표시
+  - 확장하면 본문 미리보기, Gmail 링크로 열기
+  - CaseDetail 이메일 탭 Card import 누락 버그 수정
+- [x] Drive 문서 �� (`DocumentList.jsx`)
+  - 사건/자문별 파일 목록 (아이콘 + 크기 + 날짜)
+  - 파일 업로드 (다중 선택), 삭제, Drive에서 열기
+  - `drive.js`에 `listFilesInFolder`, `uploadFileToDrive` 추가
+- [x] 비용 관리 (`src/pages/Billing.jsx` — `/billing` 라우트)
+  - 수임료/실비/입금/환불 CRUD
+  - 사건+자문 통합 연결 (searchable Select)
+  - 통계 카드 (수임료 총액, 입금 총액, 실비 총액, 잔액)
+  - 테이블 뷰 + 유형 필터 + 검색
+  - 대시���드 헤더에 "비용관리" 바로가기 추가
+  - 데이터는 `cases.json`의 `billings` 배열에 저장
+
 ---
 
 ## 미완료 — 다음 작업
-
-### Step 9. 자문 상세 페이지
-**브랜치**: `feat/consultation-detail`
-- ConsultationDetail 페이지 (4탭: 타임라인, 카톡, 문서, 정보)
-- 마감일 관리 (Calendar 연동)
-- 자문 정보 편집
-- 기존 Timeline, KakaoParser 재사용
-
-### Step 10. 최근 활동 + 통합 검색
-**브랜치**: `feat/activity-search`
-- 대시보드 "최근 활동" 섹션
-- 사건 + 자문 통합 검색
-- 검색 결과에서 상세 페이지 이동
-
-### Phase 2 — 연동
-- [ ] Gmail 스레드 연동 (의뢰인 이메일로 스레드 조회)
-- [ ] Drive 문서 탭 (사건별 첨부 파일 목록)
-- [ ] 비용 관리 (별도 메뉴, 세금계산서/입금 연동은 추후)
 
 ### Phase 3 — 모바일
 - [ ] PWA 빌드 (vite-plugin-pwa, Vite 호환 버전 필요)
@@ -83,11 +99,14 @@ src/
 │   ├── caseStore.js                 # 사건 + 자문 CRUD + 기일/카톡/메모
 │   └── uiStore.js                   # 필터, 검색, 모달, 토스트, 대시보드탭
 ├── api/
-│   ├── drive.js                     # Drive API (폴더/파일 CRUD, v2 구조)
-│   └── calendar.js                  # Calendar API (CRUD + 전체 캘린더 검색)
+│   ├── drive.js                     # Drive API (폴더/파일 CRUD, 문서 업로드/목록)
+│   ├── calendar.js                  # Calendar API (CRUD + 전체 캘린더 검색)
+│   └── gmail.js                     # Gmail API (스레드 검색/조회, read-only)
 ├── pages/
-│   ├── Dashboard.jsx                # 통계 + 캘린더 + 일정 + 사건/자문 목록
-│   └── CaseDetail.jsx               # 사건 상세 (5탭)
+│   ├── Dashboard.jsx                # 통계 + 캘린더 + 일정 + 최근활동 + 통합검색
+│   ├── CaseDetail.jsx               # 사건 상세 (5탭: 타임라인, 기일, 카톡, 이메일, 문서)
+│   ├── ConsultationDetail.jsx       # 자문 상세 (4탭: 타임라인, 카톡, 문서, 정보)
+│   └── Billing.jsx                  # 비용 관리 (수임료/실비/입금/환불)
 ├── components/
 │   ├── case/
 │   │   ├── CaseCard.jsx             # 사건 카드
@@ -96,6 +115,8 @@ src/
 │   │   ├── ConsultationForm.jsx     # 자문 폼
 │   │   ├── HearingList.jsx          # 기일 목록 + 캘린더 가져오기
 │   │   ├── KakaoParser.jsx          # 카카오톡 붙여넣기/업로드
+│   │   ├── EmailList.jsx           # Gmail 스레드 연동
+│   │   ├── DocumentList.jsx        # Drive 파일 관리
 │   │   └── Timeline.jsx             # 통합 타임라인
 │   └── ui/
 │       ├── Badge.jsx                # 상태 배지

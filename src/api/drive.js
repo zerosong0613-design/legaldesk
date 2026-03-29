@@ -212,3 +212,39 @@ export async function createCaseFile(casesFolderId, caseId, caseData) {
 export async function createCaseFilesFolder(filesFolderId, caseId) {
   return createFolder(caseId, filesFolderId)
 }
+
+// --- File listing & upload for document tab ---
+
+export async function listFilesInFolder(folderId) {
+  if (!folderId) return []
+  const q = `'${folderId}' in parents and trashed=false`
+  const res = await driveRequest(
+    `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink,iconLink)&orderBy=modifiedTime desc&pageSize=100`
+  )
+  const data = await res.json()
+  return data.files || []
+}
+
+export async function uploadFileToDrive(folderId, file) {
+  const metadata = {
+    name: file.name,
+    parents: [folderId],
+  }
+
+  const form = new FormData()
+  form.append(
+    'metadata',
+    new Blob([JSON.stringify(metadata)], { type: JSON_MIME })
+  )
+  form.append('file', file)
+
+  const res = await driveRequest(`${UPLOAD_API}/files?uploadType=multipart&fields=id,name,mimeType,size,createdTime,modifiedTime,webViewLink`, {
+    method: 'POST',
+    body: form,
+  })
+  return res.json()
+}
+
+export async function getFileDownloadUrl(fileId) {
+  return `${DRIVE_API}/files/${fileId}?alt=media`
+}

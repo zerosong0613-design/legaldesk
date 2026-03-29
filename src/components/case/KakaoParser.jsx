@@ -1,28 +1,217 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
+import {
+  Stack, Group, Text, Button, Textarea, Paper, Card, Badge,
+  SegmentedControl, Box, Divider, Select, ActionIcon,
+} from '@mantine/core'
+import { IconUpload, IconPaperclip, IconTrash, IconUser } from '@tabler/icons-react'
 import { parseKakaoChat, textToMemo } from '../../utils/kakaoParser'
 import { useCaseStore } from '../../store/caseStore'
 import { useUiStore } from '../../store/uiStore'
+import { useAuthStore } from '../../auth/useAuth'
 import { readCaseDetail, writeCaseDetail } from '../../api/drive'
-import { formatDateTime } from '../../utils/dateUtils'
+import { formatDateTime, formatDate } from '../../utils/dateUtils'
+
+function formatShortDate(dateStr) {
+  const d = new Date(dateStr)
+  const mo = d.getMonth() + 1
+  const da = d.getDate()
+  const h = d.getHours()
+  const m = String(d.getMinutes()).padStart(2, '0')
+  const ampm = h < 12 ? '\uC624\uC804' : '\uC624\uD6C4'
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${mo}. ${String(da).padStart(2, '0')}. ${ampm} ${h12}:${m}`
+}
+
+function BubbleView({ messages, myName, onDeleteBatch }) {
+  if (messages.length === 0) {
+    return <Text size="sm" c="dimmed" ta="center" py="xl">{'\uB300\uD654\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
+  }
+
+  // sort all messages by time
+  const sorted = [...messages].sort((a, b) => new Date(a.datetime) - new Date(b.datetime))
+
+  // group into batches (preserving sorted order)
+  const batchOrder = []
+  const batchMap = {}
+  for (const msg of sorted) {
+    const bid = msg.batchId || '__legacy__'
+    if (!batchMap[bid]) {
+      batchMap[bid] = []
+      batchOrder.push(bid)
+    }
+    batchMap[bid].push(msg)
+  }
+
+  const items = []
+  let prevSender = null
+
+  for (let bIdx = 0; bIdx < batchOrder.length; bIdx++) {
+    const bid = batchOrder[bIdx]
+    const batchMsgs = batchMap[bid]
+
+    // batch header with delete
+    items.push(
+      <Group key={`bh-${bid}`} justify="center" py={6} mt={bIdx > 0 ? 12 : 0}>
+        <Divider style={{ flex: 1 }} color="indigo.2" />
+        <Group gap={4}>
+          <Badge size="xs" variant="light" color="indigo">
+            {bIdx === 0 ? `\uB300\uD654 ${batchMsgs.length}\uAC74` : `\uCD94\uAC00 ${batchMsgs.length}\uAC74`}
+          </Badge>
+          {onDeleteBatch && (
+            <ActionIcon
+              variant="subtle" color="red" size={18}
+              onClick={() => onDeleteBatch(bid)}
+              title={'\uC774 \uB300\uD654 \uC0AD\uC81C'}
+            >
+              <IconTrash size={11} />
+            </ActionIcon>
+          )}
+        </Group>
+        <Divider style={{ flex: 1 }} color="indigo.2" />
+      </Group>
+    )
+    prevSender = null
+
+    for (let i = 0; i < batchMsgs.length; i++) {
+      const msg = batchMsgs[i]
+      const isMe = myName && msg.sender === myName
+      const showHeader = msg.sender !== prevSender
+      const isFile = msg.hasAttachment
+
+      items.push(
+        <Box
+          key={msg.id || `${bid}-${i}`}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: isMe ? 'flex-end' : 'flex-start',
+            marginTop: showHeader ? 12 : 3,
+          }}
+        >
+          {showHeader && (
+            <Text size="xs" c="dimmed" mb={3}>
+              <Text span fw={600} c={isMe ? 'indigo.7' : 'dark.5'}>{msg.sender}</Text>
+              {' \u00B7 '}{formatShortDate(msg.datetime)}
+            </Text>
+          )}
+          <Box
+            py={8}
+            px={14}
+            style={{
+              maxWidth: '80%',
+              borderRadius: 12,
+              borderTopRightRadius: isMe && showHeader ? 4 : 12,
+              borderTopLeftRadius: !isMe && showHeader ? 4 : 12,
+              backgroundColor: isMe ? '#cce5ff' : '#e8f4fd',
+            }}
+          >
+            {isFile ? (
+              <Group gap={4}>
+                <IconPaperclip size={13} color="#6b7280" />
+                <Text size="sm" c="dark.6">{msg.message}</Text>
+              </Group>
+            ) : (
+              <Text size="sm" c="dark.7" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.55 }}>
+                {msg.message}
+              </Text>
+            )}
+          </Box>
+        </Box>
+      )
+
+      prevSender = msg.sender
+    }
+  }
+
+  return <Stack gap={0}>{items}</Stack>
+}
+
+function RawView({ messages }) {
+  return (
+    <Card padding={0} mah={500} style={{ overflowY: 'auto' }}>
+      {messages.map((msg, i) => (
+        <div
+          key={msg.id || i}
+          style={{
+            padding: '10px 16px',
+            borderBottom: i < messages.length - 1 ? '1px solid var(--mantine-color-gray-1)' : 'none',
+          }}
+        >
+          <Group gap="xs" mb={2}>
+            <Text size="sm" fw={500} c={msg.isFromClient ? 'indigo' : undefined}>
+              {msg.sender}
+              {msg.isFromClient && <Text span size="xs" c="indigo.4" ml={4}>{'\uC758\uB8B0\uC778'}</Text>}
+            </Text>
+            <Text size="xs" c="dimmed" ff="monospace">{formatDateTime(msg.datetime)}</Text>
+          </Group>
+          <Text size="sm" c="dimmed">
+            {msg.message}
+            {msg.hasAttachment && <Badge color="orange" variant="light" size="xs" ml="xs">{'\uCCA8\uBD80'}</Badge>}
+          </Text>
+        </div>
+      ))}
+    </Card>
+  )
+}
 
 export default function KakaoParser({ caseData }) {
   const { loadCaseDetail } = useCaseStore()
   const { showToast } = useUiStore()
+  const { user } = useAuthStore()
   const fileInputRef = useRef(null)
 
   const [text, setText] = useState('')
   const [preview, setPreview] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [view, setView] = useState('bubble')
 
   const kakaoMessages = caseData.kakaoMessages || []
 
+  // extract unique sender names
+  const senderNames = useMemo(() => {
+    const names = new Set()
+    for (const msg of kakaoMessages) {
+      if (msg.sender) names.add(msg.sender)
+    }
+    return [...names]
+  }, [kakaoMessages])
+
+  // auto-detect default myName: localStorage > Google name match > first non-client sender
+  const defaultMyName = useMemo(() => {
+    const saved = localStorage.getItem('kt_my_name')
+    if (saved && senderNames.includes(saved)) return saved
+    const googleName = user?.name || ''
+    if (googleName && senderNames.some((n) => n.includes(googleName) || googleName.includes(n))) {
+      return senderNames.find((n) => n.includes(googleName) || googleName.includes(n))
+    }
+    // pick the sender who is NOT the client
+    const clientName = caseData.clientName || ''
+    const nonClient = senderNames.find((n) => !clientName || !n.includes(clientName))
+    return nonClient || senderNames[0] || ''
+  }, [senderNames, user, caseData.clientName])
+
+  const [myName, setMyName] = useState(defaultMyName)
+
+  useEffect(() => {
+    if (!myName && defaultMyName) {
+      setMyName(defaultMyName)
+      localStorage.setItem('kt_my_name', defaultMyName)
+    }
+  }, [defaultMyName])
+
+  const handleMyNameChange = (val) => {
+    setMyName(val || '')
+    if (val) {
+      localStorage.setItem('kt_my_name', val)
+    } else {
+      localStorage.removeItem('kt_my_name')
+    }
+  }
+
   const handleParse = () => {
     if (!text.trim()) return
-
     const messages = parseKakaoChat(text, caseData.clientName)
-
     if (messages.length === 0) {
-      // 파싱 실패 → 메모로 저장할지 미리보기
       setPreview({ type: 'memo', data: textToMemo(text), count: 0 })
     } else {
       setPreview({ type: 'messages', data: messages, count: messages.length })
@@ -32,190 +221,207 @@ export default function KakaoParser({ caseData }) {
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     const reader = new FileReader()
-    reader.onload = (ev) => {
-      setText(ev.target.result)
-    }
+    reader.onload = (ev) => setText(ev.target.result)
     reader.readAsText(file, 'UTF-8')
     e.target.value = ''
   }
 
   const handleSave = async () => {
     if (!preview) return
-
     setIsSaving(true)
     try {
       const detail = await readCaseDetail(caseData.driveFileId)
-
       if (preview.type === 'messages') {
-        detail.kakaoMessages = [...(detail.kakaoMessages || []), ...preview.data]
+        const batchId = `batch-${Date.now()}`
+        const tagged = preview.data.map((m) => ({ ...m, batchId }))
+        detail.kakaoMessages = [...(detail.kakaoMessages || []), ...tagged]
       } else {
         detail.memos = [...(detail.memos || []), preview.data]
       }
-
       await writeCaseDetail(caseData.driveFileId, detail)
       await loadCaseDetail(caseData.id)
-
       setText('')
       setPreview(null)
       showToast(
         preview.type === 'messages'
-          ? `${preview.count}개 메시지가 저장되었습니다.`
-          : '메모로 저장되었습니다.',
+          ? `${preview.count}\uAC1C \uBA54\uC2DC\uC9C0\uAC00 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.`
+          : '\uBA54\uBAA8\uB85C \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
         'success'
       )
     } catch (err) {
-      showToast(`저장 실패: ${err.message}`, 'error')
+      showToast(`\uC800\uC7A5 \uC2E4\uD328: ${err.message}`, 'error')
     } finally {
       setIsSaving(false)
     }
   }
 
-  return (
-    <div className="space-y-6">
-      {/* 입력 영역 */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900">카카오톡 대화 가져오기</h3>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
-            txt 파일 업로드
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".txt"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-        </div>
+  // group messages by batchId for batch management
+  const batches = useMemo(() => {
+    const groups = []
+    let current = null
+    for (const msg of kakaoMessages) {
+      const bid = msg.batchId || '__legacy__'
+      if (!current || current.id !== bid) {
+        current = { id: bid, messages: [], importedAt: msg.importedAt || msg.datetime }
+        groups.push(current)
+      }
+      current.messages.push(msg)
+    }
+    return groups
+  }, [kakaoMessages])
 
-        <textarea
+  const handleDeleteBatch = async (batchId) => {
+    const count = batches.find((b) => b.id === batchId)?.messages.length || 0
+    if (!confirm(`\uC774 \uB300\uD654 ${count}\uAC74\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?`)) return
+    try {
+      const detail = await readCaseDetail(caseData.driveFileId)
+      if (batchId === '__legacy__') {
+        detail.kakaoMessages = (detail.kakaoMessages || []).filter((m) => m.batchId)
+      } else {
+        detail.kakaoMessages = (detail.kakaoMessages || []).filter((m) => m.batchId !== batchId)
+      }
+      await writeCaseDetail(caseData.driveFileId, detail)
+      await loadCaseDetail(caseData.id)
+      showToast(`\uB300\uD654 ${count}\uAC74\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.`, 'success')
+    } catch (err) {
+      showToast(`\uC0AD\uC81C \uC2E4\uD328: ${err.message}`, 'error')
+    }
+  }
+
+  const handleDeleteAll = async () => {
+    if (!confirm('\uC800\uC7A5\uB41C \uCE74\uCE74\uC624\uD1A1 \uB300\uD654\uB97C \uBAA8\uB450 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?')) return
+    try {
+      const detail = await readCaseDetail(caseData.driveFileId)
+      detail.kakaoMessages = []
+      await writeCaseDetail(caseData.driveFileId, detail)
+      await loadCaseDetail(caseData.id)
+      showToast('\uCE74\uCE74\uC624\uD1A1 \uB300\uD654\uAC00 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
+    } catch (err) {
+      showToast(`\uC0AD\uC81C \uC2E4\uD328: ${err.message}`, 'error')
+    }
+  }
+
+  return (
+    <Stack gap="lg">
+      {/* input area */}
+      <Stack gap="sm">
+        <Group justify="space-between">
+          <Text size="md" fw={600}>{'\uCE74\uCE74\uC624\uD1A1 \uB300\uD654 \uAC00\uC838\uC624\uAE30'}</Text>
+          <Button
+            variant="subtle" size="xs"
+            leftSection={<IconUpload size={14} />}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            txt {'\uD30C\uC77C \uC5C5\uB85C\uB4DC'}
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".txt" onChange={handleFileUpload} style={{ display: 'none' }} />
+        </Group>
+
+        <Textarea
           value={text}
-          onChange={(e) => {
-            setText(e.target.value)
-            setPreview(null)
-          }}
-          placeholder="카카오톡 대화를 붙여넣기 하세요...&#10;&#10;iOS: 2026년 3월 1일 오후 2:23, 홍길동 : 메시지&#10;Android: 2026-03-01 14:23, 홍길동 : 메시지"
-          className="w-full h-40 px-4 py-3 border border-gray-300 rounded-xl text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          onChange={(e) => { setText(e.currentTarget.value); setPreview(null) }}
+          placeholder={'\uCE74\uCE74\uC624\uD1A1 \uB300\uD654\uB97C \uBD99\uC5EC\uB123\uAE30 \uD558\uC138\uC694...\n\niOS: 2026\uB144 3\uC6D4 1\uC77C \uC624\uD6C4 2:23, \uD64D\uAE38\uB3D9 : \uBA54\uC2DC\uC9C0\nAndroid: [\uD64D\uAE38\uB3D9] [\uC624\uD6C4 2:23] \uBA54\uC2DC\uC9C0'}
+          minRows={6}
+          autosize
         />
 
-        <div className="flex justify-end gap-2">
+        <Group justify="flex-end" gap="sm">
           {text.trim() && (
-            <button
-              onClick={() => {
-                setText('')
-                setPreview(null)
-              }}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
-            >
-              지우기
-            </button>
+            <Button variant="subtle" color="gray" onClick={() => { setText(''); setPreview(null) }}>{'\uC9C0\uC6B0\uAE30'}</Button>
           )}
-          <button
-            onClick={handleParse}
-            disabled={!text.trim()}
-            className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
-          >
-            파싱하기
-          </button>
-        </div>
-      </div>
+          <Button onClick={handleParse} disabled={!text.trim()}>{'\uD30C\uC2F1\uD558\uAE30'}</Button>
+        </Group>
+      </Stack>
 
-      {/* 미리보기 */}
+      {/* preview */}
       {preview && (
-        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-gray-700">
+        <Paper bg="gray.0" p="md" radius="lg">
+          <Group justify="space-between" mb="sm">
+            <Text size="sm" fw={600}>
               {preview.type === 'messages'
-                ? `${preview.count}개 메시지 파싱됨`
-                : '파싱 실패 — 메모로 저장'}
-            </h4>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-4 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50"
-            >
-              {isSaving ? '저장 중...' : 'Drive에 저장'}
-            </button>
-          </div>
+                ? `${preview.count}\uAC1C \uBA54\uC2DC\uC9C0 \uD30C\uC2F1\uB428`
+                : '\uD30C\uC2F1 \uC2E4\uD328 \u2014 \uBA54\uBAA8\uB85C \uC800\uC7A5'}
+            </Text>
+            <Button color="teal" size="xs" onClick={handleSave} loading={isSaving}>Drive{'\uC5D0 \uC800\uC7A5'}</Button>
+          </Group>
 
           {preview.type === 'messages' ? (
-            <div className="max-h-60 overflow-y-auto space-y-1">
+            <Stack gap={4} mah={240} style={{ overflowY: 'auto' }}>
               {preview.data.slice(0, 50).map((msg, i) => (
-                <div key={i} className="text-sm py-1">
-                  <span className={`font-medium ${msg.isFromClient ? 'text-blue-700' : 'text-gray-700'}`}>
-                    {msg.sender}
-                  </span>
-                  <span className="text-gray-400 text-xs ml-2">
-                    {formatDateTime(msg.datetime)}
-                  </span>
-                  <p className="text-gray-600 mt-0.5">
+                <div key={i}>
+                  <Group gap="xs">
+                    <Text size="sm" fw={500} c={msg.isFromClient ? 'indigo' : undefined}>{msg.sender}</Text>
+                    <Text size="xs" c="dimmed" ff="monospace">{formatDateTime(msg.datetime)}</Text>
+                  </Group>
+                  <Text size="sm" c="dimmed">
                     {msg.message}
-                    {msg.hasAttachment && (
-                      <span className="text-xs text-orange-500 ml-1">[첨부]</span>
-                    )}
-                  </p>
+                    {msg.hasAttachment && <Badge color="orange" variant="light" size="xs" ml="xs">{'\uCCA8\uBD80'}</Badge>}
+                  </Text>
                 </div>
               ))}
               {preview.data.length > 50 && (
-                <p className="text-xs text-gray-400 text-center py-2">
-                  ...외 {preview.data.length - 50}개 메시지
-                </p>
+                <Text size="xs" c="dimmed" ta="center" py="xs">...{'\uC678'} {preview.data.length - 50}{'\uAC1C \uBA54\uC2DC\uC9C0'}</Text>
               )}
-            </div>
+            </Stack>
           ) : (
-            <p className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-5">
+            <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap', WebkitLineClamp: 5, overflow: 'hidden' }}>
               {preview.data.content}
-            </p>
+            </Text>
           )}
-        </div>
+        </Paper>
       )}
 
-      {/* 저장된 메시지 목록 */}
+      {/* saved messages */}
       {kakaoMessages.length > 0 && (
         <div>
-          <h3 className="text-base font-semibold text-gray-900 mb-3">
-            저장된 대화 ({kakaoMessages.length}건)
-          </h3>
-          <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 max-h-96 overflow-y-auto">
-            {kakaoMessages.map((msg, i) => (
-              <div key={msg.id || i} className="px-4 py-3">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span
-                    className={`text-sm font-medium ${
-                      msg.isFromClient ? 'text-blue-700' : 'text-gray-700'
-                    }`}
-                  >
-                    {msg.sender}
-                    {msg.isFromClient && (
-                      <span className="text-xs text-blue-500 ml-1">(의뢰인)</span>
-                    )}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {formatDateTime(msg.datetime)}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600">
-                  {msg.message}
-                  {msg.hasAttachment && (
-                    <span className="text-xs text-orange-500 ml-1">[첨부]</span>
-                  )}
-                </p>
-              </div>
-            ))}
-          </div>
+          <Group justify="space-between" mb="sm">
+            <Group gap="sm">
+              <Text size="sm" c="dimmed">{'\uB300\uD654'} {kakaoMessages.length}{'\uAC74'}</Text>
+              {/* my name selector */}
+              <Select
+                size="xs"
+                placeholder={'\uB0B4 \uC774\uB984 \uC120\uD0DD'}
+                data={senderNames}
+                value={myName || null}
+                onChange={handleMyNameChange}
+                clearable
+                leftSection={<IconUser size={12} />}
+                w={160}
+                styles={{ input: { height: 28 } }}
+              />
+            </Group>
+            <Group gap="xs">
+              <SegmentedControl
+                size="xs"
+                value={view}
+                onChange={setView}
+                data={[
+                  { label: '\uD83D\uDCAC \uB9D0\uD48D\uC120', value: 'bubble' },
+                  { label: '\uD83D\uDCC4 \uC6D0\uBB38', value: 'raw' },
+                ]}
+              />
+              <ActionIcon variant="subtle" color="red" size="sm" onClick={handleDeleteAll} title={'\uC804\uCCB4 \uC0AD\uC81C'}>
+                <IconTrash size={14} />
+              </ActionIcon>
+            </Group>
+          </Group>
+
+          {view === 'bubble' ? (
+            <Card padding="md" mah={500} style={{ overflowY: 'auto', backgroundColor: '#f0f7fb' }}>
+              <BubbleView messages={kakaoMessages} myName={myName} onDeleteBatch={handleDeleteBatch} />
+            </Card>
+          ) : (
+            <RawView messages={kakaoMessages} />
+          )}
         </div>
       )}
 
       {kakaoMessages.length === 0 && !preview && !text && (
-        <p className="text-sm text-gray-500 text-center py-8">
-          카카오톡 대화를 붙여넣거나 txt 파일을 업로드하세요
-        </p>
+        <Text size="sm" c="dimmed" ta="center" py="xl">
+          {'\uCE74\uCE74\uC624\uD1A1 \uB300\uD654\uB97C \uBD99\uC5EC\uB123\uAC70\uB098 txt \uD30C\uC77C\uC744 \uC5C5\uB85C\uB4DC\uD558\uC138\uC694'}
+        </Text>
       )}
-    </div>
+    </Stack>
   )
 }

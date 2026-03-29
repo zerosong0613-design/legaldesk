@@ -1,21 +1,15 @@
+import { Tabs } from '@mantine/core'
+
 export default function TabBar({ tabs, activeTab, onChange }) {
   return (
-    <div className="border-b border-gray-200">
-      <nav className="flex gap-0 overflow-x-auto">
+    <Tabs value={activeTab} onChange={onChange} variant="default">
+      <Tabs.List>
         {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onChange(tab.id)}
-            className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
+          <Tabs.Tab key={tab.id} value={tab.id}>
             {tab.label}
-          </button>
+          </Tabs.Tab>
         ))}
-      </nav>
-    </div>
+      </Tabs.List>
+    </Tabs>
   )
 }

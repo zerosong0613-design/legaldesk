@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react'
+import { Card, Text, Group, ActionIcon, Badge, Stack, UnstyledButton, Box } from '@mantine/core'
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -14,11 +16,6 @@ function formatDate(d) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
-function formatTime(dateStr) {
-  const d = new Date(dateStr)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
 export default function MiniCalendar({ events, onEventClick }) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date()
@@ -28,7 +25,6 @@ export default function MiniCalendar({ events, onEventClick }) {
 
   const today = new Date()
 
-  // 이벤트를 날짜별로 그룹핑
   const eventsByDate = useMemo(() => {
     const map = {}
     for (const ev of events) {
@@ -40,7 +36,6 @@ export default function MiniCalendar({ events, onEventClick }) {
     return map
   }, [events])
 
-  // 달력 날짜 배열 생성
   const calendarDays = useMemo(() => {
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
@@ -48,25 +43,13 @@ export default function MiniCalendar({ events, onEventClick }) {
     const daysInMonth = new Date(year, month + 1, 0).getDate()
 
     const days = []
-    // 이전 달 빈칸
-    for (let i = 0; i < firstDay; i++) {
-      days.push(null)
-    }
-    // 이번 달
-    for (let d = 1; d <= daysInMonth; d++) {
-      days.push(new Date(year, month, d))
-    }
+    for (let i = 0; i < firstDay; i++) days.push(null)
+    for (let d = 1; d <= daysInMonth; d++) days.push(new Date(year, month, d))
     return days
   }, [currentMonth])
 
-  const prevMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))
-  }
-
-  const nextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))
-  }
-
+  const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))
+  const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))
   const goToday = () => {
     const now = new Date()
     setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1))
@@ -82,52 +65,45 @@ export default function MiniCalendar({ events, onEventClick }) {
   const selectedEvents = getEventsForDate(selectedDate)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <Card padding={0}>
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <button onClick={prevMonth} className="p-1 text-gray-400 hover:text-gray-600">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-900">
+      <Group justify="space-between" px="md" py="sm" style={{ borderBottom: '1px solid var(--mantine-color-gray-2)' }}>
+        <ActionIcon variant="subtle" color="gray" onClick={prevMonth} size="sm">
+          <IconChevronLeft size={16} />
+        </ActionIcon>
+        <Group gap="xs">
+          <Text size="sm" fw={600}>
             {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
-          </span>
-          <button
-            onClick={goToday}
-            className="text-xs text-blue-600 hover:text-blue-700 px-1.5 py-0.5 rounded hover:bg-blue-50"
-          >
-            오늘
-          </button>
-        </div>
-        <button onClick={nextMonth} className="p-1 text-gray-400 hover:text-gray-600">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
+          </Text>
+          <UnstyledButton onClick={goToday}>
+            <Text size="xs" c="indigo" fw={500}>오늘</Text>
+          </UnstyledButton>
+        </Group>
+        <ActionIcon variant="subtle" color="gray" onClick={nextMonth} size="sm">
+          <IconChevronRight size={16} />
+        </ActionIcon>
+      </Group>
 
       {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 border-b border-gray-100">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--mantine-color-gray-1)' }}>
         {WEEKDAYS.map((day, i) => (
-          <div
+          <Text
             key={day}
-            className={`py-2 text-center text-xs font-medium ${
-              i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'
-            }`}
+            ta="center"
+            size="xs"
+            fw={500}
+            py={8}
+            c={i === 0 ? 'red.4' : i === 6 ? 'blue.4' : 'dimmed'}
           >
             {day}
-          </div>
+          </Text>
         ))}
       </div>
 
       {/* 날짜 그리드 */}
-      <div className="grid grid-cols-7 p-1">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: 4 }}>
         {calendarDays.map((date, i) => {
-          if (!date) {
-            return <div key={`empty-${i}`} className="h-9" />
-          }
+          if (!date) return <div key={`empty-${i}`} style={{ height: 36 }} />
 
           const dayEvents = getEventsForDate(date)
           const isToday = isSameDay(date, today)
@@ -136,71 +112,91 @@ export default function MiniCalendar({ events, onEventClick }) {
           const hasHearing = dayEvents.some((e) => e.type === 'hearing')
           const hasDeadline = dayEvents.some((e) => e.type === 'deadline')
 
+          const textColor = isSelected
+            ? 'white'
+            : dayOfWeek === 0
+              ? 'var(--mantine-color-red-5)'
+              : dayOfWeek === 6
+                ? 'var(--mantine-color-blue-5)'
+                : undefined
+
           return (
-            <button
+            <UnstyledButton
               key={date.toISOString()}
               onClick={() => setSelectedDate(date)}
-              className={`h-9 flex flex-col items-center justify-center rounded-lg text-sm relative transition-colors ${
-                isSelected
-                  ? 'bg-blue-600 text-white'
+              style={{
+                height: 36,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 8,
+                position: 'relative',
+                backgroundColor: isSelected
+                  ? 'var(--mantine-color-indigo-6)'
                   : isToday
-                    ? 'bg-blue-50 text-blue-700 font-semibold'
-                    : dayOfWeek === 0
-                      ? 'text-red-500 hover:bg-gray-50'
-                      : dayOfWeek === 6
-                        ? 'text-blue-500 hover:bg-gray-50'
-                        : 'text-gray-700 hover:bg-gray-50'
-              }`}
+                    ? 'var(--mantine-color-indigo-0)'
+                    : undefined,
+                color: textColor,
+                fontWeight: isToday ? 600 : undefined,
+                fontSize: 14,
+              }}
             >
               {date.getDate()}
               {dayEvents.length > 0 && (
-                <div className="flex gap-0.5 absolute bottom-0.5">
+                <div style={{ display: 'flex', gap: 2, position: 'absolute', bottom: 2 }}>
                   {hasHearing && (
-                    <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-red-500'}`} />
+                    <span style={{
+                      width: 4, height: 4, borderRadius: '50%',
+                      backgroundColor: isSelected ? 'white' : 'var(--mantine-color-red-5)',
+                    }} />
                   )}
                   {hasDeadline && (
-                    <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-orange-500'}`} />
+                    <span style={{
+                      width: 4, height: 4, borderRadius: '50%',
+                      backgroundColor: isSelected ? 'white' : 'var(--mantine-color-orange-5)',
+                    }} />
                   )}
                 </div>
               )}
-            </button>
+            </UnstyledButton>
           )
         })}
       </div>
 
       {/* 선택된 날짜의 일정 */}
-      <div className="border-t border-gray-100 px-4 py-3">
-        <p className="text-xs font-medium text-gray-500 mb-2">
+      <Box px="md" py="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-1)' }}>
+        <Text size="xs" fw={500} c="dimmed" mb="xs">
           {formatDate(selectedDate)}
           {isSameDay(selectedDate, today) && ' (오늘)'}
-        </p>
+        </Text>
         {selectedEvents.length === 0 ? (
-          <p className="text-xs text-gray-400 py-2">일정 없음</p>
+          <Text size="xs" c="dimmed" py="xs">일정 없음</Text>
         ) : (
-          <div className="space-y-1.5 max-h-32 overflow-y-auto">
+          <Stack gap={6} mah={128} style={{ overflowY: 'auto' }}>
             {selectedEvents.map((ev, i) => (
-              <div
+              <UnstyledButton
                 key={i}
                 onClick={() => onEventClick?.(ev)}
-                className="flex items-start gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded p-1 -mx-1"
+                p={4}
+                style={{ borderRadius: 4, display: 'flex', alignItems: 'flex-start', gap: 8 }}
               >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
-                    ev.type === 'hearing' ? 'bg-red-500' : 'bg-orange-500'
-                  }`}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-gray-800 text-xs truncate">{ev.label}</p>
-                  <p className="text-gray-400 text-xs">
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%', marginTop: 6, flexShrink: 0,
+                  backgroundColor: ev.type === 'hearing' ? 'var(--mantine-color-red-5)' : 'var(--mantine-color-orange-5)',
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Text size="xs" truncate>{ev.label}</Text>
+                  <Text size="xs" c="dimmed">
                     {ev.time && `${ev.time} · `}
                     {ev.type === 'hearing' ? '기일' : '마감'}
-                  </p>
+                  </Text>
                 </div>
-              </div>
+              </UnstyledButton>
             ))}
-          </div>
+          </Stack>
         )}
-      </div>
-    </div>
+      </Box>
+    </Card>
   )
 }

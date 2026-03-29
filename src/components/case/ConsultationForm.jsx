@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TextInput, Select, Button, Group, Stack, SimpleGrid } from '@mantine/core'
 
 const CONSULT_TYPES = ['계약검토', '법률의견서', '규정자문', '일반상담', '기타']
 const CONSULT_STATUSES = ['접수', '진행', '완료', '보류']
@@ -19,8 +20,8 @@ export default function ConsultationForm({ initialData, onSubmit, onCancel }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+  const handleChange = (name, value) => {
+    setForm({ ...form, [name]: value })
   }
 
   const handleSubmit = async (e) => {
@@ -31,162 +32,93 @@ export default function ConsultationForm({ initialData, onSubmit, onCancel }) {
     try {
       const data = {
         ...form,
-        tags: form.tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean),
+        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
       }
-
       if (!isEditing) {
         const year = new Date().getFullYear()
         data.id = `C-${year}-${String(Date.now()).slice(-4)}`
         data.openedAt = new Date().toISOString().split('T')[0]
         data.closedAt = null
       }
-
       await onSubmit(data)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const inputClass =
-    'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          의뢰인 <span className="text-red-500">*</span>
-        </label>
-        <input
-          name="clientName"
-          value={form.clientName}
-          onChange={handleChange}
-          className={inputClass}
+    <form onSubmit={handleSubmit}>
+      <Stack gap="sm">
+        <TextInput
+          label="의뢰인"
           placeholder="홍길동 / 주식회사 테크"
           required
+          withAsterisk
+          value={form.clientName}
+          onChange={(e) => handleChange('clientName', e.currentTarget.value)}
         />
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            자문 유형
-          </label>
-          <select
-            name="type"
+        <SimpleGrid cols={2}>
+          <Select
+            label="자문 유형"
+            data={CONSULT_TYPES}
             value={form.type}
-            onChange={handleChange}
-            className={inputClass}
-          >
-            {CONSULT_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            마감일
-          </label>
-          <input
-            name="deadline"
+            onChange={(val) => handleChange('type', val)}
+          />
+          <TextInput
+            label="마감일"
             type="date"
             value={form.deadline}
-            onChange={handleChange}
-            className={inputClass}
+            onChange={(e) => handleChange('deadline', e.currentTarget.value)}
           />
-        </div>
-      </div>
+        </SimpleGrid>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          자문 주제
-        </label>
-        <input
-          name="subject"
-          value={form.subject}
-          onChange={handleChange}
-          className={inputClass}
+        <TextInput
+          label="자문 주제"
           placeholder="공급 계약서 리뷰"
+          value={form.subject}
+          onChange={(e) => handleChange('subject', e.currentTarget.value)}
         />
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            이메일
-          </label>
-          <input
-            name="clientEmail"
+        <SimpleGrid cols={2}>
+          <TextInput
+            label="이메일"
             type="email"
-            value={form.clientEmail}
-            onChange={handleChange}
-            className={inputClass}
             placeholder="client@example.com"
+            value={form.clientEmail}
+            onChange={(e) => handleChange('clientEmail', e.currentTarget.value)}
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            전화번호
-          </label>
-          <input
-            name="clientPhone"
-            value={form.clientPhone}
-            onChange={handleChange}
-            className={inputClass}
+          <TextInput
+            label="전화번호"
             placeholder="010-1234-5678"
+            value={form.clientPhone}
+            onChange={(e) => handleChange('clientPhone', e.currentTarget.value)}
           />
-        </div>
-      </div>
+        </SimpleGrid>
 
-      {isEditing && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            상태
-          </label>
-          <select
-            name="status"
+        {isEditing && (
+          <Select
+            label="상태"
+            data={CONSULT_STATUSES}
             value={form.status}
-            onChange={handleChange}
-            className={inputClass}
-          >
-            {CONSULT_STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-      )}
+            onChange={(val) => handleChange('status', val)}
+          />
+        )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          태그
-        </label>
-        <input
-          name="tags"
-          value={form.tags}
-          onChange={handleChange}
-          className={inputClass}
+        <TextInput
+          label="태그"
           placeholder="계약, 공급 (쉼표로 구분)"
+          value={form.tags}
+          onChange={(e) => handleChange('tags', e.currentTarget.value)}
         />
-      </div>
 
-      <div className="flex justify-end gap-2 pt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg"
-        >
-          취소
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting || !form.clientName.trim()}
-          className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
-        >
-          {isSubmitting ? '저장 중...' : isEditing ? '수정' : '생성'}
-        </button>
-      </div>
+        <Group justify="flex-end" gap="sm" mt="sm">
+          <Button variant="default" onClick={onCancel}>취소</Button>
+          <Button type="submit" loading={isSubmitting} disabled={!form.clientName.trim()}>
+            {isEditing ? '수정' : '생성'}
+          </Button>
+        </Group>
+      </Stack>
     </form>
   )
 }

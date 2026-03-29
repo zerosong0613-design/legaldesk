@@ -1,5 +1,14 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  AppShell, Group, Title, Text, Button, Avatar, Badge, Card,
+  SimpleGrid, TextInput, SegmentedControl, Stack, Box, Alert,
+  UnstyledButton, Container, ThemeIcon,
+} from '@mantine/core'
+import {
+  IconSearch, IconPlus, IconLogout, IconScale,
+  IconFileText, IconClock, IconArrowRight, IconReceipt,
+} from '@tabler/icons-react'
 import { useAuthStore } from '../auth/useAuth'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
@@ -29,21 +38,49 @@ function formatTime(dateStr) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return ''
+  const now = new Date()
+  const d = new Date(dateStr)
+  const diffMs = now - d
+  const diffMin = Math.floor(diffMs / 60000)
+  const diffHour = Math.floor(diffMs / 3600000)
+  const diffDay = Math.floor(diffMs / 86400000)
+
+  if (diffMin < 0) return formatDate(dateStr)
+  if (diffMin < 1) return '\uBC29\uAE08 \uC804'
+  if (diffMin < 60) return `${diffMin}\uBD84 \uC804`
+  if (diffHour < 24) return `${diffHour}\uC2DC\uAC04 \uC804`
+  if (diffDay < 7) return `${diffDay}\uC77C \uC804`
+  return formatDate(dateStr)
+}
+
 const CASE_STATUS_FILTERS = [
-  { label: '전체', value: null },
-  { label: '접수', value: '접수' },
-  { label: '진행', value: '진행' },
-  { label: '종결', value: '종결' },
-  { label: '보류', value: '보류' },
+  { label: '\uC804\uCCB4', value: null },
+  { label: '\uC811\uC218', value: '\uC811\uC218' },
+  { label: '\uC9C4\uD589', value: '\uC9C4\uD589' },
+  { label: '\uC885\uACB0', value: '\uC885\uACB0' },
+  { label: '\uBCF4\uB958', value: '\uBCF4\uB958' },
 ]
 
 const CONSULT_STATUS_FILTERS = [
-  { label: '전체', value: null },
-  { label: '접수', value: '접수' },
-  { label: '진행', value: '진행' },
-  { label: '완료', value: '완료' },
-  { label: '보류', value: '보류' },
+  { label: '\uC804\uCCB4', value: null },
+  { label: '\uC811\uC218', value: '\uC811\uC218' },
+  { label: '\uC9C4\uD589', value: '\uC9C4\uD589' },
+  { label: '\uC644\uB8CC', value: '\uC644\uB8CC' },
+  { label: '\uBCF4\uB958', value: '\uBCF4\uB958' },
 ]
+
+function matchesQuery(item, q) {
+  return (
+    item.clientName?.toLowerCase().includes(q) ||
+    item.caseNumber?.toLowerCase().includes(q) ||
+    item.subject?.toLowerCase().includes(q) ||
+    item.type?.toLowerCase().includes(q) ||
+    item.court?.toLowerCase().includes(q) ||
+    item.tags?.some((t) => t.toLowerCase().includes(q))
+  )
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -62,21 +99,17 @@ export default function Dashboard() {
     openModal, closeModal, showToast,
   } = useUiStore()
 
-  // ─── 통계 ───
   const stats = useMemo(() => {
-    const activeCases = cases.filter((c) => c.status === '진행' || c.status === '접수')
-    const activeConsults = consultations.filter((c) => c.status === '진행' || c.status === '접수')
-
+    const activeCases = cases.filter((c) => c.status === '\uC9C4\uD589' || c.status === '\uC811\uC218')
+    const activeConsults = consultations.filter((c) => c.status === '\uC9C4\uD589' || c.status === '\uC811\uC218')
     const thisWeekHearings = cases.filter((c) => {
       const d = getDday(c.nextHearingDate)
-      return d !== null && d >= 0 && d <= 7 && c.status !== '종결'
+      return d !== null && d >= 0 && d <= 7 && c.status !== '\uC885\uACB0'
     })
-
     const urgentDeadlines = consultations.filter((c) => {
       const d = getDday(c.deadline)
-      return d !== null && d >= 0 && d <= 7 && c.status !== '완료'
+      return d !== null && d >= 0 && d <= 7 && c.status !== '\uC644\uB8CC'
     })
-
     return {
       activeCases: activeCases.length,
       activeConsults: activeConsults.length,
@@ -85,15 +118,13 @@ export default function Dashboard() {
     }
   }, [cases, consultations])
 
-  // ─── 캘린더 이벤트 (전체 기일 + 마감일) ───
   const calendarEvents = useMemo(() => {
     const events = []
-
     cases.forEach((c) => {
-      if (c.nextHearingDate && c.status !== '종결') {
+      if (c.nextHearingDate && c.status !== '\uC885\uACB0') {
         events.push({
           type: 'hearing',
-          label: `[${c.caseNumber || '번호 미정'}] ${c.clientName}`,
+          label: `[${c.caseNumber || '\uBC88\uD638 \uBBF8\uC815'}] ${c.clientName}`,
           date: c.nextHearingDate,
           time: formatTime(c.nextHearingDate),
           caseId: c.id,
@@ -101,12 +132,11 @@ export default function Dashboard() {
         })
       }
     })
-
     consultations.forEach((c) => {
-      if (c.deadline && c.status !== '완료') {
+      if (c.deadline && c.status !== '\uC644\uB8CC') {
         events.push({
           type: 'deadline',
-          label: `[자문] ${c.clientName} — ${c.subject || c.type}`,
+          label: `[\uC790\uBB38] ${c.clientName} \u2014 ${c.subject || c.type}`,
           date: c.deadline,
           time: null,
           caseId: c.id,
@@ -114,311 +144,483 @@ export default function Dashboard() {
         })
       }
     })
-
     return events
   }, [cases, consultations])
 
-  // ─── 전체 일정 (날짜순 정렬) ───
   const sortedEvents = useMemo(() => {
     return [...calendarEvents].sort((a, b) => new Date(a.date) - new Date(b.date))
   }, [calendarEvents])
 
-  // ─── 필터 + 검색 ───
+  // ─── 최근 활동: 사건+자문 통합, lastActivityAt 기준 최신 5개 ───
+  const recentActivity = useMemo(() => {
+    const all = [
+      ...cases.map((c) => ({ ...c, _category: 'case' })),
+      ...consultations.map((c) => ({ ...c, _category: 'consultation' })),
+    ]
+    return all
+      .filter((item) => item.lastActivityAt)
+      .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt))
+      .slice(0, 5)
+  }, [cases, consultations])
+
+  // ─── 통합 검색: 검색어 있으면 사건+자문 모두 검색 ───
+  const isSearching = searchQuery.trim().length > 0
+  const unifiedSearchResults = useMemo(() => {
+    if (!isSearching) return []
+    const q = searchQuery.toLowerCase()
+    const results = []
+    for (const c of cases) {
+      if (matchesQuery(c, q)) results.push({ ...c, _category: 'case' })
+    }
+    for (const c of consultations) {
+      if (matchesQuery(c, q)) results.push({ ...c, _category: 'consultation' })
+    }
+    return results.sort((a, b) => new Date(b.lastActivityAt || 0) - new Date(a.lastActivityAt || 0))
+  }, [cases, consultations, searchQuery, isSearching])
+
+  // ─── 탭별 필터 (검색 중 아닐 때) ───
   const statusFilters = dashboardTab === 'cases' ? CASE_STATUS_FILTERS : CONSULT_STATUS_FILTERS
   const items = dashboardTab === 'cases' ? cases : consultations
 
   const filteredItems = useMemo(() => {
     let result = items
+    if (statusFilter) result = result.filter((c) => c.status === statusFilter)
+    return result.sort((a, b) => new Date(b.lastActivityAt || 0) - new Date(a.lastActivityAt || 0))
+  }, [items, statusFilter])
 
-    if (statusFilter) {
-      result = result.filter((c) => c.status === statusFilter)
+  function navigateToItem(item) {
+    if (item._category === 'consultation' || item.category === 'consultation') {
+      navigate(`/consultation/${item.id}`)
+    } else {
+      navigate(`/case/${item.id}`)
     }
+  }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter((c) =>
-        c.clientName?.toLowerCase().includes(q) ||
-        c.caseNumber?.toLowerCase().includes(q) ||
-        c.subject?.toLowerCase().includes(q) ||
-        c.tags?.some((t) => t.toLowerCase().includes(q))
-      )
-    }
-
-    return result.sort(
-      (a, b) => new Date(b.lastActivityAt || 0) - new Date(a.lastActivityAt || 0)
-    )
-  }, [items, statusFilter, searchQuery])
-
-  // ─── 핸들러 ───
   const handleCreateCase = async (data) => {
     const result = await createCase(data)
-    if (result) { closeModal(); showToast('사건이 생성되었습니다.', 'success') }
+    if (result) { closeModal(); showToast('\uC0AC\uAC74\uC774 \uC0DD\uC131\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success') }
   }
-
   const handleEditCase = async (data) => {
     await updateCase(modalData.id, data)
-    closeModal(); showToast('사건이 수정되었습니다.', 'success')
+    closeModal(); showToast('\uC0AC\uAC74\uC774 \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
   }
-
   const handleCreateConsultation = async (data) => {
     const result = await createConsultation(data)
-    if (result) { closeModal(); showToast('자문이 생성되었습니다.', 'success') }
+    if (result) { closeModal(); showToast('\uC790\uBB38\uC774 \uC0DD\uC131\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success') }
   }
-
   const handleEditConsultation = async (data) => {
     await updateConsultation(modalData.id, data)
-    closeModal(); showToast('자문이 수정되었습니다.', 'success')
+    closeModal(); showToast('\uC790\uBB38\uC774 \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
   }
-
   const handleDelete = async () => {
     if (modalData.category === 'consultation') {
       await deleteConsultation(modalData.id)
-      showToast('자문이 삭제되었습니다.', 'success')
+      showToast('\uC790\uBB38\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
     } else {
       await deleteCase(modalData.id)
-      showToast('사건이 삭제되었습니다.', 'success')
+      showToast('\uC0AC\uAC74\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
     }
     closeModal()
   }
 
+  function DdayBadge({ dday, type }) {
+    if (dday === null) return <Badge color="gray" variant="light" ff="monospace" size="sm">-</Badge>
+    const label = dday === 0 ? 'D-Day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`
+    const color = dday < 0 ? 'gray' : dday === 0 ? 'red' : dday <= 7 ? 'red' : type === 'hearing' ? 'indigo' : 'orange'
+    const variant = dday === 0 ? 'filled' : 'light'
+    return <Badge color={color} variant={variant} ff="monospace" size="sm" miw={56}>{label}</Badge>
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 onClick={() => navigate('/')} className="text-lg font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors">LegalDesk</h1>
-          <div className="flex items-center gap-3">
-            {user?.picture && (
-              <img src={user.picture} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
-            )}
-            <span className="text-sm text-gray-700 hidden sm:block">{user?.name}</span>
-            <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1 rounded border border-gray-300 hover:bg-gray-50">
-              로그아웃
-            </button>
-          </div>
-        </div>
-      </header>
+    <AppShell header={{ height: 56 }} bg="#f0f2f5">
+      <AppShell.Header bg="#1d2124" style={{ borderBottom: 'none' }}>
+        <Container size="xl" h="100%">
+          <Group h="100%" justify="space-between">
+            <UnstyledButton onClick={() => navigate('/')}>
+              <Title order={4} c="white" ff="'Noto Serif KR', serif">LegalDesk</Title>
+            </UnstyledButton>
+            <Group gap="sm">
+              <Button
+                variant="subtle"
+                color="gray"
+                size="xs"
+                leftSection={<IconReceipt size={14} />}
+                onClick={() => navigate('/billing')}
+                styles={{ root: { color: 'var(--mantine-color-gray-4)' } }}
+              >
+                {'\uBE44\uC6A9\uAD00\uB9AC'}
+              </Button>
+              {user?.picture && <Avatar src={user.picture} size="sm" radius="xl" />}
+              <Text size="sm" c="gray.4" visibleFrom="sm">{user?.name}</Text>
+              <Button
+                variant="subtle"
+                color="gray"
+                size="xs"
+                leftSection={<IconLogout size={14} />}
+                onClick={logout}
+                styles={{ root: { color: 'var(--mantine-color-gray-5)' } }}
+              >
+                {'\uB85C\uADF8\uC544\uC6C3'}
+              </Button>
+            </Group>
+          </Group>
+        </Container>
+      </AppShell.Header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* 통계 카드 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-gray-500 mb-1">진행중 사건</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.activeCases}<span className="text-sm font-normal text-gray-500">건</span></p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-gray-500 mb-1">이번주 기일</p>
-            <p className={`text-2xl font-bold ${stats.thisWeekHearings > 0 ? 'text-red-600' : 'text-gray-900'}`}>
-              {stats.thisWeekHearings}<span className="text-sm font-normal text-gray-500">건</span>
-            </p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-gray-500 mb-1">마감 임박 자문</p>
-            <p className={`text-2xl font-bold ${stats.urgentDeadlines > 0 ? 'text-orange-600' : 'text-gray-900'}`}>
-              {stats.urgentDeadlines}<span className="text-sm font-normal text-gray-500">건</span>
-            </p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-gray-500 mb-1">진행중 자문</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.activeConsults}<span className="text-sm font-normal text-gray-500">건</span></p>
-          </div>
-        </div>
+      <AppShell.Main>
+        <Container size="xl" py="lg">
+          <Stack gap="lg">
+            {/* 통계 카드 */}
+            <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
+              <Card padding="md">
+                <Text size="xs" c="dimmed" mb={4}>{'\uC9C4\uD589\uC911 \uC0AC\uAC74'}</Text>
+                <Group gap={4} align="baseline">
+                  <Text size="xl" fw={700}>{stats.activeCases}</Text>
+                  <Text size="sm" c="dimmed">{'\uAC74'}</Text>
+                </Group>
+              </Card>
+              <Card padding="md">
+                <Text size="xs" c="dimmed" mb={4}>{'\uC774\uBC88\uC8FC \uAE30\uC77C'}</Text>
+                <Group gap={4} align="baseline">
+                  <Text size="xl" fw={700} c={stats.thisWeekHearings > 0 ? 'red' : undefined}>{stats.thisWeekHearings}</Text>
+                  <Text size="sm" c="dimmed">{'\uAC74'}</Text>
+                </Group>
+              </Card>
+              <Card padding="md">
+                <Text size="xs" c="dimmed" mb={4}>{'\uB9C8\uAC10 \uC784\uBC15 \uC790\uBB38'}</Text>
+                <Group gap={4} align="baseline">
+                  <Text size="xl" fw={700} c={stats.urgentDeadlines > 0 ? 'orange' : undefined}>{stats.urgentDeadlines}</Text>
+                  <Text size="sm" c="dimmed">{'\uAC74'}</Text>
+                </Group>
+              </Card>
+              <Card padding="md">
+                <Text size="xs" c="dimmed" mb={4}>{'\uC9C4\uD589\uC911 \uC790\uBB38'}</Text>
+                <Group gap={4} align="baseline">
+                  <Text size="xl" fw={700}>{stats.activeConsults}</Text>
+                  <Text size="sm" c="dimmed">{'\uAC74'}</Text>
+                </Group>
+              </Card>
+            </SimpleGrid>
 
-        {/* 캘린더 + 다가오는 일정 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-1">
-            <MiniCalendar
-              events={calendarEvents}
-              onEventClick={(ev) => ev.caseId && navigate(`/case/${ev.caseId}`)}
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 h-full">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                일정 ({sortedEvents.length})
-              </h3>
-              {sortedEvents.length === 0 ? (
-                <p className="text-sm text-gray-400 py-4">등록된 일정이 없습니다</p>
-              ) : (
-                <div className="space-y-1 max-h-80 overflow-y-auto">
-                  {sortedEvents.map((ev, i) => {
-                    const isPast = ev.dday !== null && ev.dday < 0
+            {/* 캘린더 + 일정 */}
+            <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
+              <Box>
+                <MiniCalendar
+                  events={calendarEvents}
+                  onEventClick={(ev) => {
+                    if (!ev.caseId) return
+                    if (ev.type === 'deadline') {
+                      navigate(`/consultation/${ev.caseId}`)
+                    } else {
+                      navigate(`/case/${ev.caseId}`)
+                    }
+                  }}
+                />
+              </Box>
+              <Box style={{ gridColumn: 'span 2' }}>
+                <Card padding="md" h="100%">
+                  <Text size="sm" fw={600} mb="sm">
+                    {'\uC77C\uC815'} ({sortedEvents.length})
+                  </Text>
+                  {sortedEvents.length === 0 ? (
+                    <Text size="sm" c="dimmed" py="lg">{'\uB4F1\uB85D\uB41C \uC77C\uC815\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
+                  ) : (
+                    <Stack gap={4} mah={320} style={{ overflowY: 'auto' }}>
+                      {sortedEvents.map((ev, i) => {
+                        const isPast = ev.dday !== null && ev.dday < 0
+                        return (
+                          <UnstyledButton
+                            key={i}
+                            onClick={() => {
+                              if (!ev.caseId) return
+                              if (ev.type === 'deadline') {
+                                navigate(`/consultation/${ev.caseId}`)
+                              } else {
+                                navigate(`/case/${ev.caseId}`)
+                              }
+                            }}
+                            p="xs"
+                            style={{ borderRadius: 8, opacity: isPast ? 0.5 : 1 }}
+                          >
+                            <Group gap="sm" wrap="nowrap">
+                              <DdayBadge dday={ev.dday} type={ev.type} />
+                              <Box style={{ flex: 1, minWidth: 0 }}>
+                                <Text size="sm" truncate>{ev.label}</Text>
+                                <Text size="xs" c="dimmed">
+                                  {formatDate(ev.date)}{ev.time ? ` ${ev.time}` : ''}
+                                  {' \u00B7 '}{ev.type === 'hearing' ? '\uAE30\uC77C' : '\uB9C8\uAC10'}
+                                </Text>
+                              </Box>
+                            </Group>
+                          </UnstyledButton>
+                        )
+                      })}
+                    </Stack>
+                  )}
+                </Card>
+              </Box>
+            </SimpleGrid>
+
+            {/* ─── 최근 활동 ─── */}
+            {recentActivity.length > 0 && !isSearching && (
+              <Card padding="md">
+                <Group justify="space-between" mb="sm">
+                  <Group gap="xs">
+                    <IconClock size={16} color="var(--mantine-color-dimmed)" />
+                    <Text size="sm" fw={600}>{'\uCD5C\uADFC \uD65C\uB3D9'}</Text>
+                  </Group>
+                </Group>
+                <Stack gap={4}>
+                  {recentActivity.map((item) => {
+                    const isConsult = item._category === 'consultation'
                     return (
-                      <div
-                        key={i}
-                        onClick={() => ev.caseId && navigate(`/case/${ev.caseId}`)}
-                        className={`flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer ${isPast ? 'opacity-50' : ''}`}
+                      <UnstyledButton
+                        key={item.id}
+                        onClick={() => navigateToItem(item)}
+                        p="xs"
+                        style={{ borderRadius: 8 }}
                       >
-                        <span className={`px-2 py-0.5 rounded text-xs font-semibold min-w-[3.5rem] text-center ${
-                          ev.dday === null
-                            ? 'bg-gray-100 text-gray-500'
-                            : ev.dday < 0
-                              ? 'bg-gray-100 text-gray-400'
-                              : ev.dday === 0
-                                ? 'bg-red-600 text-white'
-                                : ev.dday <= 7
-                                  ? 'bg-red-100 text-red-700'
-                                  : ev.type === 'hearing'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : 'bg-orange-100 text-orange-700'
-                        }`}>
-                          {ev.dday === null ? '-' : ev.dday === 0 ? 'D-Day' : ev.dday > 0 ? `D-${ev.dday}` : `D+${Math.abs(ev.dday)}`}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm truncate ${isPast ? 'text-gray-400' : 'text-gray-800'}`}>{ev.label}</p>
-                          <p className="text-xs text-gray-400">
-                            {formatDate(ev.date)}{ev.time ? ` ${ev.time}` : ''}
-                            {' · '}{ev.type === 'hearing' ? '기일' : '마감'}
-                          </p>
-                        </div>
-                      </div>
+                        <Group gap="sm" wrap="nowrap">
+                          <ThemeIcon
+                            size={28}
+                            radius="xl"
+                            variant="light"
+                            color={isConsult ? 'grape' : 'indigo'}
+                          >
+                            {isConsult ? <IconFileText size={14} /> : <IconScale size={14} />}
+                          </ThemeIcon>
+                          <Box style={{ flex: 1, minWidth: 0 }}>
+                            <Group gap="xs" wrap="nowrap">
+                              <Badge
+                                size="xs"
+                                variant="light"
+                                color={isConsult ? 'grape' : 'indigo'}
+                              >
+                                {isConsult ? '\uC790\uBB38' : '\uC0AC\uAC74'}
+                              </Badge>
+                              <Text size="sm" fw={500} truncate>{item.clientName}</Text>
+                              {!isConsult && item.caseNumber && (
+                                <Text size="xs" c="dimmed" truncate ff="monospace">{item.caseNumber}</Text>
+                              )}
+                              {isConsult && item.subject && (
+                                <Text size="xs" c="dimmed" truncate>{item.subject}</Text>
+                              )}
+                            </Group>
+                          </Box>
+                          <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                            {formatRelativeTime(item.lastActivityAt)}
+                          </Text>
+                          <IconArrowRight size={14} color="var(--mantine-color-dimmed)" />
+                        </Group>
+                      </UnstyledButton>
                     )
                   })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 사건/자문 탭 + 검색 + 새로 만들기 */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex bg-gray-200 rounded-lg p-1">
-            <button
-              onClick={() => setDashboardTab('cases')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                dashboardTab === 'cases' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              사건 ({cases.length})
-            </button>
-            <button
-              onClick={() => setDashboardTab('consultations')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                dashboardTab === 'consultations' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              자문 ({consultations.length})
-            </button>
-          </div>
-
-          <div className="flex-1 relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={dashboardTab === 'cases' ? '의뢰인명, 사건번호, 태그...' : '의뢰인명, 주제, 태그...'}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <button
-            onClick={() => openModal(dashboardTab === 'cases' ? 'createCase' : 'createConsultation')}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 whitespace-nowrap"
-          >
-            {dashboardTab === 'cases' ? '+ 새 사건' : '+ 새 자문'}
-          </button>
-        </div>
-
-        {/* 상태 필터 */}
-        <div className="flex gap-1 overflow-x-auto">
-          {statusFilters.map((f) => (
-            <button
-              key={f.label}
-              onClick={() => setStatusFilter(f.value)}
-              className={`px-3 py-1.5 text-sm rounded-lg whitespace-nowrap ${
-                statusFilter === f.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              {f.label}
-              {f.value === null && ` (${items.length})`}
-              {f.value && ` (${items.filter((c) => c.status === f.value).length})`}
-            </button>
-          ))}
-        </div>
-
-        {/* 에러 */}
-        {storeError && (
-          <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">{storeError}</div>
-        )}
-
-        {/* 카드 목록 */}
-        {filteredItems.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-500 mb-2">
-              {items.length === 0
-                ? dashboardTab === 'cases' ? '아직 등록된 사건이 없습니다' : '아직 등록된 자문이 없습니다'
-                : '검색 결과가 없습니다'}
-            </p>
-            {items.length === 0 && (
-              <button
-                onClick={() => openModal(dashboardTab === 'cases' ? 'createCase' : 'createConsultation')}
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-              >
-                {dashboardTab === 'cases' ? '첫 번째 사건 등록하기' : '첫 번째 자문 등록하기'}
-              </button>
+                </Stack>
+              </Card>
             )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {dashboardTab === 'cases'
-              ? filteredItems.map((c) => (
-                  <CaseCard
-                    key={c.id}
-                    caseData={c}
-                    onClick={() => navigate(`/case/${c.id}`)}
-                    onEdit={(data) => openModal('editCase', data)}
-                    onDelete={(data) => openModal('deleteConfirm', { ...data, category: 'case' })}
-                  />
-                ))
-              : filteredItems.map((c) => (
-                  <ConsultationCard
-                    key={c.id}
-                    data={c}
-                    onClick={() => navigate(`/case/${c.id}`)}
-                    onEdit={(data) => openModal('editConsultation', data)}
-                    onDelete={(data) => openModal('deleteConfirm', { ...data, category: 'consultation' })}
-                  />
-                ))}
-          </div>
-        )}
-      </main>
+
+            {/* ─── 통합 검색 바 ─── */}
+            <Group gap="sm" wrap="wrap">
+              {!isSearching && (
+                <SegmentedControl
+                  value={dashboardTab}
+                  onChange={setDashboardTab}
+                  data={[
+                    { label: `\uC0AC\uAC74 (${cases.length})`, value: 'cases' },
+                    { label: `\uC790\uBB38 (${consultations.length})`, value: 'consultations' },
+                  ]}
+                />
+              )}
+              <TextInput
+                placeholder={isSearching ? '\uC0AC\uAC74 + \uC790\uBB38 \uD1B5\uD569 \uAC80\uC0C9...' : (dashboardTab === 'cases' ? '\uC758\uB8B0\uC778\uBA85, \uC0AC\uAC74\uBC88\uD638, \uD0DC\uADF8...' : '\uC758\uB8B0\uC778\uBA85, \uC8FC\uC81C, \uD0DC\uADF8...')}
+                leftSection={<IconSearch size={16} />}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                style={{ flex: 1, minWidth: 200 }}
+              />
+              {isSearching ? (
+                <Button variant="default" onClick={() => setSearchQuery('')}>{'\uAC80\uC0C9 \uCDE8\uC18C'}</Button>
+              ) : (
+                <Button
+                  leftSection={<IconPlus size={16} />}
+                  onClick={() => openModal(dashboardTab === 'cases' ? 'createCase' : 'createConsultation')}
+                >
+                  {dashboardTab === 'cases' ? '\uC0C8 \uC0AC\uAC74' : '\uC0C8 \uC790\uBB38'}
+                </Button>
+              )}
+            </Group>
+
+            {/* ─── 통합 검색 결과 ─── */}
+            {isSearching ? (
+              <>
+                <Text size="sm" c="dimmed">
+                  {'\uAC80\uC0C9 \uACB0\uACFC'} <Text span fw={600}>{unifiedSearchResults.length}</Text>{'\uAC74'}
+                  {searchQuery.trim() && (
+                    <Text span c="indigo"> &quot;{searchQuery.trim()}&quot;</Text>
+                  )}
+                </Text>
+
+                {unifiedSearchResults.length === 0 ? (
+                  <Stack align="center" py="xl" gap="xs">
+                    <Text c="dimmed">{'\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
+                  </Stack>
+                ) : (
+                  <Stack gap="sm">
+                    {unifiedSearchResults.map((item) => {
+                      const isConsult = item._category === 'consultation'
+                      return (
+                        <Card
+                          key={item.id}
+                          padding="md"
+                          onClick={() => navigateToItem(item)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <Group gap="sm" wrap="nowrap">
+                            <ThemeIcon
+                              size={32}
+                              radius="xl"
+                              variant="light"
+                              color={isConsult ? 'grape' : 'indigo'}
+                            >
+                              {isConsult ? <IconFileText size={16} /> : <IconScale size={16} />}
+                            </ThemeIcon>
+                            <Box style={{ flex: 1, minWidth: 0 }}>
+                              <Group gap="xs" mb={2}>
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  color={isConsult ? 'grape' : 'indigo'}
+                                >
+                                  {isConsult ? '\uC790\uBB38' : '\uC0AC\uAC74'}
+                                </Badge>
+                                <Text size="sm" fw={600} truncate>{item.clientName}</Text>
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  color={
+                                    item.status === '\uC9C4\uD589' ? 'blue' :
+                                    item.status === '\uC811\uC218' ? 'teal' :
+                                    item.status === '\uC885\uACB0' || item.status === '\uC644\uB8CC' ? 'gray' :
+                                    'orange'
+                                  }
+                                >
+                                  {item.status}
+                                </Badge>
+                              </Group>
+                              <Text size="xs" c="dimmed" truncate>
+                                {!isConsult && item.caseNumber && `${item.caseNumber} | `}
+                                {!isConsult && item.court && `${item.court} | `}
+                                {isConsult && item.type && `${item.type} | `}
+                                {isConsult && item.subject && `${item.subject} | `}
+                                {item.tags?.length > 0 && item.tags.join(', ')}
+                              </Text>
+                            </Box>
+                            <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                              {formatRelativeTime(item.lastActivityAt)}
+                            </Text>
+                          </Group>
+                        </Card>
+                      )
+                    })}
+                  </Stack>
+                )}
+              </>
+            ) : (
+              <>
+                {/* 상태 필터 */}
+                <Group gap="xs">
+                  {statusFilters.map((f) => (
+                    <Button
+                      key={f.label}
+                      variant={statusFilter === f.value ? 'filled' : 'default'}
+                      size="xs"
+                      onClick={() => setStatusFilter(f.value)}
+                    >
+                      {f.label}
+                      {f.value === null && ` (${items.length})`}
+                      {f.value && ` (${items.filter((c) => c.status === f.value).length})`}
+                    </Button>
+                  ))}
+                </Group>
+
+                {/* 에러 */}
+                {storeError && <Alert color="red">{storeError}</Alert>}
+
+                {/* 카드 목록 */}
+                {filteredItems.length === 0 ? (
+                  <Stack align="center" py="xl" gap="xs">
+                    <Text c="dimmed">
+                      {items.length === 0
+                        ? dashboardTab === 'cases' ? '\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC0AC\uAC74\uC774 \uC5C6\uC2B5\uB2C8\uB2E4' : '\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC790\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'
+                        : '\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}
+                    </Text>
+                    {items.length === 0 && (
+                      <Button
+                        variant="subtle"
+                        onClick={() => openModal(dashboardTab === 'cases' ? 'createCase' : 'createConsultation')}
+                      >
+                        {dashboardTab === 'cases' ? '\uCCAB \uBC88\uC9F8 \uC0AC\uAC74 \uB4F1\uB85D\uD558\uAE30' : '\uCCAB \uBC88\uC9F8 \uC790\uBB38 \uB4F1\uB85D\uD558\uAE30'}
+                      </Button>
+                    )}
+                  </Stack>
+                ) : (
+                  <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                    {dashboardTab === 'cases'
+                      ? filteredItems.map((c) => (
+                          <CaseCard
+                            key={c.id}
+                            caseData={c}
+                            onClick={() => navigate(`/case/${c.id}`)}
+                            onEdit={(data) => openModal('editCase', data)}
+                            onDelete={(data) => openModal('deleteConfirm', { ...data, category: 'case' })}
+                          />
+                        ))
+                      : filteredItems.map((c) => (
+                          <ConsultationCard
+                            key={c.id}
+                            data={c}
+                            onClick={() => navigate(`/consultation/${c.id}`)}
+                            onEdit={(data) => openModal('editConsultation', data)}
+                            onDelete={(data) => openModal('deleteConfirm', { ...data, category: 'consultation' })}
+                          />
+                        ))}
+                  </SimpleGrid>
+                )}
+              </>
+            )}
+          </Stack>
+        </Container>
+      </AppShell.Main>
 
       {/* 모달들 */}
-      <Modal isOpen={isModalOpen && modalType === 'createCase'} onClose={closeModal} title="새 사건 등록">
+      <Modal isOpen={isModalOpen && modalType === 'createCase'} onClose={closeModal} title={'\uC0C8 \uC0AC\uAC74 \uB4F1\uB85D'}>
         <CaseForm onSubmit={handleCreateCase} onCancel={closeModal} />
       </Modal>
-
-      <Modal isOpen={isModalOpen && modalType === 'editCase'} onClose={closeModal} title="사건 수정">
+      <Modal isOpen={isModalOpen && modalType === 'editCase'} onClose={closeModal} title={'\uC0AC\uAC74 \uC218\uC815'}>
         <CaseForm initialData={modalData} onSubmit={handleEditCase} onCancel={closeModal} />
       </Modal>
-
-      <Modal isOpen={isModalOpen && modalType === 'createConsultation'} onClose={closeModal} title="새 자문 등록">
+      <Modal isOpen={isModalOpen && modalType === 'createConsultation'} onClose={closeModal} title={'\uC0C8 \uC790\uBB38 \uB4F1\uB85D'}>
         <ConsultationForm onSubmit={handleCreateConsultation} onCancel={closeModal} />
       </Modal>
-
-      <Modal isOpen={isModalOpen && modalType === 'editConsultation'} onClose={closeModal} title="자문 수정">
+      <Modal isOpen={isModalOpen && modalType === 'editConsultation'} onClose={closeModal} title={'\uC790\uBB38 \uC218\uC815'}>
         <ConsultationForm initialData={modalData} onSubmit={handleEditConsultation} onCancel={closeModal} />
       </Modal>
-
-      <Modal isOpen={isModalOpen && modalType === 'deleteConfirm'} onClose={closeModal} title="삭제 확인">
-        <p className="text-sm text-gray-600 mb-6">
-          <strong>{modalData?.clientName}</strong>
-          {modalData?.caseNumber && ` (${modalData.caseNumber})`}
-          {modalData?.subject && ` — ${modalData.subject}`}
-          을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-        </p>
-        <div className="flex justify-end gap-2">
-          <button onClick={closeModal} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">취소</button>
-          <button onClick={handleDelete} className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg">삭제</button>
-        </div>
+      <Modal isOpen={isModalOpen && modalType === 'deleteConfirm'} onClose={closeModal} title={'\uC0AD\uC81C \uD655\uC778'}>
+        <Stack>
+          <Text size="sm" c="dimmed">
+            <Text span fw={600}>{modalData?.clientName}</Text>
+            {modalData?.caseNumber && ` (${modalData.caseNumber})`}
+            {modalData?.subject && ` \u2014 ${modalData.subject}`}
+            {'\uC744(\uB97C) \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C? \uC774 \uC791\uC5C5\uC740 \uB418\uB3CC\uB9B4 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.'}
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={closeModal}>{'\uCDE8\uC18C'}</Button>
+            <Button color="red" onClick={handleDelete}>{'\uC0AD\uC81C'}</Button>
+          </Group>
+        </Stack>
       </Modal>
 
       <Toast />
-    </div>
+    </AppShell>
   )
 }

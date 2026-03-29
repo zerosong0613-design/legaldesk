@@ -1,11 +1,14 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Center, Loader, Text, Stack, Button, Alert } from '@mantine/core'
 import { useAuthStore } from './auth/useAuth'
 import { useCaseStore } from './store/caseStore'
 import GoogleAuth from './auth/GoogleAuth'
 import AuthCallback from './auth/AuthCallback'
 import Dashboard from './pages/Dashboard'
 import CaseDetail from './pages/CaseDetail'
+import ConsultationDetail from './pages/ConsultationDetail'
+import Billing from './pages/Billing'
 
 function AppContent() {
   const { user, isLoading: authLoading, initialize } = useAuthStore()
@@ -23,9 +26,9 @@ function AppContent() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <Center mih="100vh" bg="gray.0">
+        <Loader color="indigo" size="md" />
+      </Center>
     )
   }
 
@@ -35,28 +38,23 @@ function AppContent() {
 
   if (!isInitialized && driveLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Drive 연결 중...</p>
-        </div>
-      </div>
+      <Center mih="100vh" bg="gray.0">
+        <Stack align="center" gap="md">
+          <Loader color="indigo" size="md" />
+          <Text c="dimmed">Drive 연결 중...</Text>
+        </Stack>
+      </Center>
     )
   }
 
   if (error && !isInitialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-sm mx-4">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={initDrive}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            다시 시도
-          </button>
-        </div>
-      </div>
+      <Center mih="100vh" bg="gray.0">
+        <Stack align="center" gap="md" maw={360} mx="md">
+          <Alert color="red" w="100%">{error}</Alert>
+          <Button onClick={initDrive}>다시 시도</Button>
+        </Stack>
+      </Center>
     )
   }
 
@@ -64,6 +62,8 @@ function AppContent() {
     <Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/case/:id" element={<CaseDetail />} />
+      <Route path="/consultation/:id" element={<ConsultationDetail />} />
+      <Route path="/billing" element={<Billing />} />
     </Routes>
   )
 }

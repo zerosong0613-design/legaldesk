@@ -3,8 +3,11 @@
  * iOS / Android 포맷 양쪽 지원
  *
  * iOS:  "2026년 3월 1일 오후 2:23, 홍길동 : 메시지"
- * Android: "2026-03-01 14:23, 홍길동 : 메시지"
+ * Android (날짜포함): "2026-03-01 14:23, 홍길동 : 메시지"
+ * Android (한글): "2026. 3. 1. 오후 2:23, 홍길동 : 메시지"
+ * Android (괄호): "[홍길동] [오후 2:23] 메시지"  ← 날짜는 구분선에서 가져옴
  * 날짜 구분선: "--------------- 2026년 3월 1일 토요일 ---------------"
+ *              "2026년 3월 1일 토요일"  (구분선 없이 날짜만)
  */
 
 // iOS 메시지 패턴: "2026년 3월 1일 오전/오후 H:MM, 이름 : 메시지"
@@ -18,9 +21,17 @@ const ANDROID_MSG_RE =
 const ANDROID_KR_MSG_RE =
   /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}),\s*(.+?)\s*:\s*([\s\S]*)$/
 
+// Android 괄호 포맷: "[이름] [오전/오후 H:MM] 메시지"
+const ANDROID_BRACKET_RE =
+  /^\[(.+?)\]\s*\[(오전|오후)\s*(\d{1,2}):(\d{2})\]\s*([\s\S]*)$/
+
 // 날짜 구분선 패턴
 const DATE_SEPARATOR_RE =
   /^-{3,}\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일.*-{3,}$/
+
+// 날짜만 있는 줄 (구분선 없이): "2026년 3월 1일 토요일"
+const DATE_LINE_RE =
+  /^(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*[월화수목금토일]요일\s*$/
 
 // 첨부 파일 키워드
 const ATTACHMENT_KEYWORDS = ['사진', '동영상', '파일', '이모티콘', '음성메시지', 'Photo', 'Video']
@@ -41,7 +52,7 @@ function parseIosMessage(line) {
   return { datetime, sender: sender.trim(), message: message.trim() }
 }
 
-function parseAndroidMessage(line) {
+function parseAndroidMessage(line, currentDate) {
   const m = line.match(ANDROID_MSG_RE)
   if (m) {
     const [, year, month, day, hour, minute, sender, message] = m
@@ -65,13 +76,32 @@ function parseAndroidMessage(line) {
     return { datetime, sender: sender.trim(), message: message.trim() }
   }
 
+  // [이름] [오전/오후 H:MM] 메시지
+  const m3 = line.match(ANDROID_BRACKET_RE)
+  if (m3) {
+    const [, sender, ampm, hour, minute, message] = m3
+    let h = parseInt(hour, 10)
+    if (ampm === '오후' && h !== 12) h += 12
+    if (ampm === '오전' && h === 12) h = 0
+
+    const base = currentDate || new Date()
+    const datetime = new Date(
+      base.getFullYear(), base.getMonth(), base.getDate(), h, parseInt(minute)
+    )
+    return { datetime, sender: sender.trim(), message: (message || '').trim() }
+  }
+
   return null
 }
 
 function parseDateSeparator(line) {
   const m = line.match(DATE_SEPARATOR_RE)
-  if (!m) return null
-  return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]))
+  if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]))
+
+  const m2 = line.trim().match(DATE_LINE_RE)
+  if (m2) return new Date(parseInt(m2[1]), parseInt(m2[2]) - 1, parseInt(m2[3]))
+
+  return null
 }
 
 function hasAttachment(message) {
@@ -90,11 +120,13 @@ export function parseKakaoChat(text, clientName = '') {
   const lines = text.split('\n')
   const messages = []
   let currentMsg = null
+  let currentDate = null
 
   for (const line of lines) {
     // 날짜 구분선 체크
-    if (parseDateSeparator(line)) {
-      // 현재 메시지가 있으면 저장
+    const dateParsed = parseDateSeparator(line)
+    if (dateParsed) {
+      currentDate = dateParsed
       if (currentMsg) {
         messages.push(currentMsg)
         currentMsg = null
@@ -103,7 +135,7 @@ export function parseKakaoChat(text, clientName = '') {
     }
 
     // 새 메시지 파싱 시도 (iOS → Android 순)
-    const parsed = parseIosMessage(line) || parseAndroidMessage(line)
+    const parsed = parseIosMessage(line) || parseAndroidMessage(line, currentDate)
 
     if (parsed) {
       // 이전 메시지 저장

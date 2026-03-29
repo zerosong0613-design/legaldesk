@@ -1,9 +1,11 @@
+import { Notification } from '@mantine/core'
+import { IconCheck, IconInfoCircle, IconX } from '@tabler/icons-react'
 import { useUiStore } from '../../store/uiStore'
 
-const STYLES = {
-  info: 'bg-blue-600',
-  success: 'bg-green-600',
-  error: 'bg-red-600',
+const CONFIG = {
+  info: { color: 'indigo', icon: <IconInfoCircle size={18} /> },
+  success: { color: 'teal', icon: <IconCheck size={18} /> },
+  error: { color: 'red', icon: <IconX size={18} /> },
 }
 
 export default function Toast() {
@@ -11,13 +13,19 @@ export default function Toast() {
 
   if (!toast) return null
 
+  const config = CONFIG[toast.type] || CONFIG.info
+
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      <div
-        className={`${STYLES[toast.type] || STYLES.info} text-white px-4 py-3 rounded-lg shadow-lg text-sm`}
+    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000 }}>
+      <Notification
+        color={config.color}
+        icon={config.icon}
+        withCloseButton={false}
+        withBorder
+        radius="md"
       >
         {toast.message}
-      </div>
+      </Notification>
     </div>
   )
 }
