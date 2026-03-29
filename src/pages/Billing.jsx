@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import {
   AppShell, Group, Title, Text, Button, Avatar, Card,
   SimpleGrid, Stack, Box, Container, UnstyledButton,
-  TextInput, Select, Badge, ActionIcon, Alert,
-  Table, Tabs, ThemeIcon, Center, Loader,
+  TextInput, Select, Badge, ActionIcon, Alert, Textarea,
+  Table, ThemeIcon, Center, Loader, Collapse,
 } from '@mantine/core'
 import {
   IconLogout, IconArrowLeft, IconPlus, IconReceipt,
   IconCash, IconCreditCard, IconTrash, IconEdit,
-  IconSearch, IconChartBar,
+  IconSearch, IconChartBar, IconCheck, IconX,
+  IconChevronDown, IconChevronUp,
 } from '@tabler/icons-react'
 import { useAuthStore } from '../auth/useAuth'
 import { useCaseStore } from '../store/caseStore'
@@ -17,6 +18,25 @@ import { useUiStore } from '../store/uiStore'
 import { readCasesIndex, writeCasesIndex } from '../api/drive'
 import Modal from '../components/ui/Modal'
 import Toast from '../components/ui/Toast'
+
+// --- \uAE08\uC561 \uD3EC\uB9F7 \uC720\uD2F8\uB9AC\uD2F0 ---
+
+function numberToKorean(num) {
+  if (!num && num !== 0) return ''
+  const n = Math.abs(Number(num))
+  if (isNaN(n) || n === 0) return '0\uC6D0'
+
+  const eok = Math.floor(n / 100000000)
+  const man = Math.floor((n % 100000000) / 10000)
+  const rest = n % 10000
+
+  const parts = []
+  if (eok > 0) parts.push(`${eok.toLocaleString('ko-KR')}\uC5B5`)
+  if (man > 0) parts.push(`${man.toLocaleString('ko-KR')}\uB9CC`)
+  if (rest > 0) parts.push(`${rest.toLocaleString('ko-KR')}`)
+
+  return parts.join(' ') + '\uC6D0'
+}
 
 function formatCurrency(amount) {
   if (!amount && amount !== 0) return '-'
@@ -27,6 +47,17 @@ function formatDate(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+}
+
+// \uC785\uB825\uC6A9: \uC22B\uC790\uB9CC \uCD94\uCD9C
+function stripNonDigits(str) {
+  return str.replace(/[^0-9]/g, '')
+}
+
+// \uC785\uB825\uC6A9: \uC27C\uD45C \uD3EC\uB9F7
+function formatWithCommas(numStr) {
+  if (!numStr) return ''
+  return Number(numStr).toLocaleString('ko-KR')
 }
 
 const PAYMENT_TYPES = [
@@ -43,7 +74,50 @@ const PAYMENT_METHODS = [
   { value: 'other', label: '\uAE30\uD0C0' },
 ]
 
-function BillingForm({ cases, consultations, initialData, onSubmit, onCancel }) {
+const TYPE_CONFIG = {
+  fee: { label: '\uC218\uC784\uB8CC', color: 'indigo' },
+  expense: { label: '\uC2E4\uBE44', color: 'orange' },
+  deposit: { label: '\uC785\uAE08', color: 'teal' },
+  refund: { label: '\uD658\uBD88', color: 'red' },
+}
+
+// --- \uAE08\uC561 \uC785\uB825 \uCEF4\uD3EC\uB10C\uD2B8 (\uC27C\uD45C + \uD55C\uAE00 \uD45C\uC2DC) ---
+
+function AmountInput({ value, onChange, label, required, withAsterisk }) {
+  const rawStr = String(value || '')
+  const display = rawStr ? formatWithCommas(rawStr) : ''
+  const koreanText = rawStr && Number(rawStr) > 0 ? numberToKorean(rawStr) : ''
+
+  const handleChange = (e) => {
+    const digits = stripNonDigits(e.currentTarget.value)
+    onChange(digits)
+  }
+
+  return (
+    <Box>
+      <TextInput
+        label={label}
+        placeholder="0"
+        required={required}
+        withAsterisk={withAsterisk}
+        value={display}
+        onChange={handleChange}
+        styles={{
+          input: { fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' },
+        }}
+      />
+      {koreanText && (
+        <Text size="xs" c="indigo" mt={2} fw={500}>
+          {koreanText}
+        </Text>
+      )}
+    </Box>
+  )
+}
+
+// --- \uBE44\uC6A9 \uD3FC ---
+
+function BillingForm({ cases, consultations, initialData, onSubmit, onCancel, compact }) {
   const isEditing = !!initialData
   const allItems = useMemo(() => {
     const items = []
@@ -59,7 +133,7 @@ function BillingForm({ cases, consultations, initialData, onSubmit, onCancel }) 
   const [form, setForm] = useState({
     caseId: initialData?.caseId || '',
     type: initialData?.type || 'fee',
-    amount: initialData?.amount || '',
+    amount: initialData?.amount ? String(initialData.amount) : '',
     method: initialData?.method || 'bank',
     date: initialData?.date || new Date().toISOString().split('T')[0],
     note: initialData?.note || '',
@@ -103,14 +177,12 @@ function BillingForm({ cases, consultations, initialData, onSubmit, onCancel }) 
             value={form.type}
             onChange={(val) => handleChange('type', val)}
           />
-          <TextInput
+          <AmountInput
             label={'\uAE08\uC561'}
-            type="number"
-            placeholder="0"
             required
             withAsterisk
             value={form.amount}
-            onChange={(e) => handleChange('amount', e.currentTarget.value)}
+            onChange={(val) => handleChange('amount', val)}
           />
         </SimpleGrid>
         <SimpleGrid cols={2}>
@@ -134,8 +206,8 @@ function BillingForm({ cases, consultations, initialData, onSubmit, onCancel }) 
           onChange={(e) => handleChange('note', e.currentTarget.value)}
         />
         <Group justify="flex-end" gap="sm" mt="sm">
-          <Button variant="default" onClick={onCancel}>{'\uCDE8\uC18C'}</Button>
-          <Button type="submit" loading={isSubmitting} disabled={!form.caseId || !form.amount}>
+          <Button variant="default" onClick={onCancel} leftSection={<IconX size={14} />}>{'\uCDE8\uC18C'}</Button>
+          <Button type="submit" loading={isSubmitting} disabled={!form.caseId || !form.amount} leftSection={<IconCheck size={14} />}>
             {isEditing ? '\uC218\uC815' : '\uB4F1\uB85D'}
           </Button>
         </Group>
@@ -144,15 +216,105 @@ function BillingForm({ cases, consultations, initialData, onSubmit, onCancel }) 
   )
 }
 
+// --- \uBE44\uC6A9 \uD589 \uCEF4\uD3EC\uB10C\uD2B8 (\uD074\uB9AD\uC2DC \uD655\uC7A5) ---
+
+function BillingRow({ bill, getItemName, navigate, onEdit, onDelete, isExpanded, onToggle, cases, consultations }) {
+  const item = getItemName(bill.caseId)
+  const tc = TYPE_CONFIG[bill.type] || { label: bill.type, color: 'gray' }
+  const methodLabel = PAYMENT_METHODS.find((m) => m.value === bill.method)?.label || bill.method
+
+  return (
+    <>
+      <Table.Tr
+        style={{ cursor: 'pointer', backgroundColor: isExpanded ? 'var(--mantine-color-indigo-0)' : undefined }}
+        onClick={onToggle}
+      >
+        <Table.Td>
+          <Text size="sm" ff="monospace">{formatDate(bill.date)}</Text>
+        </Table.Td>
+        <Table.Td>
+          <Badge color={tc.color} variant="light" size="sm">{tc.label}</Badge>
+        </Table.Td>
+        <Table.Td>
+          <UnstyledButton onClick={(e) => {
+            e.stopPropagation()
+            if (item.category === 'consultation') navigate(`/consultation/${bill.caseId}`)
+            else if (item.category === 'case') navigate(`/case/${bill.caseId}`)
+          }}>
+            <Text size="sm" fw={500} td="underline" c="indigo">{item.name}</Text>
+            {item.sub && <Text size="xs" c="dimmed">{item.sub}</Text>}
+          </UnstyledButton>
+        </Table.Td>
+        <Table.Td>
+          <Stack gap={0}>
+            <Text
+              size="sm"
+              fw={600}
+              c={bill.type === 'deposit' ? 'teal' : bill.type === 'refund' ? 'red' : undefined}
+            >
+              {bill.type === 'deposit' ? '+' : bill.type === 'refund' ? '-' : ''}
+              {formatCurrency(bill.amount)}
+            </Text>
+            {bill.amount >= 10000 && (
+              <Text size="xs" c="dimmed">{numberToKorean(bill.amount)}</Text>
+            )}
+          </Stack>
+        </Table.Td>
+        <Table.Td>
+          <Text size="xs" c="dimmed">{methodLabel}</Text>
+        </Table.Td>
+        <Table.Td>
+          <Text size="xs" c="dimmed" truncate style={{ maxWidth: 200 }}>{bill.note || '-'}</Text>
+        </Table.Td>
+        <Table.Td>
+          {isExpanded ? <IconChevronUp size={14} color="gray" /> : <IconChevronDown size={14} color="gray" />}
+        </Table.Td>
+      </Table.Tr>
+      {isExpanded && (
+        <Table.Tr>
+          <Table.Td colSpan={7} style={{ backgroundColor: 'var(--mantine-color-gray-0)', padding: 0 }}>
+            <Box p="md">
+              <BillingForm
+                cases={cases}
+                consultations={consultations}
+                initialData={bill}
+                onSubmit={onEdit}
+                onCancel={onToggle}
+              />
+              <Group justify="flex-start" mt="sm">
+                <Button
+                  variant="subtle"
+                  color="red"
+                  size="xs"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete(bill.id)
+                  }}
+                >
+                  {'\uC774 \uBE44\uC6A9 \uC0AD\uC81C'}
+                </Button>
+              </Group>
+            </Box>
+          </Table.Td>
+        </Table.Tr>
+      )}
+    </>
+  )
+}
+
+// --- \uBA54\uC778 \uCEF4\uD3EC\uB10C\uD2B8 ---
+
 export default function Billing() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
   const { cases, consultations, casesFileId } = useCaseStore()
-  const { showToast, isModalOpen, modalType, modalData, openModal, closeModal } = useUiStore()
+  const { showToast, isModalOpen, modalType, openModal, closeModal } = useUiStore()
   const [billings, setBillings] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
 
   // Load billings from cases.json
   useEffect(() => {
@@ -182,7 +344,7 @@ export default function Billing() {
   const handleEdit = async (formData) => {
     const newBillings = billings.map((b) => b.id === formData.id ? { ...b, ...formData } : b)
     await saveBillings(newBillings)
-    closeModal()
+    setExpandedId(null)
     showToast('\uBE44\uC6A9\uC774 \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
   }
 
@@ -190,6 +352,7 @@ export default function Billing() {
     if (!confirm('\uC774 \uBE44\uC6A9 \uAE30\uB85D\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?')) return
     const newBillings = billings.filter((b) => b.id !== id)
     await saveBillings(newBillings)
+    setExpandedId(null)
     showToast('\uBE44\uC6A9\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
   }
 
@@ -232,13 +395,6 @@ export default function Billing() {
     }
     return result.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
   }, [billings, filterType, searchQuery])
-
-  const typeConfig = {
-    fee: { label: '\uC218\uC784\uB8CC', color: 'indigo' },
-    expense: { label: '\uC2E4\uBE44', color: 'orange' },
-    deposit: { label: '\uC785\uAE08', color: 'teal' },
-    refund: { label: '\uD658\uBD88', color: 'red' },
-  }
 
   return (
     <AppShell header={{ height: 56 }} bg="#f0f2f5">
@@ -300,6 +456,9 @@ export default function Billing() {
                   <Text size="xs" c="dimmed">{'\uC218\uC784\uB8CC \uCD1D\uC561'}</Text>
                 </Group>
                 <Text size="lg" fw={700} c="indigo">{formatCurrency(stats.totalFee)}</Text>
+                {stats.totalFee >= 10000 && (
+                  <Text size="xs" c="dimmed">{numberToKorean(stats.totalFee)}</Text>
+                )}
               </Card>
               <Card padding="md">
                 <Group gap="xs" mb={4}>
@@ -309,6 +468,9 @@ export default function Billing() {
                   <Text size="xs" c="dimmed">{'\uC785\uAE08 \uCD1D\uC561'}</Text>
                 </Group>
                 <Text size="lg" fw={700} c="teal">{formatCurrency(stats.totalDeposit)}</Text>
+                {stats.totalDeposit >= 10000 && (
+                  <Text size="xs" c="dimmed">{numberToKorean(stats.totalDeposit)}</Text>
+                )}
               </Card>
               <Card padding="md">
                 <Group gap="xs" mb={4}>
@@ -318,6 +480,9 @@ export default function Billing() {
                   <Text size="xs" c="dimmed">{'\uC2E4\uBE44 \uCD1D\uC561'}</Text>
                 </Group>
                 <Text size="lg" fw={700} c="orange">{formatCurrency(stats.totalExpense)}</Text>
+                {stats.totalExpense >= 10000 && (
+                  <Text size="xs" c="dimmed">{numberToKorean(stats.totalExpense)}</Text>
+                )}
               </Card>
               <Card padding="md">
                 <Group gap="xs" mb={4}>
@@ -329,6 +494,9 @@ export default function Billing() {
                 <Text size="lg" fw={700} c={stats.balance >= 0 ? 'blue' : 'red'}>
                   {formatCurrency(stats.balance)}
                 </Text>
+                {Math.abs(stats.balance) >= 10000 && (
+                  <Text size="xs" c="dimmed">{numberToKorean(Math.abs(stats.balance))}</Text>
+                )}
               </Card>
             </SimpleGrid>
 
@@ -398,7 +566,7 @@ export default function Billing() {
             ) : (
               <Card padding={0}>
                 <Box style={{ overflowX: 'auto' }}>
-                  <Table striped highlightOnHover>
+                  <Table striped={false} highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>{'\uB0A0\uC9DC'}</Table.Th>
@@ -407,70 +575,24 @@ export default function Billing() {
                         <Table.Th>{'\uAE08\uC561'}</Table.Th>
                         <Table.Th>{'\uACB0\uC81C'}</Table.Th>
                         <Table.Th>{'\uBA54\uBAA8'}</Table.Th>
-                        <Table.Th style={{ width: 80 }}></Table.Th>
+                        <Table.Th style={{ width: 40 }}></Table.Th>
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                      {filtered.map((bill) => {
-                        const item = getItemName(bill.caseId)
-                        const tc = typeConfig[bill.type] || { label: bill.type, color: 'gray' }
-                        const methodLabel = PAYMENT_METHODS.find((m) => m.value === bill.method)?.label || bill.method
-                        return (
-                          <Table.Tr key={bill.id}>
-                            <Table.Td>
-                              <Text size="sm" ff="monospace">{formatDate(bill.date)}</Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Badge color={tc.color} variant="light" size="sm">{tc.label}</Badge>
-                            </Table.Td>
-                            <Table.Td>
-                              <UnstyledButton onClick={() => {
-                                if (item.category === 'consultation') navigate(`/consultation/${bill.caseId}`)
-                                else if (item.category === 'case') navigate(`/case/${bill.caseId}`)
-                              }}>
-                                <Text size="sm" fw={500} td="underline" c="indigo">{item.name}</Text>
-                                {item.sub && <Text size="xs" c="dimmed">{item.sub}</Text>}
-                              </UnstyledButton>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text
-                                size="sm"
-                                fw={600}
-                                c={bill.type === 'deposit' ? 'teal' : bill.type === 'refund' ? 'red' : undefined}
-                              >
-                                {bill.type === 'deposit' ? '+' : bill.type === 'refund' ? '-' : ''}
-                                {formatCurrency(bill.amount)}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="xs" c="dimmed">{methodLabel}</Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="xs" c="dimmed" truncate style={{ maxWidth: 200 }}>{bill.note || '-'}</Text>
-                            </Table.Td>
-                            <Table.Td>
-                              <Group gap={4}>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="gray"
-                                  size="sm"
-                                  onClick={() => openModal('editBilling', bill)}
-                                >
-                                  <IconEdit size={14} />
-                                </ActionIcon>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  size="sm"
-                                  onClick={() => handleDelete(bill.id)}
-                                >
-                                  <IconTrash size={14} />
-                                </ActionIcon>
-                              </Group>
-                            </Table.Td>
-                          </Table.Tr>
-                        )
-                      })}
+                      {filtered.map((bill) => (
+                        <BillingRow
+                          key={bill.id}
+                          bill={bill}
+                          getItemName={getItemName}
+                          navigate={navigate}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          isExpanded={expandedId === bill.id}
+                          onToggle={() => setExpandedId(expandedId === bill.id ? null : bill.id)}
+                          cases={cases}
+                          consultations={consultations}
+                        />
+                      ))}
                     </Table.Tbody>
                   </Table>
                 </Box>
@@ -480,21 +602,12 @@ export default function Billing() {
         </Container>
       </AppShell.Main>
 
-      {/* Modals */}
+      {/* \uC0C8 \uBE44\uC6A9 \uB4F1\uB85D \uBAA8\uB2EC (\uC0DD\uC131\uB9CC) */}
       <Modal isOpen={isModalOpen && modalType === 'createBilling'} onClose={closeModal} title={'\uBE44\uC6A9 \uB4F1\uB85D'}>
         <BillingForm
           cases={cases}
           consultations={consultations}
           onSubmit={handleCreate}
-          onCancel={closeModal}
-        />
-      </Modal>
-      <Modal isOpen={isModalOpen && modalType === 'editBilling'} onClose={closeModal} title={'\uBE44\uC6A9 \uC218\uC815'}>
-        <BillingForm
-          cases={cases}
-          consultations={consultations}
-          initialData={modalData}
-          onSubmit={handleEdit}
           onCancel={closeModal}
         />
       </Modal>
