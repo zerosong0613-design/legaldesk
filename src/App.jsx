@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard'
 import CaseDetail from './pages/CaseDetail'
 import ConsultationDetail from './pages/ConsultationDetail'
 import Billing from './pages/Billing'
+import WorkspaceSettings from './pages/WorkspaceSettings'
 
 function AppContent() {
   const { user, isLoading: authLoading, initialize } = useAuthStore()
@@ -64,6 +65,7 @@ function AppContent() {
       <Route path="/case/:id" element={<CaseDetail />} />
       <Route path="/consultation/:id" element={<ConsultationDetail />} />
       <Route path="/billing" element={<Billing />} />
+      <Route path="/workspace" element={<WorkspaceSettings />} />
     </Routes>
   )
 }

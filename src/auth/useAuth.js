@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 const SCOPES = [
-  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/calendar.readonly',
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/gmail.readonly',

@@ -268,3 +268,77 @@ export async function getFileMetadata(fileId) {
   )
   return res.json()
 }
+
+// --- \uACF5\uC720 \uC791\uC5C5\uACF5\uAC04 ---
+
+export async function findSharedLegalDeskFolders() {
+  const q = `name='${ROOT_FOLDER_NAME}' and mimeType='${FOLDER_MIME}' and sharedWithMe=true and trashed=false`
+  const res = await driveRequest(
+    `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,owners,sharingUser,permissions)&spaces=drive`
+  )
+  const data = await res.json()
+  return data.files || []
+}
+
+export async function findMyLegalDeskFolders() {
+  const q = `name='${ROOT_FOLDER_NAME}' and mimeType='${FOLDER_MIME}' and 'root' in parents and trashed=false`
+  const res = await driveRequest(
+    `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=files(id,name,owners)&spaces=drive`
+  )
+  const data = await res.json()
+  return data.files || []
+}
+
+export async function getFolderOwner(folderId) {
+  const res = await driveRequest(
+    `${DRIVE_API}/files/${folderId}?fields=id,name,owners,sharingUser`
+  )
+  return res.json()
+}
+
+export async function connectToExistingStructure(rootId) {
+  // \uAE30\uC874 LegalDesk \uD3F4\uB354 \uAD6C\uC870\uC5D0 \uC5F0\uACB0 (\uC0C8\uB85C \uC0DD\uC131\uD558\uC9C0 \uC54A\uC74C)
+  const dataFolder = await findFolder(DATA_FOLDER_NAME, rootId)
+  if (!dataFolder) throw new Error('data \uD3F4\uB354\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC62C\uBC14\uB978 LegalDesk \uD3F4\uB354\uC778\uC9C0 \uD655\uC778\uD558\uC138\uC694.')
+
+  const casesFolder = await findFolder(CASES_FOLDER_NAME, dataFolder.id)
+  if (!casesFolder) throw new Error('cases \uD3F4\uB354\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.')
+
+  const consultationsFolder = await findFolder(CONSULTATIONS_FOLDER_NAME, dataFolder.id)
+
+  const filesFolder = await findFolder(FILES_FOLDER_NAME, rootId)
+  if (!filesFolder) throw new Error('files \uD3F4\uB354\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.')
+
+  const casesFile = await findFile(CASES_INDEX_NAME, dataFolder.id)
+  if (!casesFile) throw new Error('cases.json \uD30C\uC77C\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.')
+
+  return {
+    rootId,
+    dataFolderId: dataFolder.id,
+    casesFolderId: casesFolder.id,
+    consultationsFolderId: consultationsFolder?.id || null,
+    filesFolderId: filesFolder.id,
+    casesFileId: casesFile.id,
+  }
+}
+
+export async function shareFolderWithEmail(folderId, email, role = 'writer') {
+  const res = await driveRequest(`${DRIVE_API}/files/${folderId}/permissions`, {
+    method: 'POST',
+    headers: { 'Content-Type': JSON_MIME },
+    body: JSON.stringify({
+      type: 'user',
+      role,
+      emailAddress: email,
+    }),
+  })
+  return res.json()
+}
+
+export async function listFolderPermissions(folderId) {
+  const res = await driveRequest(
+    `${DRIVE_API}/files/${folderId}/permissions?fields=permissions(id,type,role,emailAddress,displayName,photoLink)`
+  )
+  const data = await res.json()
+  return data.permissions || []
+}

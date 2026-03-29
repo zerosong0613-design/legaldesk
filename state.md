@@ -74,6 +74,16 @@
   - 대시���드 헤더에 "비용관리" 바로가기 추가
   - 데이터는 `cases.json`의 `billings` 배열에 저장
 
+### Phase 2.5 — 협업 ✅
+- [x] 작업공간 공유 기능 (`src/pages/WorkspaceSettings.jsx`)
+  - OAuth 스코프 `drive.file` → `drive` 변경 (공유 폴더 접근)
+  - 내 작업공간 / 공유 작업공간 전환
+  - Google 이메일로 직원 초대 (Drive 폴더 공유)
+  - 공유된 LegalDesk 폴더 자동 검색 + 연결
+  - 권한 목록 조회 (소유자/편집자/뷰어)
+  - `caseStore`에 workspace 개념 추가 (localStorage 저장)
+  - 대시보드 헤더에 작업공간 표시 + 전환 버튼
+
 ---
 
 ## 미완료 — 다음 작업
@@ -106,7 +116,8 @@ src/
 │   ├── Dashboard.jsx                # 통계 + 캘린더 + 일정 + 최근활동 + 통합검색
 │   ├── CaseDetail.jsx               # 사건 상세 (5탭: 타임라인, 기일, 카톡, 이메일, 문서)
 │   ├── ConsultationDetail.jsx       # 자문 상세 (4탭: 타임라인, 카톡, 문서, 정보)
-│   └── Billing.jsx                  # 비용 관리 (수임료/실비/입금/환불)
+│   ├── Billing.jsx                  # 비용 관리 (수임료/실비/입금/환불)
+│   └── WorkspaceSettings.jsx       # 작업공간 설정 (공유/초대/전환)
 ├── components/
 │   ├── case/
 │   │   ├── CaseCard.jsx             # 사건 카드

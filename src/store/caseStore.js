@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import {
   initializeDriveStructure,
+  connectToExistingStructure,
   readCasesIndex,
   writeCasesIndex,
   readCaseDetail,
@@ -9,6 +10,19 @@ import {
   createCaseFilesFolder,
   deleteFile,
 } from '../api/drive'
+
+function loadWorkspaceConfig() {
+  try {
+    const raw = localStorage.getItem('gd_workspace')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveWorkspaceConfig(config) {
+  localStorage.setItem('gd_workspace', JSON.stringify(config))
+}
 
 export const useCaseStore = create((set, get) => ({
   cases: [],
@@ -23,12 +37,28 @@ export const useCaseStore = create((set, get) => ({
   isInitialized: false,
   isLoading: false,
   error: null,
+  workspace: loadWorkspaceConfig(),
 
-  // Drive 폴더 구조 초기화
+  // Drive \uD3F4\uB354 \uAD6C\uC870 \uCD08\uAE30\uD654
   initDrive: async () => {
     set({ isLoading: true, error: null })
     try {
-      const structure = await initializeDriveStructure()
+      const ws = get().workspace
+
+      let structure
+      if (ws?.type === 'shared' && ws.rootId) {
+        // \uACF5\uC720 \uC791\uC5C5\uACF5\uAC04: \uAE30\uC874 \uAD6C\uC870\uC5D0 \uC5F0\uACB0
+        structure = await connectToExistingStructure(ws.rootId)
+      } else {
+        // \uB0B4 \uC791\uC5C5\uACF5\uAC04: \uAE30\uC874\uCC98\uB7FC \uC0DD\uC131/\uC5F0\uACB0
+        structure = await initializeDriveStructure()
+        if (!ws) {
+          const config = { type: 'own', rootId: structure.rootId, label: '\uB0B4 \uC791\uC5C5\uACF5\uAC04' }
+          saveWorkspaceConfig(config)
+          set({ workspace: config })
+        }
+      }
+
       set({
         driveRootId: structure.rootId,
         dataFolderId: structure.dataFolderId,
@@ -40,8 +70,26 @@ export const useCaseStore = create((set, get) => ({
       })
       await get().loadCases()
     } catch (err) {
-      set({ error: `Drive 초기화 실패: ${err.message}`, isLoading: false })
+      set({ error: `Drive \uCD08\uAE30\uD654 \uC2E4\uD328: ${err.message}`, isLoading: false })
     }
+  },
+
+  switchWorkspace: async (config) => {
+    saveWorkspaceConfig(config)
+    set({
+      workspace: config,
+      isInitialized: false,
+      cases: [],
+      consultations: [],
+      currentCase: null,
+      driveRootId: null,
+      dataFolderId: null,
+      casesFolderId: null,
+      consultationsFolderId: null,
+      filesFolderId: null,
+      casesFileId: null,
+    })
+    await get().initDrive()
   },
 
   // 사건 + 자문 목록 로드

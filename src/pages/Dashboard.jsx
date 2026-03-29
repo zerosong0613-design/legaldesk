@@ -8,6 +8,7 @@ import {
 import {
   IconSearch, IconPlus, IconLogout, IconScale,
   IconFileText, IconClock, IconArrowRight, IconReceipt,
+  IconUsers, IconBuilding,
 } from '@tabler/icons-react'
 import { useAuthStore } from '../auth/useAuth'
 import { useCaseStore } from '../store/caseStore'
@@ -90,6 +91,7 @@ export default function Dashboard() {
     createCase, updateCase, deleteCase,
     createConsultation, updateConsultation, deleteConsultation,
     error: storeError,
+    workspace,
   } = useCaseStore()
   const {
     dashboardTab, setDashboardTab,
@@ -249,6 +251,16 @@ export default function Dashboard() {
                 styles={{ root: { color: 'var(--mantine-color-gray-4)' } }}
               >
                 {'\uBE44\uC6A9\uAD00\uB9AC'}
+              </Button>
+              <Button
+                variant="subtle"
+                color="gray"
+                size="xs"
+                leftSection={workspace?.type === 'shared' ? <IconBuilding size={14} /> : <IconUsers size={14} />}
+                onClick={() => navigate('/workspace')}
+                styles={{ root: { color: workspace?.type === 'shared' ? 'var(--mantine-color-teal-4)' : 'var(--mantine-color-gray-4)' } }}
+              >
+                {workspace?.type === 'shared' ? (workspace.label || '\uACF5\uC720') : '\uC791\uC5C5\uACF5\uAC04'}
               </Button>
               {user?.picture && <Avatar src={user.picture} size="sm" radius="xl" />}
               <Text size="sm" c="gray.4" visibleFrom="sm">{user?.name}</Text>
