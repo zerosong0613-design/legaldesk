@@ -10,6 +10,7 @@ import {
   createCaseFilesFolder,
   deleteFile,
 } from '../api/drive'
+import { useScheduleStore } from './scheduleStore'
 
 function loadWorkspaceConfig() {
   try {
@@ -69,6 +70,12 @@ export const useCaseStore = create((set, get) => ({
         isInitialized: true,
       })
       await get().loadCases()
+
+      // 일정 스토어 초기화
+      await useScheduleStore.getState().initSchedules(
+        structure.dataFolderId,
+        structure.schedulesFileId || null,
+      )
     } catch (err) {
       set({ error: `Drive \uCD08\uAE30\uD654 \uC2E4\uD328: ${err.message}`, isLoading: false })
     }
@@ -89,6 +96,9 @@ export const useCaseStore = create((set, get) => ({
       filesFolderId: null,
       casesFileId: null,
     })
+    // 일정 스토어 리셋
+    useScheduleStore.getState().reset()
+
     await get().initDrive()
   },
 

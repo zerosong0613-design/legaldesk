@@ -12,6 +12,7 @@ const CASES_FOLDER_NAME = 'cases'
 const CONSULTATIONS_FOLDER_NAME = 'consultations'
 const FILES_FOLDER_NAME = 'files'
 const CASES_INDEX_NAME = 'cases.json'
+const SCHEDULES_INDEX_NAME = 'schedules.json'
 
 async function getToken() {
   const token = await useAuthStore.getState().getValidToken()
@@ -174,6 +175,17 @@ export async function initializeDriveStructure() {
     }
   }
 
+  // Find or create: LegalDesk/data/schedules.json
+  let schedulesFile = await findFile(SCHEDULES_INDEX_NAME, dataFolder.id)
+  if (!schedulesFile) {
+    const initialSchedules = {
+      version: '1.0',
+      updatedAt: new Date().toISOString(),
+      schedules: [],
+    }
+    schedulesFile = await createJsonFile(SCHEDULES_INDEX_NAME, dataFolder.id, initialSchedules)
+  }
+
   return {
     rootId: root.id,
     dataFolderId: dataFolder.id,
@@ -181,6 +193,7 @@ export async function initializeDriveStructure() {
     consultationsFolderId: consultationsFolder.id,
     filesFolderId: filesFolder.id,
     casesFileId: casesFile.id,
+    schedulesFileId: schedulesFile.id,
   }
 }
 
@@ -193,6 +206,29 @@ export async function readCasesIndex(casesFileId) {
 export async function writeCasesIndex(casesFileId, casesData) {
   casesData.updatedAt = new Date().toISOString()
   return updateJsonFile(casesFileId, casesData)
+}
+
+// --- Schedules index operations ---
+
+export async function readSchedulesIndex(schedulesFileId) {
+  return readJsonFile(schedulesFileId)
+}
+
+export async function writeSchedulesIndex(schedulesFileId, data) {
+  data.updatedAt = new Date().toISOString()
+  return updateJsonFile(schedulesFileId, data)
+}
+
+export async function findOrCreateSchedulesFile(dataFolderId) {
+  let file = await findFile('schedules.json', dataFolderId)
+  if (!file) {
+    file = await createJsonFile('schedules.json', dataFolderId, {
+      version: '1.0',
+      updatedAt: new Date().toISOString(),
+      schedules: [],
+    })
+  }
+  return file
 }
 
 // --- Case detail operations ---
@@ -312,6 +348,8 @@ export async function connectToExistingStructure(rootId) {
   const casesFile = await findFile(CASES_INDEX_NAME, dataFolder.id)
   if (!casesFile) throw new Error('cases.json \uD30C\uC77C\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.')
 
+  const schedulesFile = await findFile(SCHEDULES_INDEX_NAME, dataFolder.id)
+
   return {
     rootId,
     dataFolderId: dataFolder.id,
@@ -319,6 +357,7 @@ export async function connectToExistingStructure(rootId) {
     consultationsFolderId: consultationsFolder?.id || null,
     filesFolderId: filesFolder.id,
     casesFileId: casesFile.id,
+    schedulesFileId: schedulesFile?.id || null,
   }
 }
 

@@ -185,6 +185,84 @@ export function matchEventsToCaseNumber(events, caseNumber) {
   })
 }
 
+// --- 일정(스케줄) 캘린더 연동 ---
+
+export async function createScheduleCalendarEvent(schedule) {
+  const summary = `[${schedule.type}] ${schedule.title}`
+  const description = [
+    schedule.location && `장소: ${schedule.location}`,
+    schedule.note,
+  ].filter(Boolean).join('\n')
+
+  const body = { summary, description }
+
+  if (schedule.allDay) {
+    const dateStr = schedule.datetime.slice(0, 10)
+    body.start = { date: dateStr }
+    body.end = { date: dateStr }
+  } else {
+    body.start = { dateTime: new Date(schedule.datetime).toISOString() }
+    body.end = {
+      dateTime: schedule.endDatetime
+        ? new Date(schedule.endDatetime).toISOString()
+        : addHours(schedule.datetime, 1),
+    }
+  }
+
+  if (schedule.location) body.location = schedule.location
+
+  body.reminders = {
+    useDefault: false,
+    overrides: [
+      { method: 'popup', minutes: 60 },
+      { method: 'popup', minutes: 10 },
+    ],
+  }
+
+  return calendarRequest(`${CALENDAR_API}/calendars/primary/events`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateScheduleCalendarEvent(eventId, schedule) {
+  const summary = `[${schedule.type}] ${schedule.title}`
+  const description = [
+    schedule.location && `장소: ${schedule.location}`,
+    schedule.note,
+  ].filter(Boolean).join('\n')
+
+  const body = { summary, description }
+
+  if (schedule.allDay) {
+    const dateStr = schedule.datetime.slice(0, 10)
+    body.start = { date: dateStr }
+    body.end = { date: dateStr }
+  } else {
+    body.start = { dateTime: new Date(schedule.datetime).toISOString() }
+    body.end = {
+      dateTime: schedule.endDatetime
+        ? new Date(schedule.endDatetime).toISOString()
+        : addHours(schedule.datetime, 1),
+    }
+  }
+
+  if (schedule.location) body.location = schedule.location
+
+  body.reminders = {
+    useDefault: false,
+    overrides: [
+      { method: 'popup', minutes: 60 },
+      { method: 'popup', minutes: 10 },
+    ],
+  }
+
+  return calendarRequest(
+    `${CALENDAR_API}/calendars/primary/events/${eventId}`,
+    { method: 'PUT', body: JSON.stringify(body) }
+  )
+}
+
 export async function deleteCalendarEvent(eventId) {
   return calendarRequest(
     `${CALENDAR_API}/calendars/primary/events/${eventId}`,

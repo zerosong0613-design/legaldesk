@@ -1,17 +1,20 @@
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Group, Text, Badge, Card,
   SimpleGrid, TextInput, Stack, Box,
-  UnstyledButton, Container, ThemeIcon,
+  UnstyledButton, Container, ThemeIcon, ActionIcon,
 } from '@mantine/core'
 import {
   IconSearch, IconScale,
-  IconFileText, IconClock, IconArrowRight,
+  IconFileText, IconClock, IconArrowRight, IconPlus,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
+import { useScheduleStore } from '../store/scheduleStore'
 import { useUiStore } from '../store/uiStore'
 import MiniCalendar from '../components/ui/MiniCalendar'
+import Modal from '../components/ui/Modal'
+import ScheduleForm from '../components/schedule/ScheduleForm'
 
 function getDday(dateStr) {
   if (!dateStr) return null
@@ -62,7 +65,10 @@ function matchesQuery(item, q) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { cases, consultations } = useCaseStore()
+  const { schedules, createSchedule, updateSchedule, deleteSchedule } = useScheduleStore()
   const { searchQuery, setSearchQuery } = useUiStore()
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState(null)
 
   const stats = useMemo(() => {
     const activeCases = cases.filter((c) => c.status === '\uC9C4\uD589' || c.status === '\uC811\uC218')
@@ -109,8 +115,18 @@ export default function Dashboard() {
         })
       }
     })
+    schedules.forEach((s) => {
+      events.push({
+        type: 'schedule',
+        label: `[${s.type}] ${s.title}`,
+        date: s.datetime,
+        time: s.allDay ? null : formatTime(s.datetime),
+        scheduleId: s.id,
+        dday: getDday(s.datetime),
+      })
+    })
     return events
-  }, [cases, consultations])
+  }, [cases, consultations, schedules])
 
   const sortedEvents = useMemo(() => {
     return [...calendarEvents].sort((a, b) => new Date(a.date) - new Date(b.date))
@@ -152,7 +168,7 @@ export default function Dashboard() {
   function DdayBadge({ dday, type }) {
     if (dday === null) return <Badge color="gray" variant="light" ff="monospace" size="sm">-</Badge>
     const label = dday === 0 ? 'D-Day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`
-    const color = dday < 0 ? 'gray' : dday === 0 ? 'red' : dday <= 7 ? 'red' : type === 'hearing' ? 'indigo' : 'orange'
+    const color = dday < 0 ? 'gray' : dday === 0 ? 'red' : dday <= 7 ? 'red' : type === 'hearing' ? 'indigo' : type === 'schedule' ? 'blue' : 'orange'
     const variant = dday === 0 ? 'filled' : 'light'
     return <Badge color={color} variant={variant} ff="monospace" size="sm" miw={56}>{label}</Badge>
   }
@@ -294,6 +310,11 @@ export default function Dashboard() {
           <MiniCalendar
             events={calendarEvents}
             onEventClick={(ev) => {
+              if (ev.type === 'schedule') {
+                const s = schedules.find((x) => x.id === ev.scheduleId)
+                if (s) { setEditingSchedule(s); setScheduleModalOpen(true) }
+                return
+              }
               if (!ev.caseId) return
               if (ev.type === 'deadline') {
                 navigate(`/consultation/${ev.caseId}`)
@@ -303,9 +324,19 @@ export default function Dashboard() {
             }}
           />
           <Card padding="md">
-            <Text size="sm" fw={600} mb="sm">
-              {'\uC77C\uC815'} ({sortedEvents.length})
-            </Text>
+            <Group justify="space-between" mb="sm">
+              <Text size="sm" fw={600}>
+                {'\uC77C\uC815'} ({sortedEvents.length})
+              </Text>
+              <ActionIcon
+                variant="light"
+                color="blue"
+                size="sm"
+                onClick={() => { setEditingSchedule(null); setScheduleModalOpen(true) }}
+              >
+                <IconPlus size={14} />
+              </ActionIcon>
+            </Group>
             {sortedEvents.length === 0 ? (
               <Text size="sm" c="dimmed" py="lg">{'\uB4F1\uB85D\uB41C \uC77C\uC815\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
             ) : (
@@ -316,6 +347,11 @@ export default function Dashboard() {
                     <UnstyledButton
                       key={i}
                       onClick={() => {
+                        if (ev.type === 'schedule') {
+                          const s = schedules.find((x) => x.id === ev.scheduleId)
+                          if (s) { setEditingSchedule(s); setScheduleModalOpen(true) }
+                          return
+                        }
                         if (!ev.caseId) return
                         if (ev.type === 'deadline') {
                           navigate(`/consultation/${ev.caseId}`)
@@ -332,7 +368,7 @@ export default function Dashboard() {
                           <Text size="sm" truncate>{ev.label}</Text>
                           <Text size="xs" c="dimmed">
                             {formatDate(ev.date)}{ev.time ? ` ${ev.time}` : ''}
-                            {' \u00B7 '}{ev.type === 'hearing' ? '\uAE30\uC77C' : '\uB9C8\uAC10'}
+                            {' \u00B7 '}{ev.type === 'hearing' ? '\uAE30\uC77C' : ev.type === 'schedule' ? '\uC77C\uC815' : '\uB9C8\uAC10'}
                           </Text>
                         </Box>
                       </Group>
@@ -405,6 +441,31 @@ export default function Dashboard() {
         </>
         )}
       </Stack>
+
+      <Modal
+        isOpen={scheduleModalOpen}
+        onClose={() => { setScheduleModalOpen(false); setEditingSchedule(null) }}
+        title={editingSchedule ? '일정 수정' : '일정 추가'}
+      >
+        <ScheduleForm
+          initialData={editingSchedule}
+          onSubmit={async (data) => {
+            if (editingSchedule) {
+              await updateSchedule(editingSchedule.id, data)
+            } else {
+              await createSchedule(data)
+            }
+            setScheduleModalOpen(false)
+            setEditingSchedule(null)
+          }}
+          onCancel={() => { setScheduleModalOpen(false); setEditingSchedule(null) }}
+          onDelete={editingSchedule ? async (id) => {
+            await deleteSchedule(id)
+            setScheduleModalOpen(false)
+            setEditingSchedule(null)
+          } : undefined}
+        />
+      </Modal>
     </Container>
   )
 }

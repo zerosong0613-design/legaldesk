@@ -111,6 +111,7 @@ export default function MiniCalendar({ events, onEventClick }) {
           const dayOfWeek = date.getDay()
           const hasHearing = dayEvents.some((e) => e.type === 'hearing')
           const hasDeadline = dayEvents.some((e) => e.type === 'deadline')
+          const hasSchedule = dayEvents.some((e) => e.type === 'schedule')
 
           const textColor = isSelected
             ? 'white'
@@ -157,6 +158,12 @@ export default function MiniCalendar({ events, onEventClick }) {
                       backgroundColor: isSelected ? 'white' : 'var(--mantine-color-orange-5)',
                     }} />
                   )}
+                  {hasSchedule && (
+                    <span style={{
+                      width: 4, height: 4, borderRadius: '50%',
+                      backgroundColor: isSelected ? 'white' : 'var(--mantine-color-blue-5)',
+                    }} />
+                  )}
                 </div>
               )}
             </UnstyledButton>
@@ -183,13 +190,17 @@ export default function MiniCalendar({ events, onEventClick }) {
               >
                 <span style={{
                   width: 6, height: 6, borderRadius: '50%', marginTop: 6, flexShrink: 0,
-                  backgroundColor: ev.type === 'hearing' ? 'var(--mantine-color-red-5)' : 'var(--mantine-color-orange-5)',
+                  backgroundColor: ev.type === 'hearing'
+                    ? 'var(--mantine-color-red-5)'
+                    : ev.type === 'schedule'
+                      ? 'var(--mantine-color-blue-5)'
+                      : 'var(--mantine-color-orange-5)',
                 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Text size="xs" truncate>{ev.label}</Text>
                   <Text size="xs" c="dimmed">
                     {ev.time && `${ev.time} · `}
-                    {ev.type === 'hearing' ? '기일' : '마감'}
+                    {ev.type === 'hearing' ? '기일' : ev.type === 'schedule' ? '일정' : '마감'}
                   </Text>
                 </div>
               </UnstyledButton>
