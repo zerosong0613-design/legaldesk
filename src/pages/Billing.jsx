@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import {
   Group, Text, Button, Card,
   SimpleGrid, Stack, Box, Container, UnstyledButton,
-  TextInput, Select, Badge, Alert, Textarea,
-  Table, ThemeIcon, Center, Loader, Collapse,
+  TextInput, Select, Badge, Textarea,
+  Table, ThemeIcon, Center, Loader,
   SegmentedControl, Divider, Progress, Tabs,
+  Checkbox, NumberInput, Radio,
 } from '@mantine/core'
 import {
   IconPlus, IconReceipt,
@@ -13,42 +14,83 @@ import {
   IconSearch, IconChartBar, IconCheck, IconX,
   IconChevronDown, IconChevronUp, IconTrendingUp,
   IconTrendingDown, IconCalendarStats, IconArrowUpRight,
-  IconArrowDownRight, IconMinus,
+  IconArrowDownRight, IconMinus, IconFileInvoice,
+  IconContract, IconCoin, IconClipboardList,
+  IconPaperclip, IconAlertCircle,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import { readCasesIndex, writeCasesIndex } from '../api/drive'
 import Modal from '../components/ui/Modal'
 
-// --- 금액 포맷 유틸리티 ---
+// --- 상수 ---
+
+const RETAINER_TYPES = [
+  { value: 'mixed', label: '착수금 + 성공보수' },
+  { value: 'fixed', label: '착수금 고정' },
+  { value: 'hourly', label: '시간제' },
+  { value: 'contingency', label: '성공보수 전용' },
+]
+
+const DISBURSEMENT_CATEGORIES = [
+  { value: '인지대', label: '인지대' },
+  { value: '송달료', label: '송달료' },
+  { value: '집행비용', label: '집행비용' },
+  { value: '감정료', label: '감정료' },
+  { value: '번역료', label: '번역료' },
+  { value: '출장비(교통)', label: '출장비(교통)' },
+  { value: '숙박비', label: '숙박비' },
+  { value: '복사·인쇄비', label: '복사·인쇄비' },
+  { value: '우편·택배비', label: '우편·택배비' },
+  { value: '외부 전문가 비용', label: '외부 전문가 비용' },
+  { value: '공증료', label: '공증료' },
+  { value: '등록면허세', label: '등록면허세' },
+  { value: '기타', label: '기타' },
+]
+
+const INVOICE_STATUSES = {
+  draft: { label: '초안', color: 'gray', icon: '📋' },
+  sent: { label: '발송', color: 'blue', icon: '📤' },
+  paid: { label: '완납', color: 'green', icon: '✅' },
+  overdue: { label: '연체', color: 'red', icon: '❌' },
+  cancelled: { label: '취소', color: 'gray', icon: '—' },
+}
+
+const PAYMENT_STATUS = {
+  paid: { label: '완납', color: 'green' },
+  partial: { label: '일부입금', color: 'orange' },
+  unpaid: { label: '미입금', color: 'red' },
+  pending: { label: '확인대기', color: 'gray' },
+}
+
+const MONTH_NAMES = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
+
+// --- 금액 유틸리티 ---
 
 function numberToKorean(num) {
   if (!num && num !== 0) return ''
   const n = Math.abs(Number(num))
-  if (isNaN(n) || n === 0) return '0\uC6D0'
-
+  if (isNaN(n) || n === 0) return '0원'
   const eok = Math.floor(n / 100000000)
   const man = Math.floor((n % 100000000) / 10000)
   const rest = n % 10000
-
   const parts = []
-  if (eok > 0) parts.push(`${eok.toLocaleString('ko-KR')}\uC5B5`)
-  if (man > 0) parts.push(`${man.toLocaleString('ko-KR')}\uB9CC`)
+  if (eok > 0) parts.push(`${eok.toLocaleString('ko-KR')}억`)
+  if (man > 0) parts.push(`${man.toLocaleString('ko-KR')}만`)
   if (rest > 0) parts.push(`${rest.toLocaleString('ko-KR')}`)
-
-  return parts.join(' ') + '\uC6D0'
+  return parts.join(' ') + '원'
 }
 
 function formatCurrency(amount) {
   if (!amount && amount !== 0) return '-'
-  return Number(amount).toLocaleString('ko-KR') + '\uC6D0'
+  return Number(amount).toLocaleString('ko-KR') + '원'
 }
 
 function formatCurrencyShort(amount) {
   if (!amount && amount !== 0) return '0'
   const n = Math.abs(Number(amount))
-  if (n >= 100000000) return `${(n / 100000000).toFixed(1)}\uC5B5`
-  if (n >= 10000) return `${Math.round(n / 10000)}\uB9CC`
+  if (n >= 100000000) return `${(n / 100000000).toFixed(1)}억`
+  if (n >= 10000) return `${Math.round(n / 10000).toLocaleString('ko-KR')}만`
   return n.toLocaleString('ko-KR')
 }
 
@@ -67,36 +109,12 @@ function formatWithCommas(numStr) {
   return Number(numStr).toLocaleString('ko-KR')
 }
 
-const MONTH_NAMES = ['1\uC6D4', '2\uC6D4', '3\uC6D4', '4\uC6D4', '5\uC6D4', '6\uC6D4', '7\uC6D4', '8\uC6D4', '9\uC6D4', '10\uC6D4', '11\uC6D4', '12\uC6D4']
-
-const PAYMENT_TYPES = [
-  { value: 'fee', label: '\uC218\uC784\uB8CC' },
-  { value: 'expense', label: '\uC2E4\uBE44' },
-  { value: 'deposit', label: '\uC785\uAE08' },
-  { value: 'refund', label: '\uD658\uBD88' },
-]
-
-const PAYMENT_METHODS = [
-  { value: 'bank', label: '\uACC4\uC88C\uC774\uCCB4' },
-  { value: 'card', label: '\uCE74\uB4DC' },
-  { value: 'cash', label: '\uD604\uAE08' },
-  { value: 'other', label: '\uAE30\uD0C0' },
-]
-
-const TYPE_CONFIG = {
-  fee: { label: '\uC218\uC784\uB8CC', color: 'indigo' },
-  expense: { label: '\uC2E4\uBE44', color: 'orange' },
-  deposit: { label: '\uC785\uAE08', color: 'teal' },
-  refund: { label: '\uD658\uBD88', color: 'red' },
-}
-
-// --- 금액 입력 컴포넌트 ---
+// --- 금액 입력 ---
 
 function AmountInput({ value, onChange, label, required, withAsterisk }) {
   const rawStr = String(value || '')
   const display = rawStr ? formatWithCommas(rawStr) : ''
   const koreanText = rawStr && Number(rawStr) > 0 ? numberToKorean(rawStr) : ''
-
   return (
     <Box>
       <TextInput
@@ -108,142 +126,32 @@ function AmountInput({ value, onChange, label, required, withAsterisk }) {
         onChange={(e) => onChange(stripNonDigits(e.currentTarget.value))}
         styles={{ input: { fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' } }}
       />
-      {koreanText && (
-        <Text size="xs" c="indigo" mt={2} fw={500}>{koreanText}</Text>
-      )}
+      {koreanText && <Text size="xs" c="indigo" mt={2} fw={500}>{koreanText}</Text>}
     </Box>
   )
 }
 
-// --- 비용 폼 ---
+// --- 결제 상태 계산 ---
 
-function BillingForm({ cases, consultations, initialData, onSubmit, onCancel }) {
-  const isEditing = !!initialData
-  const allItems = useMemo(() => {
-    const items = []
-    for (const c of cases) {
-      items.push({ value: c.id, label: `[\uC0AC\uAC74] ${c.clientName} ${c.caseNumber ? `(${c.caseNumber})` : ''}` })
-    }
-    for (const c of consultations) {
-      items.push({ value: c.id, label: `[\uC790\uBB38] ${c.clientName} ${c.subject ? `\u2014 ${c.subject}` : ''}` })
-    }
-    return items
-  }, [cases, consultations])
-
-  const [form, setForm] = useState({
-    caseId: initialData?.caseId || '',
-    type: initialData?.type || 'fee',
-    amount: initialData?.amount ? String(initialData.amount) : '',
-    method: initialData?.method || 'bank',
-    date: initialData?.date || new Date().toISOString().split('T')[0],
-    note: initialData?.note || '',
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const handleChange = (name, value) => setForm({ ...form, [name]: value })
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!form.caseId || !form.amount) return
-    setIsSubmitting(true)
-    try {
-      await onSubmit({ ...form, amount: Number(form.amount), id: isEditing ? initialData.id : `bill-${Date.now()}` })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <Stack gap="sm">
-        <Select label={'\uC0AC\uAC74 / \uC790\uBB38'} placeholder={'\uC120\uD0DD\uD558\uC138\uC694'} data={allItems} value={form.caseId} onChange={(val) => handleChange('caseId', val)} searchable required withAsterisk />
-        <SimpleGrid cols={2}>
-          <Select label={'\uC720\uD615'} data={PAYMENT_TYPES} value={form.type} onChange={(val) => handleChange('type', val)} />
-          <AmountInput label={'\uAE08\uC561'} required withAsterisk value={form.amount} onChange={(val) => handleChange('amount', val)} />
-        </SimpleGrid>
-        <SimpleGrid cols={2}>
-          <Select label={'\uACB0\uC81C \uBC29\uBC95'} data={PAYMENT_METHODS} value={form.method} onChange={(val) => handleChange('method', val)} />
-          <TextInput label={'\uB0A0\uC9DC'} type="date" value={form.date} onChange={(e) => handleChange('date', e.currentTarget.value)} />
-        </SimpleGrid>
-        <TextInput label={'\uBA54\uBAA8'} placeholder={'\uCC29\uC218\uAE08, \uC131\uACF5\uBCF4\uC218, \uC778\uC9C0\uB300 \uB4F1'} value={form.note} onChange={(e) => handleChange('note', e.currentTarget.value)} />
-        <Group justify="flex-end" gap="sm" mt="sm">
-          <Button variant="default" onClick={onCancel} leftSection={<IconX size={14} />}>{'\uCDE8\uC18C'}</Button>
-          <Button type="submit" loading={isSubmitting} disabled={!form.caseId || !form.amount} leftSection={<IconCheck size={14} />}>{isEditing ? '\uC218\uC815' : '\uB4F1\uB85D'}</Button>
-        </Group>
-      </Stack>
-    </form>
-  )
-}
-
-// --- 비용 행 ---
-
-function BillingRow({ bill, getItemName, navigate, onEdit, onDelete, isExpanded, onToggle, cases, consultations }) {
-  const item = getItemName(bill.caseId)
-  const tc = TYPE_CONFIG[bill.type] || { label: bill.type, color: 'gray' }
-  const methodLabel = PAYMENT_METHODS.find((m) => m.value === bill.method)?.label || bill.method
-
-  return (
-    <>
-      <Table.Tr style={{ cursor: 'pointer', backgroundColor: isExpanded ? 'var(--mantine-color-indigo-0)' : undefined }} onClick={onToggle}>
-        <Table.Td><Text size="sm" ff="monospace">{formatDate(bill.date)}</Text></Table.Td>
-        <Table.Td><Badge color={tc.color} variant="light" size="sm">{tc.label}</Badge></Table.Td>
-        <Table.Td>
-          <UnstyledButton onClick={(e) => {
-            e.stopPropagation()
-            if (item.category === 'consultation') navigate(`/consultation/${bill.caseId}`)
-            else if (item.category === 'case') navigate(`/case/${bill.caseId}`)
-          }}>
-            <Text size="sm" fw={500} td="underline" c="indigo">{item.name}</Text>
-            {item.sub && <Text size="xs" c="dimmed">{item.sub}</Text>}
-          </UnstyledButton>
-        </Table.Td>
-        <Table.Td>
-          <Stack gap={0}>
-            <Text size="sm" fw={600} c={bill.type === 'deposit' ? 'teal' : bill.type === 'refund' ? 'red' : undefined}>
-              {bill.type === 'deposit' ? '+' : bill.type === 'refund' ? '-' : ''}{formatCurrency(bill.amount)}
-            </Text>
-            {bill.amount >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(bill.amount)}</Text>}
-          </Stack>
-        </Table.Td>
-        <Table.Td><Text size="xs" c="dimmed">{methodLabel}</Text></Table.Td>
-        <Table.Td><Text size="xs" c="dimmed" truncate style={{ maxWidth: 200 }}>{bill.note || '-'}</Text></Table.Td>
-        <Table.Td>{isExpanded ? <IconChevronUp size={14} color="gray" /> : <IconChevronDown size={14} color="gray" />}</Table.Td>
-      </Table.Tr>
-      {isExpanded && (
-        <Table.Tr>
-          <Table.Td colSpan={7} style={{ backgroundColor: 'var(--mantine-color-gray-0)', padding: 0 }}>
-            <Box p="md">
-              <BillingForm cases={cases} consultations={consultations} initialData={bill} onSubmit={onEdit} onCancel={onToggle} />
-              <Group justify="flex-start" mt="sm">
-                <Button variant="subtle" color="red" size="xs" leftSection={<IconTrash size={14} />} onClick={(e) => { e.stopPropagation(); onDelete(bill.id) }}>
-                  {'\uC774 \uBE44\uC6A9 \uC0AD\uC81C'}
-                </Button>
-              </Group>
-            </Box>
-          </Table.Td>
-        </Table.Tr>
-      )}
-    </>
-  )
+function getPaymentStatus(total, paid) {
+  if (!total || total <= 0) return null
+  if (paid >= total) return PAYMENT_STATUS.paid
+  if (paid > 0) return PAYMENT_STATUS.partial
+  return PAYMENT_STATUS.unpaid
 }
 
 // --- 비율 변화 뱃지 ---
 
 function ChangeBadge({ current, previous }) {
   if (!previous || previous === 0) {
-    if (current > 0) return <Badge size="xs" variant="light" color="teal" leftSection={<IconArrowUpRight size={10} />}>{'\uC2E0\uADDC'}</Badge>
+    if (current > 0) return <Badge size="xs" variant="light" color="teal" leftSection={<IconArrowUpRight size={10} />}>신규</Badge>
     return null
   }
   const pct = Math.round(((current - previous) / previous) * 100)
-  if (pct === 0) return <Badge size="xs" variant="light" color="gray" leftSection={<IconMinus size={10} />}>{'\uB3D9\uC77C'}</Badge>
+  if (pct === 0) return <Badge size="xs" variant="light" color="gray" leftSection={<IconMinus size={10} />}>동일</Badge>
   const isUp = pct > 0
   return (
-    <Badge
-      size="xs"
-      variant="light"
-      color={isUp ? 'teal' : 'red'}
-      leftSection={isUp ? <IconArrowUpRight size={10} /> : <IconArrowDownRight size={10} />}
-    >
+    <Badge size="xs" variant="light" color={isUp ? 'teal' : 'red'} leftSection={isUp ? <IconArrowUpRight size={10} /> : <IconArrowDownRight size={10} />}>
       {isUp ? '+' : ''}{pct}%
     </Badge>
   )
@@ -282,173 +190,1034 @@ function BarChart({ data, maxValue, color, labelKey, valueKey }) {
   )
 }
 
-// --- 통계 패널 ---
+// ==================================================
+// 섹션 ① 수임 계약 패널
+// ==================================================
 
-function StatsPanel({ billings }) {
+function RetainerForm({ cases, consultations, initialData, onSubmit, onCancel }) {
+  const isEditing = !!initialData
+  const allItems = useMemo(() => {
+    const items = []
+    for (const c of cases) items.push({ value: c.id, label: `[사건] ${c.clientName} ${c.caseNumber ? `(${c.caseNumber})` : ''}` })
+    for (const c of consultations) items.push({ value: c.id, label: `[자문] ${c.clientName} ${c.subject ? `— ${c.subject}` : ''}` })
+    return items
+  }, [cases, consultations])
+
+  const [form, setForm] = useState({
+    caseId: initialData?.caseId || '',
+    type: initialData?.type || 'mixed',
+    contractDate: initialData?.contractDate || new Date().toISOString().split('T')[0],
+    vatIncluded: initialData?.vatIncluded ?? false,
+    retainerFee: initialData?.retainerFee ? String(initialData.retainerFee) : '',
+    retainerPaid: initialData?.retainerPaid ? String(initialData.retainerPaid) : '0',
+    retainerPaidAt: initialData?.retainerPaidAt || '',
+    retainerNote: initialData?.retainerNote || '',
+    contingencyFee: initialData?.contingencyFee ? String(initialData.contingencyFee) : '',
+    contingencyType: initialData?.contingencyType || 'fixed',
+    contingencyPercent: initialData?.contingencyPercent ? String(initialData.contingencyPercent) : '',
+    contingencyBasis: initialData?.contingencyBasis ? String(initialData.contingencyBasis) : '',
+    contingencyNote: initialData?.contingencyNote || '',
+    contingencyPaid: initialData?.contingencyPaid ? String(initialData.contingencyPaid) : '0',
+    contingencyPaidAt: initialData?.contingencyPaidAt || '',
+    hourlyRate: initialData?.hourlyRate ? String(initialData.hourlyRate) : '',
+    memo: initialData?.memo || '',
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const h = (name, value) => setForm({ ...form, [name]: value })
+  const showRetainer = form.type === 'fixed' || form.type === 'mixed'
+  const showContingency = form.type === 'contingency' || form.type === 'mixed'
+  const showHourly = form.type === 'hourly'
+
+  const calcContingency = form.contingencyType === 'percent' && form.contingencyPercent && form.contingencyBasis
+    ? Math.round(Number(form.contingencyBasis) * Number(form.contingencyPercent) / 100)
+    : null
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.caseId) return
+    setIsSubmitting(true)
+    try {
+      await onSubmit({
+        ...form,
+        retainerFee: Number(form.retainerFee) || 0,
+        retainerPaid: Number(form.retainerPaid) || 0,
+        contingencyFee: calcContingency || Number(form.contingencyFee) || 0,
+        contingencyPaid: Number(form.contingencyPaid) || 0,
+        contingencyPercent: Number(form.contingencyPercent) || null,
+        contingencyBasis: Number(form.contingencyBasis) || null,
+        hourlyRate: Number(form.hourlyRate) || null,
+        hoursLogged: initialData?.hoursLogged || 0,
+        hourlyPaid: initialData?.hourlyPaid || 0,
+        id: isEditing ? initialData.id : `ret-${Date.now()}`,
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Stack gap="sm">
+        <Select label="사건 / 자문" placeholder="선택하세요" data={allItems} value={form.caseId} onChange={(v) => h('caseId', v)} searchable required withAsterisk />
+        <SimpleGrid cols={2}>
+          <Select label="수임 유형" data={RETAINER_TYPES} value={form.type} onChange={(v) => h('type', v)} />
+          <TextInput label="계약일" type="date" value={form.contractDate} onChange={(e) => h('contractDate', e.currentTarget.value)} required withAsterisk />
+        </SimpleGrid>
+        <Radio.Group label="부가세" value={form.vatIncluded ? 'included' : 'excluded'} onChange={(v) => h('vatIncluded', v === 'included')}>
+          <Group gap="lg" mt={4}>
+            <Radio value="excluded" label="별도" />
+            <Radio value="included" label="포함" />
+          </Group>
+        </Radio.Group>
+
+        {showRetainer && (
+          <>
+            <Divider label="착수금" labelPosition="left" />
+            <AmountInput label="착수금 금액" required withAsterisk value={form.retainerFee} onChange={(v) => h('retainerFee', v)} />
+            <SimpleGrid cols={2}>
+              <AmountInput label="입금액" value={form.retainerPaid} onChange={(v) => h('retainerPaid', v)} />
+              <TextInput label="입금일" type="date" value={form.retainerPaidAt} onChange={(e) => h('retainerPaidAt', e.currentTarget.value)} />
+            </SimpleGrid>
+            <TextInput label="착수금 메모" placeholder="예: 분할 입금 예정" value={form.retainerNote} onChange={(e) => h('retainerNote', e.currentTarget.value)} />
+          </>
+        )}
+
+        {showContingency && (
+          <>
+            <Divider label="성공보수" labelPosition="left" />
+            <Radio.Group label="성공보수 유형" value={form.contingencyType} onChange={(v) => h('contingencyType', v)}>
+              <Group gap="lg" mt={4}>
+                <Radio value="fixed" label="고정액" />
+                <Radio value="percent" label="소가 대비 %" />
+              </Group>
+            </Radio.Group>
+            {form.contingencyType === 'fixed' ? (
+              <AmountInput label="성공보수 금액" value={form.contingencyFee} onChange={(v) => h('contingencyFee', v)} />
+            ) : (
+              <SimpleGrid cols={2}>
+                <TextInput label="비율 (%)" placeholder="10" value={form.contingencyPercent} onChange={(e) => h('contingencyPercent', stripNonDigits(e.currentTarget.value))} />
+                <AmountInput label="소가 (계산 기준)" value={form.contingencyBasis} onChange={(v) => h('contingencyBasis', v)} />
+              </SimpleGrid>
+            )}
+            {calcContingency && (
+              <Text size="sm" c="indigo" fw={500}>자동 계산: {formatCurrency(calcContingency)}</Text>
+            )}
+            <TextInput label="조건 메모" placeholder="예: 1심 승소 시" value={form.contingencyNote} onChange={(e) => h('contingencyNote', e.currentTarget.value)} />
+          </>
+        )}
+
+        {showHourly && (
+          <>
+            <Divider label="시간제" labelPosition="left" />
+            <AmountInput label="시간당 단가" value={form.hourlyRate} onChange={(v) => h('hourlyRate', v)} />
+          </>
+        )}
+
+        <TextInput label="메모" placeholder="기타 메모" value={form.memo} onChange={(e) => h('memo', e.currentTarget.value)} />
+
+        <Group justify="flex-end" gap="sm" mt="sm">
+          <Button variant="default" onClick={onCancel} leftSection={<IconX size={14} />}>취소</Button>
+          <Button type="submit" loading={isSubmitting} disabled={!form.caseId} leftSection={<IconCheck size={14} />}>{isEditing ? '수정' : '등록'}</Button>
+        </Group>
+      </Stack>
+    </form>
+  )
+}
+
+function RetainerCard({ retainer, getItemName, onEdit, onDelete, onPaymentConfirm }) {
+  const item = getItemName(retainer.caseId)
+  const showRetainer = retainer.type === 'fixed' || retainer.type === 'mixed'
+  const showContingency = retainer.type === 'contingency' || retainer.type === 'mixed'
+  const showHourly = retainer.type === 'hourly'
+
+  const retainerStatus = showRetainer ? getPaymentStatus(retainer.retainerFee, retainer.retainerPaid) : null
+  const contingencyStatus = showContingency ? getPaymentStatus(retainer.contingencyFee, retainer.contingencyPaid) : null
+  const retainerPct = retainer.retainerFee > 0 ? Math.min((retainer.retainerPaid / retainer.retainerFee) * 100, 100) : 0
+  const contingencyPct = retainer.contingencyFee > 0 ? Math.min((retainer.contingencyPaid / retainer.contingencyFee) * 100, 100) : 0
+
+  const typeLabel = RETAINER_TYPES.find((t) => t.value === retainer.type)?.label || retainer.type
+
+  return (
+    <Card padding="lg" withBorder>
+      <Group justify="space-between" mb="md">
+        <Group gap="sm">
+          <Text fw={600}>수임 계약</Text>
+          <Badge variant="light" color="indigo" size="sm">{typeLabel}</Badge>
+        </Group>
+        <Group gap="xs">
+          <Button variant="subtle" size="xs" color="gray" leftSection={<IconEdit size={14} />} onClick={() => onEdit(retainer)}>수정</Button>
+          <Button variant="subtle" size="xs" color="red" leftSection={<IconTrash size={14} />} onClick={() => onDelete(retainer.id)}>삭제</Button>
+        </Group>
+      </Group>
+
+      <Group gap="xs" mb="xs">
+        <Text size="sm" fw={500} c="indigo">{item.name}</Text>
+        {item.sub && <Text size="xs" c="dimmed">{item.sub}</Text>}
+      </Group>
+      <Text size="xs" c="dimmed" mb="md">계약일: {formatDate(retainer.contractDate)} · 부가세: {retainer.vatIncluded ? '포함' : '별도'}</Text>
+
+      <Stack gap="md">
+        {showRetainer && (
+          <Box>
+            <Group justify="space-between" mb={4}>
+              <Text size="sm" fw={500}>착수금</Text>
+              <Group gap="xs">
+                <Text size="sm" fw={600}>{formatCurrency(retainer.retainerFee)}</Text>
+                {retainerStatus && <Badge size="xs" color={retainerStatus.color}>{retainerStatus.label}</Badge>}
+              </Group>
+            </Group>
+            <Progress value={retainerPct} color={retainerPct >= 100 ? 'green' : retainerPct > 0 ? 'orange' : 'red'} size="sm" mb={4} />
+            <Group justify="space-between">
+              <Text size="xs" c="dimmed">
+                입금: {formatCurrency(retainer.retainerPaid)}
+                {retainer.retainerPaidAt && ` (${formatDate(retainer.retainerPaidAt)})`}
+              </Text>
+              {retainer.retainerPaid < retainer.retainerFee && (
+                <Button variant="light" size="xs" color="teal" onClick={() => onPaymentConfirm(retainer, 'retainer')}>
+                  입금 확인
+                </Button>
+              )}
+            </Group>
+            {retainer.retainerNote && <Text size="xs" c="dimmed" mt={2}>{retainer.retainerNote}</Text>}
+          </Box>
+        )}
+
+        {showContingency && (
+          <Box>
+            <Group justify="space-between" mb={4}>
+              <Text size="sm" fw={500}>성공보수</Text>
+              <Group gap="xs">
+                <Text size="sm" fw={600}>{formatCurrency(retainer.contingencyFee)}</Text>
+                {retainer.contingencyNote && <Text size="xs" c="dimmed">({retainer.contingencyNote})</Text>}
+                {contingencyStatus && <Badge size="xs" color={contingencyStatus.color}>{contingencyStatus.label}</Badge>}
+              </Group>
+            </Group>
+            <Progress value={contingencyPct} color={contingencyPct >= 100 ? 'green' : contingencyPct > 0 ? 'orange' : 'gray'} size="sm" mb={4} />
+            <Group justify="space-between">
+              <Text size="xs" c="dimmed">
+                입금: {formatCurrency(retainer.contingencyPaid)}
+                {retainer.contingencyPaidAt && ` (${formatDate(retainer.contingencyPaidAt)})`}
+              </Text>
+              {retainer.contingencyPaid < retainer.contingencyFee && (
+                <Button variant="light" size="xs" color="teal" onClick={() => onPaymentConfirm(retainer, 'contingency')}>
+                  입금 확인
+                </Button>
+              )}
+            </Group>
+          </Box>
+        )}
+
+        {showHourly && (
+          <Box>
+            <Group justify="space-between" mb={4}>
+              <Text size="sm" fw={500}>시간제</Text>
+              <Text size="sm" fw={600}>시간당 {formatCurrency(retainer.hourlyRate)}</Text>
+            </Group>
+            <Group gap="lg">
+              <Text size="xs" c="dimmed">누적: {retainer.hoursLogged || 0}시간</Text>
+              <Text size="xs" c="dimmed">합계: {formatCurrency((retainer.hoursLogged || 0) * (retainer.hourlyRate || 0))}</Text>
+              <Text size="xs" c="dimmed">입금: {formatCurrency(retainer.hourlyPaid || 0)}</Text>
+            </Group>
+          </Box>
+        )}
+      </Stack>
+
+      {retainer.memo && (
+        <Text size="xs" c="dimmed" mt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)', paddingTop: 8 }}>
+          {retainer.memo}
+        </Text>
+      )}
+    </Card>
+  )
+}
+
+function RetainerPanel({ retainers, cases, consultations, getItemName, onSave }) {
+  const { openModal, closeModal, isModalOpen, modalType, modalData, showToast } = useUiStore()
+  const [editingData, setEditingData] = useState(null)
+
+  const handleCreate = async (formData) => {
+    const newRetainers = [...retainers, { ...formData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]
+    await onSave('retainers', newRetainers)
+    closeModal()
+    showToast('수임 계약이 등록되었습니다.', 'success')
+  }
+
+  const handleEdit = async (formData) => {
+    const newRetainers = retainers.map((r) => r.id === formData.id ? { ...r, ...formData, updatedAt: new Date().toISOString() } : r)
+    await onSave('retainers', newRetainers)
+    setEditingData(null)
+    closeModal()
+    showToast('수임 계약이 수정되었습니다.', 'success')
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('이 수임 계약을 삭제하시겠습니까?')) return
+    const newRetainers = retainers.filter((r) => r.id !== id)
+    await onSave('retainers', newRetainers)
+    showToast('수임 계약이 삭제되었습니다.', 'success')
+  }
+
+  const handlePaymentConfirm = (retainer, feeType) => {
+    setEditingData(retainer)
+    openModal('paymentConfirm', { retainer, feeType })
+  }
+
+  const handlePaymentSubmit = async (amount, date) => {
+    const { retainer: ret, feeType } = modalData
+    const field = feeType === 'retainer' ? 'retainerPaid' : 'contingencyPaid'
+    const dateField = feeType === 'retainer' ? 'retainerPaidAt' : 'contingencyPaidAt'
+    const newRetainers = retainers.map((r) =>
+      r.id === ret.id ? { ...r, [field]: Number(amount), [dateField]: date, updatedAt: new Date().toISOString() } : r
+    )
+    await onSave('retainers', newRetainers)
+    closeModal()
+    showToast('입금이 확인되었습니다.', 'success')
+  }
+
+  // 통계
+  const totalRetainerFee = retainers.reduce((s, r) => s + (r.retainerFee || 0), 0)
+  const totalRetainerPaid = retainers.reduce((s, r) => s + (r.retainerPaid || 0), 0)
+  const totalContingencyFee = retainers.reduce((s, r) => s + (r.contingencyFee || 0), 0)
+  const totalContingencyPaid = retainers.reduce((s, r) => s + (r.contingencyPaid || 0), 0)
+  const totalUnpaid = (totalRetainerFee - totalRetainerPaid) + (totalContingencyFee - totalContingencyPaid)
+
+  return (
+    <Stack gap="md">
+      {/* 수임료 요약 */}
+      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+        <Card padding="md" bg="indigo.0">
+          <Text size="xs" c="dimmed" mb={4}>착수금 총액</Text>
+          <Text size="lg" fw={700} c="indigo">{formatCurrencyShort(totalRetainerFee)}</Text>
+        </Card>
+        <Card padding="md" bg="teal.0">
+          <Text size="xs" c="dimmed" mb={4}>착수금 입금</Text>
+          <Text size="lg" fw={700} c="teal">{formatCurrencyShort(totalRetainerPaid)}</Text>
+        </Card>
+        <Card padding="md" bg="grape.0">
+          <Text size="xs" c="dimmed" mb={4}>성공보수</Text>
+          <Text size="lg" fw={700} c="grape">{formatCurrencyShort(totalContingencyFee)}</Text>
+        </Card>
+        <Card padding="md" bg={totalUnpaid > 0 ? 'red.0' : 'green.0'}>
+          <Text size="xs" c="dimmed" mb={4}>미수금</Text>
+          <Text size="lg" fw={700} c={totalUnpaid > 0 ? 'red' : 'green'}>{formatCurrencyShort(totalUnpaid)}</Text>
+        </Card>
+      </SimpleGrid>
+
+      {/* 계약 목록 */}
+      {retainers.length === 0 ? (
+        <Center py="xl">
+          <Stack align="center" gap="sm">
+            <ThemeIcon size={48} radius="xl" variant="light" color="indigo"><IconContract size={24} /></ThemeIcon>
+            <Text c="dimmed" size="sm">등록된 수임 계약이 없습니다</Text>
+            <Text size="xs" c="dimmed">수임료 구조를 입력하면 청구·수금 현황을 관리할 수 있습니다.</Text>
+            <Button variant="subtle" leftSection={<IconPlus size={14} />} onClick={() => openModal('createRetainer')}>
+              수임 계약 등록
+            </Button>
+          </Stack>
+        </Center>
+      ) : (
+        <Stack gap="md">
+          {retainers.map((ret) => (
+            <RetainerCard
+              key={ret.id}
+              retainer={ret}
+              getItemName={getItemName}
+              onEdit={(data) => { setEditingData(data); openModal('editRetainer') }}
+              onDelete={handleDelete}
+              onPaymentConfirm={handlePaymentConfirm}
+            />
+          ))}
+        </Stack>
+      )}
+
+      {/* 수임 계약 등록 모달 */}
+      <Modal isOpen={isModalOpen && modalType === 'createRetainer'} onClose={closeModal} title="수임 계약 등록">
+        <RetainerForm cases={cases} consultations={consultations} onSubmit={handleCreate} onCancel={closeModal} />
+      </Modal>
+
+      {/* 수임 계약 수정 모달 */}
+      <Modal isOpen={isModalOpen && modalType === 'editRetainer'} onClose={() => { closeModal(); setEditingData(null) }} title="수임 계약 수정">
+        {editingData && <RetainerForm cases={cases} consultations={consultations} initialData={editingData} onSubmit={handleEdit} onCancel={() => { closeModal(); setEditingData(null) }} />}
+      </Modal>
+
+      {/* 입금 확인 모달 */}
+      <Modal isOpen={isModalOpen && modalType === 'paymentConfirm'} onClose={closeModal} title="입금 확인">
+        {modalData && <PaymentConfirmForm modalData={modalData} onSubmit={handlePaymentSubmit} onCancel={closeModal} />}
+      </Modal>
+    </Stack>
+  )
+}
+
+function PaymentConfirmForm({ modalData, onSubmit, onCancel }) {
+  const { retainer, feeType } = modalData
+  const currentAmount = feeType === 'retainer' ? retainer.retainerFee : retainer.contingencyFee
+  const [amount, setAmount] = useState(String(currentAmount || ''))
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    try { await onSubmit(amount, date) } finally { setIsSubmitting(false) }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Stack gap="sm">
+        <Text size="sm" c="dimmed">{feeType === 'retainer' ? '착수금' : '성공보수'}: {formatCurrency(currentAmount)}</Text>
+        <AmountInput label="실제 입금액" required withAsterisk value={amount} onChange={setAmount} />
+        <TextInput label="입금일" type="date" value={date} onChange={(e) => setDate(e.currentTarget.value)} required />
+        <Group justify="flex-end" gap="sm" mt="sm">
+          <Button variant="default" onClick={onCancel}>취소</Button>
+          <Button type="submit" loading={isSubmitting} color="teal" leftSection={<IconCheck size={14} />}>확인 저장</Button>
+        </Group>
+      </Stack>
+    </form>
+  )
+}
+
+// ==================================================
+// 섹션 ② 실비 내역 패널
+// ==================================================
+
+function DisbursementForm({ cases, consultations, initialData, onSubmit, onCancel }) {
+  const isEditing = !!initialData
+  const allItems = useMemo(() => {
+    const items = []
+    for (const c of cases) items.push({ value: c.id, label: `[사건] ${c.clientName} ${c.caseNumber ? `(${c.caseNumber})` : ''}` })
+    for (const c of consultations) items.push({ value: c.id, label: `[자문] ${c.clientName} ${c.subject ? `— ${c.subject}` : ''}` })
+    return items
+  }, [cases, consultations])
+
+  const [form, setForm] = useState({
+    caseId: initialData?.caseId || '',
+    date: initialData?.date || new Date().toISOString().split('T')[0],
+    category: initialData?.category || '',
+    amount: initialData?.amount ? String(initialData.amount) : '',
+    description: initialData?.description || '',
+    billable: initialData?.billable ?? true,
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const h = (name, value) => setForm({ ...form, [name]: value })
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.caseId || !form.category || !form.amount) return
+    setIsSubmitting(true)
+    try {
+      await onSubmit({
+        ...form,
+        amount: Number(form.amount),
+        billed: initialData?.billed || false,
+        paidByClient: initialData?.paidByClient || false,
+        id: isEditing ? initialData.id : `disb-${Date.now()}`,
+      })
+    } finally { setIsSubmitting(false) }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Stack gap="sm">
+        <Select label="사건 / 자문" placeholder="선택하세요" data={allItems} value={form.caseId} onChange={(v) => h('caseId', v)} searchable required withAsterisk />
+        <SimpleGrid cols={2}>
+          <TextInput label="날짜" type="date" value={form.date} onChange={(e) => h('date', e.currentTarget.value)} required withAsterisk />
+          <Select label="카테고리" placeholder="선택" data={DISBURSEMENT_CATEGORIES} value={form.category} onChange={(v) => h('category', v)} searchable required withAsterisk />
+        </SimpleGrid>
+        <AmountInput label="금액" required withAsterisk value={form.amount} onChange={(v) => h('amount', v)} />
+        <TextInput label="내용" placeholder="예: 2026가합1234 인지대" value={form.description} onChange={(e) => h('description', e.currentTarget.value)} />
+        <Checkbox label="의뢰인 청구 대상" checked={form.billable} onChange={(e) => h('billable', e.currentTarget.checked)} />
+        <Group justify="flex-end" gap="sm" mt="sm">
+          <Button variant="default" onClick={onCancel} leftSection={<IconX size={14} />}>취소</Button>
+          <Button type="submit" loading={isSubmitting} disabled={!form.caseId || !form.category || !form.amount} leftSection={<IconCheck size={14} />}>{isEditing ? '수정' : '등록'}</Button>
+        </Group>
+      </Stack>
+    </form>
+  )
+}
+
+function DisbursementPanel({ disbursements, cases, consultations, getItemName, onSave }) {
+  const { openModal, closeModal, isModalOpen, modalType, showToast } = useUiStore()
+  const [editingData, setEditingData] = useState(null)
+  const [filterCategory, setFilterCategory] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const handleCreate = async (formData) => {
+    const newList = [...disbursements, { ...formData, createdAt: new Date().toISOString() }]
+    await onSave('disbursements', newList)
+    closeModal()
+    showToast('실비가 등록되었습니다.', 'success')
+  }
+
+  const handleEdit = async (formData) => {
+    const newList = disbursements.map((d) => d.id === formData.id ? { ...d, ...formData } : d)
+    await onSave('disbursements', newList)
+    setEditingData(null)
+    closeModal()
+    showToast('실비가 수정되었습니다.', 'success')
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('이 실비를 삭제하시겠습니까?')) return
+    await onSave('disbursements', disbursements.filter((d) => d.id !== id))
+    showToast('실비가 삭제되었습니다.', 'success')
+  }
+
+  const unbilledCount = disbursements.filter((d) => d.billable && !d.billed).length
+  const unbilledAmount = disbursements.filter((d) => d.billable && !d.billed).reduce((s, d) => s + (d.amount || 0), 0)
+  const totalAmount = disbursements.reduce((s, d) => s + (d.amount || 0), 0)
+
+  const filtered = useMemo(() => {
+    let result = [...disbursements]
+    if (filterCategory) result = result.filter((d) => d.category === filterCategory)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter((d) => {
+        const item = getItemName(d.caseId)
+        return item.name.toLowerCase().includes(q) || d.description?.toLowerCase().includes(q) || d.category?.toLowerCase().includes(q)
+      })
+    }
+    return result.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
+  }, [disbursements, filterCategory, searchQuery])
+
+  return (
+    <Stack gap="md">
+      {/* 요약 */}
+      <Group justify="space-between">
+        <Group gap="xs">
+          <Text size="sm" c="dimmed">전체: {disbursements.length}건 / {formatCurrency(totalAmount)}</Text>
+          {unbilledCount > 0 && (
+            <Badge color="orange" variant="light" size="sm">
+              미청구: {unbilledCount}건 / {formatCurrency(unbilledAmount)}
+            </Badge>
+          )}
+        </Group>
+      </Group>
+
+      {/* 검색 + 카테고리 필터 */}
+      <TextInput placeholder="의뢰인명, 내용 검색..." leftSection={<IconSearch size={16} />} value={searchQuery} onChange={(e) => setSearchQuery(e.currentTarget.value)} />
+      <Group gap="xs" style={{ flexWrap: 'wrap' }}>
+        <Button variant={filterCategory === null ? 'filled' : 'default'} size="xs" onClick={() => setFilterCategory(null)}>전체</Button>
+        {DISBURSEMENT_CATEGORIES.slice(0, 8).map((c) => {
+          const count = disbursements.filter((d) => d.category === c.value).length
+          if (count === 0) return null
+          return (
+            <Button key={c.value} variant={filterCategory === c.value ? 'filled' : 'default'} size="xs" onClick={() => setFilterCategory(filterCategory === c.value ? null : c.value)}>
+              {c.label} ({count})
+            </Button>
+          )
+        })}
+      </Group>
+
+      {/* 테이블 */}
+      {filtered.length === 0 ? (
+        <Center py="xl">
+          <Stack align="center" gap="sm">
+            <ThemeIcon size={48} radius="xl" variant="light" color="orange"><IconCoin size={24} /></ThemeIcon>
+            <Text c="dimmed" size="sm">{disbursements.length === 0 ? '등록된 실비가 없습니다' : '검색 결과가 없습니다'}</Text>
+            {disbursements.length === 0 && (
+              <Button variant="subtle" leftSection={<IconPlus size={14} />} onClick={() => openModal('createDisbursement')}>첫 실비 등록하기</Button>
+            )}
+          </Stack>
+        </Center>
+      ) : (
+        <Card padding={0}>
+          <Table.ScrollContainer minWidth={700}>
+            <Table striped={false} highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>날짜</Table.Th>
+                  <Table.Th>카테고리</Table.Th>
+                  <Table.Th>사건/자문</Table.Th>
+                  <Table.Th>금액</Table.Th>
+                  <Table.Th>내용</Table.Th>
+                  <Table.Th>청구</Table.Th>
+                  <Table.Th style={{ width: 80 }}></Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {filtered.map((d) => {
+                  const item = getItemName(d.caseId)
+                  return (
+                    <Table.Tr key={d.id}>
+                      <Table.Td><Text size="sm" ff="monospace">{formatDate(d.date)}</Text></Table.Td>
+                      <Table.Td><Badge variant="light" color="orange" size="sm">{d.category}</Badge></Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={500}>{item.name}</Text>
+                        {item.sub && <Text size="xs" c="dimmed">{item.sub}</Text>}
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={600}>{formatCurrency(d.amount)}</Text>
+                        {d.amount >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(d.amount)}</Text>}
+                      </Table.Td>
+                      <Table.Td><Text size="xs" c="dimmed" truncate style={{ maxWidth: 200 }}>{d.description || '-'}</Text></Table.Td>
+                      <Table.Td>
+                        {d.billable ? (
+                          d.billed
+                            ? <Badge size="xs" color="green">청구완료</Badge>
+                            : <Badge size="xs" color="orange">미청구</Badge>
+                        ) : (
+                          <Badge size="xs" color="gray" variant="outline">비청구</Badge>
+                        )}
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap={4} wrap="nowrap">
+                          <UnstyledButton onClick={() => { setEditingData(d); openModal('editDisbursement') }}>
+                            <IconEdit size={14} color="gray" />
+                          </UnstyledButton>
+                          <UnstyledButton onClick={() => handleDelete(d.id)}>
+                            <IconTrash size={14} color="var(--mantine-color-red-5)" />
+                          </UnstyledButton>
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  )
+                })}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        </Card>
+      )}
+
+      {/* 실비 등록 모달 */}
+      <Modal isOpen={isModalOpen && modalType === 'createDisbursement'} onClose={closeModal} title="실비 추가">
+        <DisbursementForm cases={cases} consultations={consultations} onSubmit={handleCreate} onCancel={closeModal} />
+      </Modal>
+
+      {/* 실비 수정 모달 */}
+      <Modal isOpen={isModalOpen && modalType === 'editDisbursement'} onClose={() => { closeModal(); setEditingData(null) }} title="실비 수정">
+        {editingData && <DisbursementForm cases={cases} consultations={consultations} initialData={editingData} onSubmit={handleEdit} onCancel={() => { closeModal(); setEditingData(null) }} />}
+      </Modal>
+    </Stack>
+  )
+}
+
+// ==================================================
+// 섹션 ③ 청구서 이력 패널
+// ==================================================
+
+function InvoicePanel({ invoices, retainers, disbursements, cases, consultations, getItemName, onSave }) {
+  const { openModal, closeModal, isModalOpen, modalType, showToast } = useUiStore()
+
+  const handleCreate = async (formData) => {
+    const newInvoices = [...invoices, { ...formData, createdAt: new Date().toISOString() }]
+    await onSave('invoices', newInvoices)
+    closeModal()
+    showToast('청구서가 생성되었습니다.', 'success')
+  }
+
+  const handleStatusChange = async (id, status, paidAmount, paidAt) => {
+    const newInvoices = invoices.map((inv) =>
+      inv.id === id ? { ...inv, status, paidAmount: paidAmount || inv.paidAmount, paidAt: paidAt || inv.paidAt } : inv
+    )
+    await onSave('invoices', newInvoices)
+    showToast('청구서 상태가 변경되었습니다.', 'success')
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('이 청구서를 삭제하시겠습니까?')) return
+    await onSave('invoices', invoices.filter((inv) => inv.id !== id))
+    showToast('청구서가 삭제되었습니다.', 'success')
+  }
+
+  return (
+    <Stack gap="md">
+      {invoices.length === 0 ? (
+        <Center py="xl">
+          <Stack align="center" gap="sm">
+            <ThemeIcon size={48} radius="xl" variant="light" color="blue"><IconFileInvoice size={24} /></ThemeIcon>
+            <Text c="dimmed" size="sm">발행된 청구서가 없습니다</Text>
+            <Text size="xs" c="dimmed">수임 계약과 실비를 등록한 후 청구서를 발행할 수 있습니다.</Text>
+            {(retainers.length > 0 || disbursements.length > 0) && (
+              <Button variant="subtle" leftSection={<IconPlus size={14} />} onClick={() => openModal('createInvoice')}>
+                청구서 발행
+              </Button>
+            )}
+          </Stack>
+        </Center>
+      ) : (
+        <Card padding={0}>
+          <Table.ScrollContainer minWidth={700}>
+            <Table striped={false} highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>청구번호</Table.Th>
+                  <Table.Th>발행일</Table.Th>
+                  <Table.Th>사건/자문</Table.Th>
+                  <Table.Th>금액</Table.Th>
+                  <Table.Th>상태</Table.Th>
+                  <Table.Th>납부기한</Table.Th>
+                  <Table.Th style={{ width: 80 }}></Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {invoices.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate)).map((inv) => {
+                  const item = getItemName(inv.caseId)
+                  const st = INVOICE_STATUSES[inv.status] || INVOICE_STATUSES.draft
+                  const isOverdue = inv.status !== 'paid' && inv.status !== 'cancelled' && inv.dueDate && new Date(inv.dueDate) < new Date()
+                  return (
+                    <Table.Tr key={inv.id}>
+                      <Table.Td><Text size="sm" ff="monospace" fw={500}>{inv.invoiceNumber}</Text></Table.Td>
+                      <Table.Td><Text size="sm">{formatDate(inv.issueDate)}</Text></Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={500}>{item.name}</Text>
+                        {item.sub && <Text size="xs" c="dimmed">{item.sub}</Text>}
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={600}>{formatCurrency(inv.total)}</Text>
+                        {inv.total >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(inv.total)}</Text>}
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge color={isOverdue ? 'red' : st.color} variant="light" size="sm">
+                          {isOverdue ? '❌ 연체' : `${st.icon} ${st.label}`}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" c={isOverdue ? 'red' : 'dimmed'}>{formatDate(inv.dueDate)}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap={4} wrap="nowrap">
+                          {inv.status !== 'paid' && inv.status !== 'cancelled' && (
+                            <Button variant="light" size="xs" color="teal" onClick={() => handleStatusChange(inv.id, 'paid', inv.total, new Date().toISOString().split('T')[0])}>
+                              입금확인
+                            </Button>
+                          )}
+                          <UnstyledButton onClick={() => handleDelete(inv.id)}>
+                            <IconTrash size={14} color="var(--mantine-color-red-5)" />
+                          </UnstyledButton>
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  )
+                })}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        </Card>
+      )}
+
+      {/* 청구서 생성 모달 */}
+      <Modal isOpen={isModalOpen && modalType === 'createInvoice'} onClose={closeModal} title="청구서 발행">
+        <InvoiceForm
+          cases={cases}
+          consultations={consultations}
+          retainers={retainers}
+          disbursements={disbursements}
+          getItemName={getItemName}
+          onSubmit={handleCreate}
+          onCancel={closeModal}
+        />
+      </Modal>
+    </Stack>
+  )
+}
+
+function InvoiceForm({ cases, consultations, retainers, disbursements, getItemName, onSubmit, onCancel }) {
+  const allItems = useMemo(() => {
+    const items = []
+    for (const c of cases) items.push({ value: c.id, label: `[사건] ${c.clientName} ${c.caseNumber ? `(${c.caseNumber})` : ''}` })
+    for (const c of consultations) items.push({ value: c.id, label: `[자문] ${c.clientName} ${c.subject ? `— ${c.subject}` : ''}` })
+    return items
+  }, [cases, consultations])
+
+  const [caseId, setCaseId] = useState('')
+  const [selectedItems, setSelectedItems] = useState([])
+  const [vatOption, setVatOption] = useState('excluded')
+  const [dueDate, setDueDate] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 14)
+    return d.toISOString().split('T')[0]
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // 선택한 사건의 청구 가능 항목
+  const availableItems = useMemo(() => {
+    if (!caseId) return []
+    const items = []
+    const caseRetainers = retainers.filter((r) => r.caseId === caseId)
+    for (const r of caseRetainers) {
+      if (r.retainerFee > 0 && r.retainerPaid < r.retainerFee) {
+        items.push({ key: `ret-${r.id}`, label: '착수금', amount: r.retainerFee - r.retainerPaid, note: '미입금 잔액' })
+      }
+      if (r.contingencyFee > 0 && r.contingencyPaid < r.contingencyFee) {
+        items.push({ key: `cont-${r.id}`, label: '성공보수', amount: r.contingencyFee - r.contingencyPaid, note: r.contingencyNote || '' })
+      }
+    }
+    const caseDisbursements = disbursements.filter((d) => d.caseId === caseId && d.billable && !d.billed)
+    for (const d of caseDisbursements) {
+      items.push({ key: `disb-${d.id}`, label: `실비 — ${d.category}`, amount: d.amount, note: d.description || '' })
+    }
+    return items
+  }, [caseId, retainers, disbursements])
+
+  const toggleItem = (key) => {
+    setSelectedItems((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key])
+  }
+
+  const subtotal = availableItems.filter((i) => selectedItems.includes(i.key)).reduce((s, i) => s + i.amount, 0)
+  const vatAmount = vatOption === 'excluded' ? Math.round(subtotal * 0.1) : vatOption === 'included' ? Math.round(subtotal - subtotal / 1.1) : 0
+  const total = vatOption === 'excluded' ? subtotal + vatAmount : subtotal
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!caseId || selectedItems.length === 0) return
+    setIsSubmitting(true)
+
+    const now = new Date()
+    const invoiceNumber = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}`
+    const item = getItemName(caseId)
+
+    try {
+      await onSubmit({
+        id: `inv-${Date.now()}`,
+        caseId,
+        invoiceNumber,
+        type: 'mixed',
+        issueDate: new Date().toISOString().split('T')[0],
+        dueDate,
+        clientName: item.name,
+        clientEmail: '',
+        lineItems: availableItems.filter((i) => selectedItems.includes(i.key)).map((i) => ({ label: i.label, amount: i.amount, note: i.note })),
+        subtotal,
+        vatAmount,
+        total,
+        status: 'draft',
+        sentAt: null,
+        paidAt: null,
+        paidAmount: 0,
+        memo: '',
+      })
+    } finally { setIsSubmitting(false) }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <Stack gap="sm">
+        <Select label="사건 / 자문" placeholder="선택하세요" data={allItems} value={caseId} onChange={(v) => { setCaseId(v); setSelectedItems([]) }} searchable required withAsterisk />
+
+        {caseId && availableItems.length === 0 && (
+          <Text size="sm" c="dimmed" ta="center" py="md">청구 가능한 항목이 없습니다. 수임 계약이나 실비를 먼저 등록하세요.</Text>
+        )}
+
+        {availableItems.length > 0 && (
+          <>
+            <Text size="sm" fw={500}>청구 항목 선택</Text>
+            <Stack gap={6}>
+              {availableItems.map((item) => (
+                <Card key={item.key} padding="xs" withBorder style={{ cursor: 'pointer', backgroundColor: selectedItems.includes(item.key) ? 'var(--mantine-color-indigo-0)' : undefined }} onClick={() => toggleItem(item.key)}>
+                  <Group justify="space-between">
+                    <Group gap="sm">
+                      <Checkbox checked={selectedItems.includes(item.key)} onChange={() => toggleItem(item.key)} onClick={(e) => e.stopPropagation()} />
+                      <Box>
+                        <Text size="sm" fw={500}>{item.label}</Text>
+                        {item.note && <Text size="xs" c="dimmed">{item.note}</Text>}
+                      </Box>
+                    </Group>
+                    <Text size="sm" fw={600}>{formatCurrency(item.amount)}</Text>
+                  </Group>
+                </Card>
+              ))}
+            </Stack>
+
+            <Divider />
+
+            <Radio.Group label="부가세" value={vatOption} onChange={setVatOption}>
+              <Group gap="lg" mt={4}>
+                <Radio value="excluded" label="별도" />
+                <Radio value="included" label="포함" />
+                <Radio value="exempt" label="면세" />
+              </Group>
+            </Radio.Group>
+
+            <TextInput label="납부기한" type="date" value={dueDate} onChange={(e) => setDueDate(e.currentTarget.value)} />
+
+            <Card padding="sm" bg="gray.0">
+              <Group justify="space-between">
+                <Text size="sm">소계</Text>
+                <Text size="sm" fw={500}>{formatCurrency(subtotal)}</Text>
+              </Group>
+              {vatOption !== 'exempt' && (
+                <Group justify="space-between" mt={4}>
+                  <Text size="sm">부가세 (10%)</Text>
+                  <Text size="sm" fw={500}>{formatCurrency(vatAmount)}</Text>
+                </Group>
+              )}
+              <Divider my="xs" />
+              <Group justify="space-between">
+                <Text size="sm" fw={700}>합계</Text>
+                <Text size="lg" fw={700} c="indigo">{formatCurrency(total)}</Text>
+              </Group>
+              {total >= 10000 && <Text size="xs" c="dimmed" ta="right">{numberToKorean(total)}</Text>}
+            </Card>
+          </>
+        )}
+
+        <Group justify="flex-end" gap="sm" mt="sm">
+          <Button variant="default" onClick={onCancel}>취소</Button>
+          <Button type="submit" loading={isSubmitting} disabled={!caseId || selectedItems.length === 0} leftSection={<IconFileInvoice size={14} />}>청구서 생성</Button>
+        </Group>
+      </Stack>
+    </form>
+  )
+}
+
+// ==================================================
+// 통계 패널
+// ==================================================
+
+function StatsPanel({ retainers, disbursements, invoices }) {
   const now = new Date()
   const thisYear = now.getFullYear()
   const thisMonth = now.getMonth()
   const lastYear = thisYear - 1
 
-  // 월별 집계 함수
-  function getMonthlyData(year, type) {
+  // 월별 수임료 (retainer 입금 기준)
+  function getMonthlyRetainerIncome(year) {
     const months = Array.from({ length: 12 }, (_, i) => ({ month: MONTH_NAMES[i], amount: 0 }))
-    for (const b of billings) {
-      if (!b.date) continue
-      const d = new Date(b.date)
-      if (d.getFullYear() === year && (!type || b.type === type)) {
-        months[d.getMonth()].amount += (b.amount || 0)
+    for (const r of retainers) {
+      if (r.retainerPaidAt) {
+        const d = new Date(r.retainerPaidAt)
+        if (d.getFullYear() === year) months[d.getMonth()].amount += (r.retainerPaid || 0)
+      }
+      if (r.contingencyPaidAt) {
+        const d = new Date(r.contingencyPaidAt)
+        if (d.getFullYear() === year) months[d.getMonth()].amount += (r.contingencyPaid || 0)
       }
     }
     return months
   }
 
-  // 연간 합계
-  function getYearTotal(year, type) {
-    return billings
-      .filter((b) => b.date && new Date(b.date).getFullYear() === year && (!type || b.type === type))
-      .reduce((s, b) => s + (b.amount || 0), 0)
+  // 월별 실비
+  function getMonthlyDisbursement(year) {
+    const months = Array.from({ length: 12 }, (_, i) => ({ month: MONTH_NAMES[i], amount: 0 }))
+    for (const d of disbursements) {
+      if (!d.date) continue
+      const dt = new Date(d.date)
+      if (dt.getFullYear() === year) months[dt.getMonth()].amount += (d.amount || 0)
+    }
+    return months
   }
+
+  // 연간 합계
+  function yearTotal(arr, yearVal) {
+    return arr.filter((_, i) => true).reduce((s, d) => s + d.amount, 0)
+  }
+
+  const thisYearIncome = getMonthlyRetainerIncome(thisYear)
+  const lastYearIncome = getMonthlyRetainerIncome(lastYear)
+  const thisYearExpense = getMonthlyDisbursement(thisYear)
+  const lastYearExpense = getMonthlyDisbursement(lastYear)
+
+  const thisYearIncomeTotal = thisYearIncome.reduce((s, d) => s + d.amount, 0)
+  const lastYearIncomeTotal = lastYearIncome.reduce((s, d) => s + d.amount, 0)
+  const thisYearExpenseTotal = thisYearExpense.reduce((s, d) => s + d.amount, 0)
+  const lastYearExpenseTotal = lastYearExpense.reduce((s, d) => s + d.amount, 0)
 
   // 이번 달
-  function getMonthTotal(year, month, type) {
-    return billings
-      .filter((b) => {
-        if (!b.date) return false
-        const d = new Date(b.date)
-        return d.getFullYear() === year && d.getMonth() === month && (!type || b.type === type)
-      })
-      .reduce((s, b) => s + (b.amount || 0), 0)
-  }
+  const thisMonthIncome = thisYearIncome[thisMonth]?.amount || 0
+  const lastMonthIncome = thisMonth > 0 ? (thisYearIncome[thisMonth - 1]?.amount || 0) : 0
+  const lastYearSameMonthIncome = lastYearIncome[thisMonth]?.amount || 0
+  const thisMonthExpense = thisYearExpense[thisMonth]?.amount || 0
 
-  // 올해 수임료 월별
-  const thisYearFee = getMonthlyData(thisYear, 'fee')
-  const lastYearFee = getMonthlyData(lastYear, 'fee')
+  // 청구서 통계
+  const paidInvoices = invoices.filter((i) => i.status === 'paid').length
+  const unpaidInvoices = invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').length
+  const overdueInvoices = invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled' && i.dueDate && new Date(i.dueDate) < new Date()).length
 
-  // 올해 실비 월별
-  const thisYearExpense = getMonthlyData(thisYear, 'expense')
-
-  // 연간 합계
-  const thisYearFeeTotal = getYearTotal(thisYear, 'fee')
-  const lastYearFeeTotal = getYearTotal(lastYear, 'fee')
-  const thisYearExpenseTotal = getYearTotal(thisYear, 'expense')
-  const lastYearExpenseTotal = getYearTotal(lastYear, 'expense')
-  const thisYearDepositTotal = getYearTotal(thisYear, 'deposit')
-  const lastYearDepositTotal = getYearTotal(lastYear, 'deposit')
-
-  // 이번 달 / 지난 달 / 작년 같은 달
-  const thisMonthFee = getMonthTotal(thisYear, thisMonth, 'fee')
-  const lastMonthFee = getMonthTotal(thisYear, thisMonth - 1 >= 0 ? thisMonth - 1 : 11, 'fee')
-  const lastYearSameMonthFee = getMonthTotal(lastYear, thisMonth, 'fee')
-
-  const thisMonthDeposit = getMonthTotal(thisYear, thisMonth, 'deposit')
-  const thisMonthExpense = getMonthTotal(thisYear, thisMonth, 'expense')
-
-  // 차트 max
-  const allFeeMax = Math.max(...thisYearFee.map((d) => d.amount), ...lastYearFee.map((d) => d.amount), 1)
-
-  // 사건별 수임료 순위 (올해)
-  const caseRanking = useMemo(() => {
-    const map = {}
-    for (const b of billings) {
-      if (!b.date || b.type !== 'fee') continue
-      const d = new Date(b.date)
-      if (d.getFullYear() !== thisYear) continue
-      map[b.caseId] = (map[b.caseId] || 0) + (b.amount || 0)
-    }
-    return Object.entries(map)
-      .map(([caseId, amount]) => ({ caseId, amount }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5)
-  }, [billings, thisYear])
+  const allIncomeMax = Math.max(...thisYearIncome.map((d) => d.amount), ...lastYearIncome.map((d) => d.amount), 1)
 
   return (
     <Stack gap="lg">
       {/* 이번 달 요약 */}
       <Card padding="lg">
         <Group gap="xs" mb="md">
-          <ThemeIcon size={24} variant="light" color="indigo" radius="xl">
-            <IconCalendarStats size={14} />
-          </ThemeIcon>
-          <Text fw={600}>{thisYear}{'\uB144'} {thisMonth + 1}{'\uC6D4 \uC694\uC57D'}</Text>
+          <ThemeIcon size={24} variant="light" color="indigo" radius="xl"><IconCalendarStats size={14} /></ThemeIcon>
+          <Text fw={600}>{thisYear}년 {thisMonth + 1}월 요약</Text>
         </Group>
-
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
           <Card padding="md" bg="indigo.0">
-            <Text size="xs" c="dimmed" mb={4}>{'\uC774\uBC88 \uB2EC \uC218\uC784\uB8CC'}</Text>
-            <Text size="lg" fw={700} c="indigo">{formatCurrency(thisMonthFee)}</Text>
-            {thisMonthFee >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(thisMonthFee)}</Text>}
+            <Text size="xs" c="dimmed" mb={4}>이번 달 수임료 입금</Text>
+            <Text size="lg" fw={700} c="indigo">{formatCurrency(thisMonthIncome)}</Text>
+            {thisMonthIncome >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(thisMonthIncome)}</Text>}
             <Group gap={6} mt="xs">
-              <Text size="xs" c="dimmed">{'\uC9C0\uB09C\uB2EC \uB300\uBE44'}</Text>
-              <ChangeBadge current={thisMonthFee} previous={lastMonthFee} />
+              <Text size="xs" c="dimmed">지난달 대비</Text>
+              <ChangeBadge current={thisMonthIncome} previous={lastMonthIncome} />
             </Group>
             <Group gap={6} mt={4}>
-              <Text size="xs" c="dimmed">{'\uC791\uB144 \uAC19\uC740 \uB2EC'}</Text>
-              <ChangeBadge current={thisMonthFee} previous={lastYearSameMonthFee} />
+              <Text size="xs" c="dimmed">작년 같은 달</Text>
+              <ChangeBadge current={thisMonthIncome} previous={lastYearSameMonthIncome} />
             </Group>
           </Card>
-          <Card padding="md" bg="teal.0">
-            <Text size="xs" c="dimmed" mb={4}>{'\uC774\uBC88 \uB2EC \uC785\uAE08'}</Text>
-            <Text size="lg" fw={700} c="teal">{formatCurrency(thisMonthDeposit)}</Text>
-            {thisMonthDeposit >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(thisMonthDeposit)}</Text>}
-          </Card>
           <Card padding="md" bg="orange.0">
-            <Text size="xs" c="dimmed" mb={4}>{'\uC774\uBC88 \uB2EC \uC2E4\uBE44'}</Text>
+            <Text size="xs" c="dimmed" mb={4}>이번 달 실비</Text>
             <Text size="lg" fw={700} c="orange">{formatCurrency(thisMonthExpense)}</Text>
             {thisMonthExpense >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(thisMonthExpense)}</Text>}
+          </Card>
+          <Card padding="md" bg="blue.0">
+            <Text size="xs" c="dimmed" mb={4}>청구서 현황</Text>
+            <Group gap="lg">
+              <Box>
+                <Text size="lg" fw={700} c="green">{paidInvoices}</Text>
+                <Text size="xs" c="dimmed">완납</Text>
+              </Box>
+              <Box>
+                <Text size="lg" fw={700} c="orange">{unpaidInvoices}</Text>
+                <Text size="xs" c="dimmed">미입금</Text>
+              </Box>
+              {overdueInvoices > 0 && (
+                <Box>
+                  <Text size="lg" fw={700} c="red">{overdueInvoices}</Text>
+                  <Text size="xs" c="dimmed">연체</Text>
+                </Box>
+              )}
+            </Group>
           </Card>
         </SimpleGrid>
       </Card>
 
-      {/* 연간 비교 */}
+      {/* 연간 수임료 비교 */}
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-        {/* 올해 vs 작년 수임료 */}
         <Card padding="lg">
           <Group justify="space-between" mb="md">
-            <Text fw={600}>{'\uC218\uC784\uB8CC \uC6D4\uBCC4 \uCD94\uC774'}</Text>
+            <Text fw={600}>수임료 입금 월별 추이</Text>
             <Badge variant="light" color="indigo" size="sm">{thisYear}</Badge>
           </Group>
-          <BarChart data={thisYearFee} maxValue={allFeeMax} color="indigo" labelKey="month" valueKey="amount" />
+          <BarChart data={thisYearIncome} maxValue={allIncomeMax} color="indigo" labelKey="month" valueKey="amount" />
           <Divider my="sm" />
           <Group justify="space-between">
-            <Text size="sm" c="dimmed">{thisYear}{'\uB144 \uD569\uACC4'}</Text>
+            <Text size="sm" c="dimmed">{thisYear}년 합계</Text>
             <Group gap="xs">
-              <Text size="sm" fw={600} c="indigo">{formatCurrency(thisYearFeeTotal)}</Text>
-              <ChangeBadge current={thisYearFeeTotal} previous={lastYearFeeTotal} />
+              <Text size="sm" fw={600} c="indigo">{formatCurrency(thisYearIncomeTotal)}</Text>
+              <ChangeBadge current={thisYearIncomeTotal} previous={lastYearIncomeTotal} />
             </Group>
-          </Group>
-          <Group justify="space-between" mt={4}>
-            <Text size="xs" c="dimmed">{lastYear}{'\uB144 \uD569\uACC4'}</Text>
-            <Text size="xs" c="dimmed">{formatCurrency(lastYearFeeTotal)}</Text>
           </Group>
         </Card>
 
-        {/* 작년 같은 기간 수임료 */}
         <Card padding="lg">
           <Group justify="space-between" mb="md">
-            <Text fw={600}>{'\uC791\uB144 \uC218\uC784\uB8CC \uBE44\uAD50'}</Text>
+            <Text fw={600}>작년 수임료 비교</Text>
             <Badge variant="light" color="gray" size="sm">{lastYear}</Badge>
           </Group>
-          <BarChart data={lastYearFee} maxValue={allFeeMax} color="gray" labelKey="month" valueKey="amount" />
+          <BarChart data={lastYearIncome} maxValue={allIncomeMax} color="gray" labelKey="month" valueKey="amount" />
           <Divider my="sm" />
           <Group justify="space-between">
-            <Text size="sm" c="dimmed">{lastYear}{'\uB144 \uD569\uACC4'}</Text>
-            <Text size="sm" fw={600}>{formatCurrency(lastYearFeeTotal)}</Text>
+            <Text size="sm" c="dimmed">{lastYear}년 합계</Text>
+            <Text size="sm" fw={600}>{formatCurrency(lastYearIncomeTotal)}</Text>
           </Group>
         </Card>
       </SimpleGrid>
 
-      {/* 실비 + 입금 연간 */}
+      {/* 실비 + 연간 요약 */}
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
         <Card padding="lg">
           <Group justify="space-between" mb="md">
-            <Text fw={600}>{'\uC2E4\uBE44 \uC6D4\uBCC4'}</Text>
+            <Text fw={600}>실비 월별</Text>
             <Badge variant="light" color="orange" size="sm">{thisYear}</Badge>
           </Group>
           <BarChart data={thisYearExpense} color="orange" labelKey="month" valueKey="amount" />
           <Divider my="sm" />
           <Group justify="space-between">
-            <Text size="sm" c="dimmed">{thisYear}{'\uB144 \uD569\uACC4'}</Text>
+            <Text size="sm" c="dimmed">{thisYear}년 합계</Text>
             <Group gap="xs">
               <Text size="sm" fw={600} c="orange">{formatCurrency(thisYearExpenseTotal)}</Text>
               <ChangeBadge current={thisYearExpenseTotal} previous={lastYearExpenseTotal} />
@@ -456,52 +1225,40 @@ function StatsPanel({ billings }) {
           </Group>
         </Card>
 
-        {/* 연간 총 요약 테이블 */}
         <Card padding="lg">
-          <Text fw={600} mb="md">{'\uC5F0\uAC04 \uC694\uC57D \uBE44\uAD50'}</Text>
+          <Text fw={600} mb="md">연간 요약 비교</Text>
           <Table verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>{'\uD56D\uBAA9'}</Table.Th>
+                <Table.Th>항목</Table.Th>
                 <Table.Th ta="right">{thisYear}</Table.Th>
                 <Table.Th ta="right">{lastYear}</Table.Th>
-                <Table.Th ta="right">{'\uBCC0\uD654'}</Table.Th>
+                <Table.Th ta="right">변화</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               <Table.Tr>
-                <Table.Td><Text size="sm" fw={500}>{'\uC218\uC784\uB8CC'}</Text></Table.Td>
-                <Table.Td ta="right"><Text size="sm" fw={600} c="indigo">{formatCurrencyShort(thisYearFeeTotal)}</Text></Table.Td>
-                <Table.Td ta="right"><Text size="sm" c="dimmed">{formatCurrencyShort(lastYearFeeTotal)}</Text></Table.Td>
-                <Table.Td ta="right"><ChangeBadge current={thisYearFeeTotal} previous={lastYearFeeTotal} /></Table.Td>
+                <Table.Td><Text size="sm" fw={500}>수임료 입금</Text></Table.Td>
+                <Table.Td ta="right"><Text size="sm" fw={600} c="indigo">{formatCurrencyShort(thisYearIncomeTotal)}</Text></Table.Td>
+                <Table.Td ta="right"><Text size="sm" c="dimmed">{formatCurrencyShort(lastYearIncomeTotal)}</Text></Table.Td>
+                <Table.Td ta="right"><ChangeBadge current={thisYearIncomeTotal} previous={lastYearIncomeTotal} /></Table.Td>
               </Table.Tr>
               <Table.Tr>
-                <Table.Td><Text size="sm" fw={500}>{'\uC785\uAE08'}</Text></Table.Td>
-                <Table.Td ta="right"><Text size="sm" fw={600} c="teal">{formatCurrencyShort(thisYearDepositTotal)}</Text></Table.Td>
-                <Table.Td ta="right"><Text size="sm" c="dimmed">{formatCurrencyShort(lastYearDepositTotal)}</Text></Table.Td>
-                <Table.Td ta="right"><ChangeBadge current={thisYearDepositTotal} previous={lastYearDepositTotal} /></Table.Td>
-              </Table.Tr>
-              <Table.Tr>
-                <Table.Td><Text size="sm" fw={500}>{'\uC2E4\uBE44'}</Text></Table.Td>
+                <Table.Td><Text size="sm" fw={500}>실비</Text></Table.Td>
                 <Table.Td ta="right"><Text size="sm" fw={600} c="orange">{formatCurrencyShort(thisYearExpenseTotal)}</Text></Table.Td>
                 <Table.Td ta="right"><Text size="sm" c="dimmed">{formatCurrencyShort(lastYearExpenseTotal)}</Text></Table.Td>
                 <Table.Td ta="right"><ChangeBadge current={thisYearExpenseTotal} previous={lastYearExpenseTotal} /></Table.Td>
               </Table.Tr>
               <Table.Tr style={{ borderTop: '2px solid var(--mantine-color-gray-3)' }}>
-                <Table.Td><Text size="sm" fw={700}>{'\uC21C\uC218\uC775'}</Text></Table.Td>
+                <Table.Td><Text size="sm" fw={700}>순수익</Text></Table.Td>
                 <Table.Td ta="right">
-                  <Text size="sm" fw={700} c={thisYearDepositTotal - thisYearExpenseTotal >= 0 ? 'blue' : 'red'}>
-                    {formatCurrencyShort(thisYearDepositTotal - thisYearExpenseTotal)}
+                  <Text size="sm" fw={700} c={thisYearIncomeTotal - thisYearExpenseTotal >= 0 ? 'blue' : 'red'}>
+                    {formatCurrencyShort(thisYearIncomeTotal - thisYearExpenseTotal)}
                   </Text>
                 </Table.Td>
+                <Table.Td ta="right"><Text size="sm" c="dimmed">{formatCurrencyShort(lastYearIncomeTotal - lastYearExpenseTotal)}</Text></Table.Td>
                 <Table.Td ta="right">
-                  <Text size="sm" c="dimmed">{formatCurrencyShort(lastYearDepositTotal - lastYearExpenseTotal)}</Text>
-                </Table.Td>
-                <Table.Td ta="right">
-                  <ChangeBadge
-                    current={thisYearDepositTotal - thisYearExpenseTotal}
-                    previous={lastYearDepositTotal - lastYearExpenseTotal}
-                  />
+                  <ChangeBadge current={thisYearIncomeTotal - thisYearExpenseTotal} previous={lastYearIncomeTotal - lastYearExpenseTotal} />
                 </Table.Td>
               </Table.Tr>
             </Table.Tbody>
@@ -512,56 +1269,39 @@ function StatsPanel({ billings }) {
   )
 }
 
-// --- 메인 컴포넌트 ---
+// ==================================================
+// 메인 Billing 컴포넌트
+// ==================================================
 
 export default function Billing() {
   const navigate = useNavigate()
   const { cases, consultations, casesFileId } = useCaseStore()
   const { showToast, isModalOpen, modalType, openModal, closeModal } = useUiStore()
-  const [billings, setBillings] = useState([])
+  const [retainers, setRetainers] = useState([])
+  const [disbursements, setDisbursements] = useState([])
+  const [invoices, setInvoices] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterType, setFilterType] = useState(null)
-  const [expandedId, setExpandedId] = useState(null)
-  const [activeTab, setActiveTab] = useState('list')
+  const [activeTab, setActiveTab] = useState('retainers')
 
   useEffect(() => {
     if (!casesFileId) return
     setIsLoading(true)
     readCasesIndex(casesFileId).then((data) => {
-      setBillings(data.billings || [])
+      setRetainers(data.retainers || [])
+      setDisbursements(data.disbursements || [])
+      setInvoices(data.invoices || [])
       setIsLoading(false)
     }).catch(() => setIsLoading(false))
   }, [casesFileId])
 
-  const saveBillings = async (newBillings) => {
+  const saveData = async (key, newData) => {
     if (!casesFileId) return
     const data = await readCasesIndex(casesFileId)
-    data.billings = newBillings
+    data[key] = newData
     await writeCasesIndex(casesFileId, data)
-    setBillings(newBillings)
-  }
-
-  const handleCreate = async (formData) => {
-    const newBillings = [...billings, { ...formData, createdAt: new Date().toISOString() }]
-    await saveBillings(newBillings)
-    closeModal()
-    showToast('\uBE44\uC6A9\uC774 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
-  }
-
-  const handleEdit = async (formData) => {
-    const newBillings = billings.map((b) => b.id === formData.id ? { ...b, ...formData } : b)
-    await saveBillings(newBillings)
-    setExpandedId(null)
-    showToast('\uBE44\uC6A9\uC774 \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
-  }
-
-  const handleDelete = async (id) => {
-    if (!confirm('\uC774 \uBE44\uC6A9 \uAE30\uB85D\uC744 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?')) return
-    const newBillings = billings.filter((b) => b.id !== id)
-    await saveBillings(newBillings)
-    setExpandedId(null)
-    showToast('\uBE44\uC6A9\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
+    if (key === 'retainers') setRetainers(newData)
+    else if (key === 'disbursements') setDisbursements(newData)
+    else if (key === 'invoices') setInvoices(newData)
   }
 
   const getItemName = (caseId) => {
@@ -572,190 +1312,141 @@ export default function Billing() {
     return { name: caseId, sub: '', category: 'unknown' }
   }
 
-  // 전체 통계 카드
-  const stats = useMemo(() => {
-    const totalFee = billings.filter((b) => b.type === 'fee').reduce((s, b) => s + (b.amount || 0), 0)
-    const totalExpense = billings.filter((b) => b.type === 'expense').reduce((s, b) => s + (b.amount || 0), 0)
-    const totalDeposit = billings.filter((b) => b.type === 'deposit').reduce((s, b) => s + (b.amount || 0), 0)
-    const totalRefund = billings.filter((b) => b.type === 'refund').reduce((s, b) => s + (b.amount || 0), 0)
-    return { totalFee, totalExpense, totalDeposit, totalRefund, balance: totalDeposit - totalRefund - totalExpense }
-  }, [billings])
+  // 전체 요약 통계
+  const totalRetainerFee = retainers.reduce((s, r) => s + (r.retainerFee || 0) + (r.contingencyFee || 0), 0)
+  const totalRetainerPaid = retainers.reduce((s, r) => s + (r.retainerPaid || 0) + (r.contingencyPaid || 0), 0)
+  const totalDisbursement = disbursements.reduce((s, d) => s + (d.amount || 0), 0)
+  const unpaidInvoiceTotal = invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled').reduce((s, i) => s + (i.total || 0), 0)
 
-  const filtered = useMemo(() => {
-    let result = billings
-    if (filterType) result = result.filter((b) => b.type === filterType)
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter((b) => {
-        const item = getItemName(b.caseId)
-        return item.name.toLowerCase().includes(q) || item.sub?.toLowerCase().includes(q) || b.note?.toLowerCase().includes(q)
-      })
-    }
-    return result.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
-  }, [billings, filterType, searchQuery])
+  const tabButton = activeTab === 'retainers'
+    ? { label: '수임 계약 등록', action: () => openModal('createRetainer') }
+    : activeTab === 'disbursements'
+    ? { label: '실비 추가', action: () => openModal('createDisbursement') }
+    : activeTab === 'invoices'
+    ? { label: '청구서 발행', action: () => openModal('createInvoice') }
+    : null
 
   return (
-    <>
-      <Container size="xl" py="lg">
-        <Stack gap="lg">
-          {/* 헤더 */}
-          <Group justify="space-between">
-            <Group gap="xs">
-              <IconReceipt size={22} color="var(--mantine-color-teal-6)" />
-              <Text size="lg" fw={700}>{'\uBE44\uC6A9 \uAD00\uB9AC'}</Text>
-            </Group>
-            <Button leftSection={<IconPlus size={16} />} onClick={() => openModal('createBilling')}>
-              {'\uBE44\uC6A9 \uB4F1\uB85D'}
-            </Button>
+    <Container size="xl" py="lg">
+      <Stack gap="lg">
+        {/* 헤더 */}
+        <Group justify="space-between">
+          <Group gap="xs">
+            <IconReceipt size={22} color="var(--mantine-color-teal-6)" />
+            <Text size="lg" fw={700}>비용 관리</Text>
           </Group>
-
-          {isLoading && (
-            <Center py="xl">
-              <Stack align="center" gap="sm">
-                <Loader size="md" color="indigo" />
-                <Text size="sm" c="dimmed">{'\uBE44\uC6A9 \uB370\uC774\uD130 \uBD88\uB7EC\uC624\uB294 \uC911...'}</Text>
-              </Stack>
-            </Center>
+          {tabButton && (
+            <Button leftSection={<IconPlus size={16} />} onClick={tabButton.action}>
+              {tabButton.label}
+            </Button>
           )}
+        </Group>
 
-          {!isLoading && (
-            <>
-              {/* 전체 통계 카드 */}
-              <SimpleGrid cols={{ base: 2, md: 5 }} spacing="md">
-                <Card padding="md">
-                  <Group gap="xs" mb={4}>
-                    <ThemeIcon size={20} variant="light" color="indigo" radius="xl"><IconReceipt size={10} /></ThemeIcon>
-                    <Text size="xs" c="dimmed">{'\uC218\uC784\uB8CC'}</Text>
-                  </Group>
-                  <Text size="lg" fw={700} c="indigo">{formatCurrency(stats.totalFee)}</Text>
-                  {stats.totalFee >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(stats.totalFee)}</Text>}
-                </Card>
-                <Card padding="md">
-                  <Group gap="xs" mb={4}>
-                    <ThemeIcon size={20} variant="light" color="teal" radius="xl"><IconCash size={10} /></ThemeIcon>
-                    <Text size="xs" c="dimmed">{'\uC785\uAE08'}</Text>
-                  </Group>
-                  <Text size="lg" fw={700} c="teal">{formatCurrency(stats.totalDeposit)}</Text>
-                  {stats.totalDeposit >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(stats.totalDeposit)}</Text>}
-                </Card>
-                <Card padding="md">
-                  <Group gap="xs" mb={4}>
-                    <ThemeIcon size={20} variant="light" color="orange" radius="xl"><IconCreditCard size={10} /></ThemeIcon>
-                    <Text size="xs" c="dimmed">{'\uC2E4\uBE44'}</Text>
-                  </Group>
-                  <Text size="lg" fw={700} c="orange">{formatCurrency(stats.totalExpense)}</Text>
-                  {stats.totalExpense >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(stats.totalExpense)}</Text>}
-                </Card>
-                <Card padding="md">
-                  <Group gap="xs" mb={4}>
-                    <ThemeIcon size={20} variant="light" color="red" radius="xl"><IconTrendingDown size={10} /></ThemeIcon>
-                    <Text size="xs" c="dimmed">{'\uD658\uBD88'}</Text>
-                  </Group>
-                  <Text size="lg" fw={700} c="red">{formatCurrency(stats.totalRefund)}</Text>
-                </Card>
-                <Card padding="md">
-                  <Group gap="xs" mb={4}>
-                    <ThemeIcon size={20} variant="light" color="blue" radius="xl"><IconChartBar size={10} /></ThemeIcon>
-                    <Text size="xs" c="dimmed">{'\uC794\uC561'}</Text>
-                  </Group>
-                  <Text size="lg" fw={700} c={stats.balance >= 0 ? 'blue' : 'red'}>{formatCurrency(stats.balance)}</Text>
-                  {Math.abs(stats.balance) >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(Math.abs(stats.balance))}</Text>}
-                </Card>
-              </SimpleGrid>
+        {isLoading && (
+          <Center py="xl">
+            <Stack align="center" gap="sm">
+              <Loader size="md" color="indigo" />
+              <Text size="sm" c="dimmed">데이터 불러오는 중...</Text>
+            </Stack>
+          </Center>
+        )}
 
-              {/* 탭: 목록 / 통계 */}
-              <Tabs value={activeTab} onChange={setActiveTab}>
-                <Tabs.List>
-                  <Tabs.Tab value="list" leftSection={<IconReceipt size={16} />}>{'\uBE44\uC6A9 \uBAA9\uB85D'}</Tabs.Tab>
-                  <Tabs.Tab value="stats" leftSection={<IconChartBar size={16} />}>{'\uD1B5\uACC4 \uBD84\uC11D'}</Tabs.Tab>
-                </Tabs.List>
+        {!isLoading && (
+          <>
+            {/* 전체 요약 카드 */}
+            <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
+              <Card padding="md">
+                <Group gap="xs" mb={4}>
+                  <ThemeIcon size={20} variant="light" color="indigo" radius="xl"><IconContract size={10} /></ThemeIcon>
+                  <Text size="xs" c="dimmed">수임료 총액</Text>
+                </Group>
+                <Text size="lg" fw={700} c="indigo">{formatCurrencyShort(totalRetainerFee)}</Text>
+                {totalRetainerFee >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(totalRetainerFee)}</Text>}
+              </Card>
+              <Card padding="md">
+                <Group gap="xs" mb={4}>
+                  <ThemeIcon size={20} variant="light" color="teal" radius="xl"><IconCash size={10} /></ThemeIcon>
+                  <Text size="xs" c="dimmed">입금 완료</Text>
+                </Group>
+                <Text size="lg" fw={700} c="teal">{formatCurrencyShort(totalRetainerPaid)}</Text>
+                {totalRetainerPaid >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(totalRetainerPaid)}</Text>}
+              </Card>
+              <Card padding="md">
+                <Group gap="xs" mb={4}>
+                  <ThemeIcon size={20} variant="light" color="orange" radius="xl"><IconCoin size={10} /></ThemeIcon>
+                  <Text size="xs" c="dimmed">실비 지출</Text>
+                </Group>
+                <Text size="lg" fw={700} c="orange">{formatCurrencyShort(totalDisbursement)}</Text>
+                {totalDisbursement >= 10000 && <Text size="xs" c="dimmed">{numberToKorean(totalDisbursement)}</Text>}
+              </Card>
+              <Card padding="md">
+                <Group gap="xs" mb={4}>
+                  <ThemeIcon size={20} variant="light" color={unpaidInvoiceTotal > 0 ? 'red' : 'green'} radius="xl">
+                    <IconAlertCircle size={10} />
+                  </ThemeIcon>
+                  <Text size="xs" c="dimmed">미수금</Text>
+                </Group>
+                <Text size="lg" fw={700} c={unpaidInvoiceTotal > 0 ? 'red' : 'green'}>{formatCurrencyShort(unpaidInvoiceTotal)}</Text>
+              </Card>
+            </SimpleGrid>
 
-                <Tabs.Panel value="list" pt="md">
-                  <Stack gap="md">
-                    {/* 검색 + 필터 */}
-                    <TextInput
-                      placeholder={'\uC758\uB8B0\uC778\uBA85, \uC0AC\uAC74\uBC88\uD638, \uBA54\uBAA8...'}
-                      leftSection={<IconSearch size={16} />}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.currentTarget.value)}
-                    />
+            {/* 탭 */}
+            <Tabs value={activeTab} onChange={setActiveTab}>
+              <Tabs.List>
+                <Tabs.Tab value="retainers" leftSection={<IconContract size={16} />}>
+                  수임 계약
+                  {retainers.length > 0 && <Badge size="xs" variant="light" color="indigo" ml={6}>{retainers.length}</Badge>}
+                </Tabs.Tab>
+                <Tabs.Tab value="disbursements" leftSection={<IconCoin size={16} />}>
+                  실비 내역
+                  {disbursements.length > 0 && <Badge size="xs" variant="light" color="orange" ml={6}>{disbursements.length}</Badge>}
+                </Tabs.Tab>
+                <Tabs.Tab value="invoices" leftSection={<IconFileInvoice size={16} />}>
+                  청구서
+                  {invoices.length > 0 && <Badge size="xs" variant="light" color="blue" ml={6}>{invoices.length}</Badge>}
+                </Tabs.Tab>
+                <Tabs.Tab value="stats" leftSection={<IconChartBar size={16} />}>통계 분석</Tabs.Tab>
+              </Tabs.List>
 
-                    <Group gap="xs">
-                      <Button variant={filterType === null ? 'filled' : 'default'} size="xs" onClick={() => setFilterType(null)}>
-                        {'\uC804\uCCB4'} ({billings.length})
-                      </Button>
-                      {PAYMENT_TYPES.map((t) => {
-                        const count = billings.filter((b) => b.type === t.value).length
-                        return (
-                          <Button key={t.value} variant={filterType === t.value ? 'filled' : 'default'} size="xs" onClick={() => setFilterType(filterType === t.value ? null : t.value)}>
-                            {t.label} ({count})
-                          </Button>
-                        )
-                      })}
-                    </Group>
+              <Tabs.Panel value="retainers" pt="md">
+                <RetainerPanel
+                  retainers={retainers}
+                  cases={cases}
+                  consultations={consultations}
+                  getItemName={getItemName}
+                  onSave={saveData}
+                />
+              </Tabs.Panel>
 
-                    {filtered.length === 0 ? (
-                      <Center py="xl">
-                        <Stack align="center" gap="sm">
-                          <ThemeIcon size={48} radius="xl" variant="light" color="gray"><IconReceipt size={24} /></ThemeIcon>
-                          <Text c="dimmed" size="sm">
-                            {billings.length === 0 ? '\uB4F1\uB85D\uB41C \uBE44\uC6A9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4' : '\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}
-                          </Text>
-                          {billings.length === 0 && (
-                            <Button variant="subtle" onClick={() => openModal('createBilling')}>{'\uCCAB \uBC88\uC9F8 \uBE44\uC6A9 \uB4F1\uB85D\uD558\uAE30'}</Button>
-                          )}
-                        </Stack>
-                      </Center>
-                    ) : (
-                      <Card padding={0}>
-                        <Table.ScrollContainer minWidth={800}>
-                          <Table striped={false} highlightOnHover>
-                            <Table.Thead>
-                              <Table.Tr>
-                                <Table.Th>{'\uB0A0\uC9DC'}</Table.Th>
-                                <Table.Th>{'\uC720\uD615'}</Table.Th>
-                                <Table.Th>{'\uC0AC\uAC74 / \uC790\uBB38'}</Table.Th>
-                                <Table.Th>{'\uAE08\uC561'}</Table.Th>
-                                <Table.Th>{'\uACB0\uC81C'}</Table.Th>
-                                <Table.Th>{'\uBA54\uBAA8'}</Table.Th>
-                                <Table.Th style={{ width: 40 }}></Table.Th>
-                              </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                              {filtered.map((bill) => (
-                                <BillingRow
-                                  key={bill.id}
-                                  bill={bill}
-                                  getItemName={getItemName}
-                                  navigate={navigate}
-                                  onEdit={handleEdit}
-                                  onDelete={handleDelete}
-                                  isExpanded={expandedId === bill.id}
-                                  onToggle={() => setExpandedId(expandedId === bill.id ? null : bill.id)}
-                                  cases={cases}
-                                  consultations={consultations}
-                                />
-                              ))}
-                            </Table.Tbody>
-                          </Table>
-                        </Table.ScrollContainer>
-                      </Card>
-                    )}
-                  </Stack>
-                </Tabs.Panel>
+              <Tabs.Panel value="disbursements" pt="md">
+                <DisbursementPanel
+                  disbursements={disbursements}
+                  cases={cases}
+                  consultations={consultations}
+                  getItemName={getItemName}
+                  onSave={saveData}
+                />
+              </Tabs.Panel>
 
-                <Tabs.Panel value="stats" pt="md">
-                  <StatsPanel billings={billings} />
-                </Tabs.Panel>
-              </Tabs>
-            </>
-          )}
-        </Stack>
-      </Container>
+              <Tabs.Panel value="invoices" pt="md">
+                <InvoicePanel
+                  invoices={invoices}
+                  retainers={retainers}
+                  disbursements={disbursements}
+                  cases={cases}
+                  consultations={consultations}
+                  getItemName={getItemName}
+                  onSave={saveData}
+                />
+              </Tabs.Panel>
 
-      <Modal isOpen={isModalOpen && modalType === 'createBilling'} onClose={closeModal} title={'\uBE44\uC6A9 \uB4F1\uB85D'}>
-        <BillingForm cases={cases} consultations={consultations} onSubmit={handleCreate} onCancel={closeModal} />
-      </Modal>
-    </>
+              <Tabs.Panel value="stats" pt="md">
+                <StatsPanel retainers={retainers} disbursements={disbursements} invoices={invoices} />
+              </Tabs.Panel>
+            </Tabs>
+          </>
+        )}
+      </Stack>
+    </Container>
   )
 }
