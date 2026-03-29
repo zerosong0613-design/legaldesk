@@ -7,9 +7,10 @@ import {
   SimpleGrid, Divider,
 } from '@mantine/core'
 import {
-  IconUsers, IconFolder,
+  IconUsers, IconFolder, IconFolderOpen,
   IconPlus, IconUser, IconBuilding, IconMail, IconRefresh,
-  IconLink, IconSearch, IconShieldCheck,
+  IconLink, IconSearch, IconShieldCheck, IconDatabase,
+  IconFile, IconExternalLink,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import {
@@ -437,7 +438,84 @@ export default function WorkspaceSettings() {
                   )}
                 </Card>
 
-                {/* \uC548\uB0B4 */}
+                {/* 데이터 저장 위치 */}
+                <Card padding="lg">
+                  <Group gap="xs" mb="md">
+                    <ThemeIcon size={24} variant="light" color="blue" radius="xl">
+                      <IconDatabase size={14} />
+                    </ThemeIcon>
+                    <Text fw={600}>데이터 저장 위치</Text>
+                  </Group>
+
+                  <Text size="sm" c="dimmed" mb="md">
+                    모든 데이터는 본인 Google Drive에 저장됩니다. 외부 서버나 DB를 사용하지 않습니다.
+                  </Text>
+
+                  <Card padding="sm" bg="gray.0" radius="md">
+                    <Stack gap={4}>
+                      <Group gap={6}>
+                        <IconFolderOpen size={16} color="var(--mantine-color-yellow-7)" />
+                        <Text size="sm" fw={600}>내 드라이브</Text>
+                      </Group>
+                      <Box pl={22}>
+                        <Stack gap={2}>
+                          <Group gap={6}>
+                            <IconFolderOpen size={14} color="var(--mantine-color-indigo-5)" />
+                            <Text size="sm" fw={600} c="indigo">LegalDesk/</Text>
+                          </Group>
+                          <Box pl={20}>
+                            <Stack gap={2}>
+                              <Group gap={6}>
+                                <IconFolder size={13} color="var(--mantine-color-blue-4)" />
+                                <Text size="xs" c="dimmed">data/</Text>
+                              </Group>
+                              <Box pl={19}>
+                                <Stack gap={1}>
+                                  <Group gap={6} wrap="nowrap">
+                                    <IconFile size={12} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+                                    <Text size="xs" c="dimmed">cases.json</Text>
+                                    <Text size="xs" c="dimmed" fs="italic">— 사건/자문 목록, 수임계약, 청구서</Text>
+                                  </Group>
+                                  <Group gap={6} wrap="nowrap">
+                                    <IconFolder size={12} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+                                    <Text size="xs" c="dimmed">cases/</Text>
+                                    <Text size="xs" c="dimmed" fs="italic">— 사건별 상세 (카톡, 메모, 기일)</Text>
+                                  </Group>
+                                  <Group gap={6} wrap="nowrap">
+                                    <IconFolder size={12} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+                                    <Text size="xs" c="dimmed">consultations/</Text>
+                                    <Text size="xs" c="dimmed" fs="italic">— 자문별 상세 데이터</Text>
+                                  </Group>
+                                </Stack>
+                              </Box>
+                              <Group gap={6} wrap="nowrap">
+                                <IconFolder size={13} color="var(--mantine-color-blue-4)" style={{ flexShrink: 0 }} />
+                                <Text size="xs" c="dimmed">files/</Text>
+                                <Text size="xs" c="dimmed" fs="italic">— 첨부 파일</Text>
+                              </Group>
+                            </Stack>
+                          </Box>
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </Card>
+
+                  {driveRootId && (
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      mt="sm"
+                      leftSection={<IconExternalLink size={14} />}
+                      component="a"
+                      href={`https://drive.google.com/drive/folders/${driveRootId}`}
+                      target="_blank"
+                    >
+                      Google Drive에서 폴더 열기
+                    </Button>
+                  )}
+                </Card>
+
+                {/* 안내 */}
                 <Card padding="lg">
                   <Group gap="xs" mb="md">
                     <ThemeIcon size={24} variant="light" color="gray" radius="xl">
