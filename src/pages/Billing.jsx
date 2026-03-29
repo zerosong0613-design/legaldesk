@@ -18,6 +18,7 @@ import {
   IconContract, IconCoin, IconClipboardList,
   IconPaperclip, IconAlertCircle, IconMail,
 } from '@tabler/icons-react'
+import { useRef, useCallback } from 'react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import { readCasesIndex, writeCasesIndex } from '../api/drive'
@@ -831,13 +832,142 @@ function openGmailCompose(to, subject, body) {
 }
 
 // ==================================================
+// PDF 청구서 생성 (jsPDF + html2canvas)
+// ==================================================
+
+function buildInvoiceHtml(invoice, caseInfo) {
+  const itemRows = (invoice.lineItems || []).map((li) =>
+    `<tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;">${li.label}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;color:#666;font-size:13px;">${li.note || ''}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${formatCurrency(li.amount)}</td>
+    </tr>`
+  ).join('')
+
+  return `
+    <div style="font-family:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;width:560px;padding:40px;color:#222;line-height:1.6;">
+      <div style="text-align:center;margin-bottom:32px;">
+        <h1 style="font-size:28px;font-weight:700;letter-spacing:8px;margin:0;">청 구 서</h1>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;margin-bottom:24px;">
+        <div>
+          <div style="font-size:12px;color:#888;">청구번호</div>
+          <div style="font-size:14px;font-weight:600;font-family:monospace;">${invoice.invoiceNumber}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:12px;color:#888;">발행일</div>
+          <div style="font-size:14px;">${formatDate(invoice.issueDate)}</div>
+        </div>
+      </div>
+
+      <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;">
+          <div>
+            <div style="font-size:12px;color:#888;">수신</div>
+            <div style="font-size:15px;font-weight:600;">${invoice.clientName} 귀하</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px;color:#888;">사건</div>
+            <div style="font-size:14px;">${caseInfo.sub ? `${caseInfo.sub} ` : ''}${caseInfo.name}</div>
+          </div>
+        </div>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead>
+          <tr style="background:#f0f0f5;">
+            <th style="padding:10px 12px;text-align:left;font-size:13px;font-weight:600;border-bottom:2px solid #ddd;">항목</th>
+            <th style="padding:10px 12px;text-align:left;font-size:13px;font-weight:600;border-bottom:2px solid #ddd;">비고</th>
+            <th style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;border-bottom:2px solid #ddd;">금액</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemRows}
+        </tbody>
+      </table>
+
+      <div style="background:#f0f0ff;border-radius:8px;padding:16px;margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:14px;">소계</span>
+          <span style="font-size:14px;font-weight:500;">${formatCurrency(invoice.subtotal)}</span>
+        </div>
+        ${invoice.vatAmount > 0 ? `
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:14px;">부가세 (10%)</span>
+          <span style="font-size:14px;font-weight:500;">${formatCurrency(invoice.vatAmount)}</span>
+        </div>` : ''}
+        <div style="border-top:1px solid #c7c7e8;margin:8px 0;"></div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:16px;font-weight:700;">합계</span>
+          <span style="font-size:18px;font-weight:700;color:#4c6ef5;">${formatCurrency(invoice.total)}</span>
+        </div>
+        ${invoice.total >= 10000 ? `<div style="text-align:right;font-size:12px;color:#888;margin-top:2px;">${numberToKorean(invoice.total)}</div>` : ''}
+      </div>
+
+      <div style="border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-bottom:24px;">
+        <div style="font-size:13px;margin-bottom:4px;"><strong>납부기한:</strong> ${formatDate(invoice.dueDate)}</div>
+      </div>
+
+      <div style="text-align:center;font-size:12px;color:#aaa;margin-top:32px;padding-top:16px;border-top:1px solid #eee;">
+        LegalDesk로 생성된 청구서입니다.
+      </div>
+    </div>
+  `
+}
+
+async function generateInvoicePdf(invoice, caseInfo) {
+  const { default: jsPDF } = await import('jspdf')
+  const { default: html2canvas } = await import('html2canvas')
+
+  // 임시 DOM 생성
+  const container = document.createElement('div')
+  container.innerHTML = buildInvoiceHtml(invoice, caseInfo)
+  container.style.position = 'absolute'
+  container.style.left = '-9999px'
+  container.style.top = '0'
+  document.body.appendChild(container)
+
+  try {
+    const canvas = await html2canvas(container.firstElementChild, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+    })
+
+    const imgData = canvas.toDataURL('image/png')
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pdfWidth = pdf.internal.pageSize.getWidth()
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+    pdf.save(`${invoice.invoiceNumber}.pdf`)
+  } finally {
+    document.body.removeChild(container)
+  }
+}
+
+// ==================================================
 // 청구서 상세 모달
 // ==================================================
 
 function InvoiceDetailModal({ invoice, caseInfo, isOpen, onClose, onSend, onPaymentConfirm, onDelete }) {
+  const [isPdfLoading, setIsPdfLoading] = useState(false)
+
   if (!invoice) return null
   const st = INVOICE_STATUSES[invoice.status] || INVOICE_STATUSES.draft
   const isOverdue = invoice.status !== 'paid' && invoice.status !== 'cancelled' && invoice.dueDate && new Date(invoice.dueDate) < new Date()
+
+  const handleDownloadPdf = async () => {
+    setIsPdfLoading(true)
+    try {
+      await generateInvoicePdf(invoice, caseInfo)
+    } catch (err) {
+      console.error('PDF 생성 실패:', err)
+    } finally {
+      setIsPdfLoading(false)
+    }
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="청구서 상세">
@@ -940,6 +1070,9 @@ function InvoiceDetailModal({ invoice, caseInfo, isOpen, onClose, onSend, onPaym
             삭제
           </Button>
           <Group gap="sm">
+            <Button variant="light" color="gray" size="sm" leftSection={<IconFileInvoice size={14} />} onClick={handleDownloadPdf} loading={isPdfLoading}>
+              PDF 저장
+            </Button>
             {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
               <>
                 <Button variant="light" color="teal" size="sm" leftSection={<IconCheck size={14} />} onClick={() => onPaymentConfirm(invoice)}>
