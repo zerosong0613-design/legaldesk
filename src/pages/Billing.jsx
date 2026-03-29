@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AppShell, Group, Title, Text, Button, Avatar, Card,
   SimpleGrid, Stack, Box, Container, UnstyledButton,
   TextInput, Select, Badge, ActionIcon, Alert,
-  Table, Tabs, ThemeIcon,
+  Table, Tabs, ThemeIcon, Center, Loader,
 } from '@mantine/core'
 import {
   IconLogout, IconArrowLeft, IconPlus, IconReceipt,
@@ -155,8 +155,9 @@ export default function Billing() {
   const [filterType, setFilterType] = useState(null)
 
   // Load billings from cases.json
-  useMemo(() => {
+  useEffect(() => {
     if (!casesFileId) return
+    setIsLoading(true)
     readCasesIndex(casesFileId).then((data) => {
       setBillings(data.billings || [])
       setIsLoading(false)
@@ -279,6 +280,15 @@ export default function Billing() {
               </ActionIcon>
               <Text size="lg" fw={700}>{'\uBE44\uC6A9 \uAD00\uB9AC'}</Text>
             </Group>
+
+            {isLoading && (
+              <Center py="xl">
+                <Stack align="center" gap="sm">
+                  <Loader size="md" color="indigo" />
+                  <Text size="sm" c="dimmed">{'\uBE44\uC6A9 \uB370\uC774\uD130 \uBD88\uB7EC\uC624\uB294 \uC911...'}</Text>
+                </Stack>
+              </Center>
+            )}
 
             {/* Stats */}
             <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
