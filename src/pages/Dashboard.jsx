@@ -160,6 +160,90 @@ export default function Dashboard() {
   return (
     <Container size="xl" py="lg">
       <Stack gap="lg">
+        {/* \uD1B5\uD569 \uAC80\uC0C9 */}
+        <TextInput
+          placeholder={'\uC0AC\uAC74 + \uC790\uBB38 \uD1B5\uD569 \uAC80\uC0C9 (\uC758\uB8B0\uC778\uBA85, \uC0AC\uAC74\uBC88\uD638, \uD0DC\uADF8...)'}
+          leftSection={<IconSearch size={16} />}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.currentTarget.value)}
+        />
+
+        {isSearching ? (
+          <>
+            <Text size="sm" c="dimmed">
+              {'\uAC80\uC0C9 \uACB0\uACFC'} <Text span fw={600}>{unifiedSearchResults.length}</Text>{'\uAC74'}
+              {searchQuery.trim() && (
+                <Text span c="indigo"> &quot;{searchQuery.trim()}&quot;</Text>
+              )}
+            </Text>
+
+            {unifiedSearchResults.length === 0 ? (
+              <Stack align="center" py="xl" gap="xs">
+                <Text c="dimmed">{'\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
+              </Stack>
+            ) : (
+              <Stack gap="sm">
+                {unifiedSearchResults.map((item) => {
+                  const isConsult = item._category === 'consultation'
+                  return (
+                    <Card
+                      key={item.id}
+                      padding="md"
+                      onClick={() => navigateToItem(item)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <Group gap="sm" wrap="nowrap">
+                        <ThemeIcon
+                          size={32}
+                          radius="xl"
+                          variant="light"
+                          color={isConsult ? 'grape' : 'indigo'}
+                        >
+                          {isConsult ? <IconFileText size={16} /> : <IconScale size={16} />}
+                        </ThemeIcon>
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Group gap="xs" mb={2}>
+                            <Badge
+                              size="xs"
+                              variant="light"
+                              color={isConsult ? 'grape' : 'indigo'}
+                            >
+                              {isConsult ? '\uC790\uBB38' : '\uC0AC\uAC74'}
+                            </Badge>
+                            <Text size="sm" fw={600} truncate>{item.clientName}</Text>
+                            <Badge
+                              size="xs"
+                              variant="light"
+                              color={
+                                item.status === '\uC9C4\uD589' ? 'blue' :
+                                item.status === '\uC811\uC218' ? 'teal' :
+                                item.status === '\uC885\uACB0' || item.status === '\uC644\uB8CC' ? 'gray' :
+                                'orange'
+                              }
+                            >
+                              {item.status}
+                            </Badge>
+                          </Group>
+                          <Text size="xs" c="dimmed" truncate>
+                            {!isConsult && item.caseNumber && `${item.caseNumber} | `}
+                            {!isConsult && item.court && `${item.court} | `}
+                            {isConsult && item.type && `${item.type} | `}
+                            {isConsult && item.subject && `${item.subject} | `}
+                            {item.tags?.length > 0 && item.tags.join(', ')}
+                          </Text>
+                        </Box>
+                        <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                          {formatRelativeTime(item.lastActivityAt)}
+                        </Text>
+                      </Group>
+                    </Card>
+                  )
+                })}
+              </Stack>
+            )}
+          </>
+        ) : (
+        <>
         {/* \uD1B5\uACC4 \uCE74\uB4DC */}
         <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
           <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => navigate('/cases')}>
@@ -309,88 +393,7 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* \uD1B5\uD569 \uAC80\uC0C9 */}
-        <TextInput
-          placeholder={'\uC0AC\uAC74 + \uC790\uBB38 \uD1B5\uD569 \uAC80\uC0C9 (\uC758\uB8B0\uC778\uBA85, \uC0AC\uAC74\uBC88\uD638, \uD0DC\uADF8...)'}
-          leftSection={<IconSearch size={16} />}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.currentTarget.value)}
-        />
-
-        {isSearching && (
-          <>
-            <Text size="sm" c="dimmed">
-              {'\uAC80\uC0C9 \uACB0\uACFC'} <Text span fw={600}>{unifiedSearchResults.length}</Text>{'\uAC74'}
-              {searchQuery.trim() && (
-                <Text span c="indigo"> &quot;{searchQuery.trim()}&quot;</Text>
-              )}
-            </Text>
-
-            {unifiedSearchResults.length === 0 ? (
-              <Stack align="center" py="xl" gap="xs">
-                <Text c="dimmed">{'\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
-              </Stack>
-            ) : (
-              <Stack gap="sm">
-                {unifiedSearchResults.map((item) => {
-                  const isConsult = item._category === 'consultation'
-                  return (
-                    <Card
-                      key={item.id}
-                      padding="md"
-                      onClick={() => navigateToItem(item)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <Group gap="sm" wrap="nowrap">
-                        <ThemeIcon
-                          size={32}
-                          radius="xl"
-                          variant="light"
-                          color={isConsult ? 'grape' : 'indigo'}
-                        >
-                          {isConsult ? <IconFileText size={16} /> : <IconScale size={16} />}
-                        </ThemeIcon>
-                        <Box style={{ flex: 1, minWidth: 0 }}>
-                          <Group gap="xs" mb={2}>
-                            <Badge
-                              size="xs"
-                              variant="light"
-                              color={isConsult ? 'grape' : 'indigo'}
-                            >
-                              {isConsult ? '\uC790\uBB38' : '\uC0AC\uAC74'}
-                            </Badge>
-                            <Text size="sm" fw={600} truncate>{item.clientName}</Text>
-                            <Badge
-                              size="xs"
-                              variant="light"
-                              color={
-                                item.status === '\uC9C4\uD589' ? 'blue' :
-                                item.status === '\uC811\uC218' ? 'teal' :
-                                item.status === '\uC885\uACB0' || item.status === '\uC644\uB8CC' ? 'gray' :
-                                'orange'
-                              }
-                            >
-                              {item.status}
-                            </Badge>
-                          </Group>
-                          <Text size="xs" c="dimmed" truncate>
-                            {!isConsult && item.caseNumber && `${item.caseNumber} | `}
-                            {!isConsult && item.court && `${item.court} | `}
-                            {isConsult && item.type && `${item.type} | `}
-                            {isConsult && item.subject && `${item.subject} | `}
-                            {item.tags?.length > 0 && item.tags.join(', ')}
-                          </Text>
-                        </Box>
-                        <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                          {formatRelativeTime(item.lastActivityAt)}
-                        </Text>
-                      </Group>
-                    </Card>
-                  )
-                })}
-              </Stack>
-            )}
-          </>
+        </>
         )}
       </Stack>
     </Container>

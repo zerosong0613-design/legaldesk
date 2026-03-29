@@ -1,5 +1,5 @@
 import { Card, Group, Text, Badge as MantineBadge, ActionIcon } from '@mantine/core'
-import { IconEdit, IconTrash } from '@tabler/icons-react'
+import { IconEdit, IconTrash, IconStar, IconStarFilled } from '@tabler/icons-react'
 import Badge from '../ui/Badge'
 
 function getDday(dateStr) {
@@ -15,7 +15,7 @@ function formatDate(dateStr) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function CaseCard({ caseData, onClick, onEdit, onDelete }) {
+export default function CaseCard({ caseData, onClick, onEdit, onDelete, isFavorite, onToggleFavorite }) {
   const dday = getDday(caseData.nextHearingDate)
   const isUrgent = dday !== null && dday <= 7
 
@@ -33,13 +33,23 @@ export default function CaseCard({ caseData, onClick, onEdit, onDelete }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <Group gap="xs" mb={4}>
             <Text size="sm" ff="monospace" c="dimmed">
-              {caseData.caseNumber || '번호 미정'}
+              {caseData.caseNumber || '\uBC88\uD638 \uBBF8\uC815'}
             </Text>
             <Badge status={caseData.status} />
           </Group>
           <Text fw={600} truncate>{caseData.clientName}</Text>
         </div>
         <Group gap={4}>
+          {onToggleFavorite && (
+            <ActionIcon
+              variant="subtle"
+              color={isFavorite ? 'yellow' : 'gray'}
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite() }}
+            >
+              {isFavorite ? <IconStarFilled size={14} /> : <IconStar size={14} />}
+            </ActionIcon>
+          )}
           <ActionIcon
             variant="subtle"
             color="gray"
@@ -65,7 +75,7 @@ export default function CaseCard({ caseData, onClick, onEdit, onDelete }) {
 
       {caseData.nextHearingDate && (
         <Text size="sm" c={isUrgent ? 'red' : 'dimmed'} fw={isUrgent ? 600 : undefined}>
-          다음 기일: {formatDate(caseData.nextHearingDate)}
+          {'\uB2E4\uC74C \uAE30\uC77C'}: {formatDate(caseData.nextHearingDate)}
           {dday !== null && ` (D-${dday})`}
         </Text>
       )}

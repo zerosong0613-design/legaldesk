@@ -1,15 +1,20 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Group, Text, Button, Badge, Card, SimpleGrid, TextInput,
-  Stack, Alert, Container,
+  Group, Text, Button, Badge, SimpleGrid, TextInput,
+  Stack, Alert, Container, SegmentedControl, Table,
+  ActionIcon,
 } from '@mantine/core'
-import { IconSearch, IconPlus, IconFileText } from '@tabler/icons-react'
+import {
+  IconSearch, IconPlus, IconFileText, IconLayoutGrid, IconList,
+  IconStar, IconStarFilled, IconEdit, IconTrash,
+} from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import ConsultationCard from '../components/case/ConsultationCard'
 import ConsultationForm from '../components/case/ConsultationForm'
 import Modal from '../components/ui/Modal'
+import BadgeComp from '../components/ui/Badge'
 
 const STATUS_FILTERS = [
   { label: '\uC804\uCCB4', value: null },
@@ -28,26 +33,49 @@ function matchesQuery(item, q) {
   )
 }
 
+function getDday(dateStr) {
+  if (!dateStr) return null
+  const diff = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24))
+  if (diff < 0) return null
+  return diff
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function ConsultationList() {
   const navigate = useNavigate()
   const {
     consultations, createConsultation, updateConsultation, deleteConsultation,
     error: storeError,
   } = useCaseStore()
-  const { isModalOpen, modalType, modalData, openModal, closeModal, showToast } = useUiStore()
+  const {
+    isModalOpen, modalType, modalData, openModal, closeModal, showToast,
+    viewMode, setViewMode, favorites, toggleFavorite,
+  } = useUiStore()
 
   const [statusFilter, setStatusFilter] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
 
   const filtered = useMemo(() => {
     let result = consultations
+    if (showFavoritesOnly) result = result.filter((c) => favorites.includes(c.id))
     if (statusFilter) result = result.filter((c) => c.status === statusFilter)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       result = result.filter((c) => matchesQuery(c, q))
     }
-    return result.sort((a, b) => new Date(b.lastActivityAt || 0) - new Date(a.lastActivityAt || 0))
-  }, [consultations, statusFilter, searchQuery])
+    return result.sort((a, b) => {
+      const aFav = favorites.includes(a.id) ? 1 : 0
+      const bFav = favorites.includes(b.id) ? 1 : 0
+      if (bFav !== aFav) return bFav - aFav
+      return new Date(b.lastActivityAt || 0) - new Date(a.lastActivityAt || 0)
+    })
+  }, [consultations, statusFilter, searchQuery, favorites, showFavoritesOnly])
 
   const handleCreate = async (data) => {
     const result = await createConsultation(data)
@@ -73,12 +101,23 @@ export default function ConsultationList() {
               <Text size="lg" fw={700}>{'\uC790\uBB38 \uAD00\uB9AC'}</Text>
               <Badge variant="light" color="grape" size="lg">{consultations.length}</Badge>
             </Group>
-            <Button leftSection={<IconPlus size={16} />} color="grape" onClick={() => openModal('createConsultation')}>
-              {'\uC0C8 \uC790\uBB38'}
-            </Button>
+            <Group gap="xs">
+              <SegmentedControl
+                size="xs"
+                value={viewMode}
+                onChange={setViewMode}
+                data={[
+                  { label: <IconLayoutGrid size={16} />, value: 'card' },
+                  { label: <IconList size={16} />, value: 'table' },
+                ]}
+              />
+              <Button leftSection={<IconPlus size={16} />} color="grape" onClick={() => openModal('createConsultation')}>
+                {'\uC0C8 \uC790\uBB38'}
+              </Button>
+            </Group>
           </Group>
 
-          {/* \uAC80\uC0C9 + \uD544\uD130 */}
+          {/* \uAC80\uC0C9 */}
           <TextInput
             placeholder={'\uC758\uB8B0\uC778\uBA85, \uC8FC\uC81C, \uC720\uD615, \uD0DC\uADF8...'}
             leftSection={<IconSearch size={16} />}
@@ -86,7 +125,17 @@ export default function ConsultationList() {
             onChange={(e) => setSearchQuery(e.currentTarget.value)}
           />
 
+          {/* \uD544\uD130 */}
           <Group gap="xs">
+            <Button
+              variant={showFavoritesOnly ? 'filled' : 'default'}
+              color="yellow"
+              size="xs"
+              leftSection={<IconStarFilled size={14} />}
+              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            >
+              {'\uC990\uACA8\uCC3E\uAE30'}
+            </Button>
             {STATUS_FILTERS.map((f) => {
               const count = f.value ? consultations.filter((c) => c.status === f.value).length : consultations.length
               return (
@@ -118,12 +167,86 @@ export default function ConsultationList() {
                 </Button>
               )}
             </Stack>
+          ) : viewMode === 'table' ? (
+            <Table.ScrollContainer minWidth={700}>
+              <Table striped highlightOnHover verticalSpacing="sm">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w={40}></Table.Th>
+                    <Table.Th>{'\uC758\uB8B0\uC778'}</Table.Th>
+                    <Table.Th>{'\uC720\uD615'}</Table.Th>
+                    <Table.Th>{'\uC8FC\uC81C'}</Table.Th>
+                    <Table.Th>{'\uC0C1\uD0DC'}</Table.Th>
+                    <Table.Th>{'\uB9C8\uAC10\uC77C'}</Table.Th>
+                    <Table.Th w={80}></Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {filtered.map((c) => {
+                    const dday = getDday(c.deadline)
+                    const isFav = favorites.includes(c.id)
+                    return (
+                      <Table.Tr
+                        key={c.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => navigate(`/consultation/${c.id}`)}
+                      >
+                        <Table.Td onClick={(e) => e.stopPropagation()}>
+                          <ActionIcon
+                            variant="subtle"
+                            color={isFav ? 'yellow' : 'gray'}
+                            size="sm"
+                            onClick={() => toggleFavorite(c.id)}
+                          >
+                            {isFav ? <IconStarFilled size={16} /> : <IconStar size={16} />}
+                          </ActionIcon>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm" fw={500}>{c.clientName}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{c.type || '-'}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm" c="dimmed" truncate maw={200}>{c.subject || '-'}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <BadgeComp status={c.status} />
+                        </Table.Td>
+                        <Table.Td>
+                          {c.deadline ? (
+                            <Text size="sm" c={dday !== null && dday <= 7 ? 'orange' : undefined} fw={dday !== null && dday <= 7 ? 600 : undefined}>
+                              {formatDate(c.deadline)}
+                              {dday !== null && ` (D-${dday})`}
+                            </Text>
+                          ) : (
+                            <Text size="sm" c="dimmed">-</Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td onClick={(e) => e.stopPropagation()}>
+                          <Group gap={4}>
+                            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => openModal('editConsultation', c)}>
+                              <IconEdit size={14} />
+                            </ActionIcon>
+                            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => openModal('deleteConfirm', c)}>
+                              <IconTrash size={14} />
+                            </ActionIcon>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    )
+                  })}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           ) : (
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
               {filtered.map((c) => (
                 <ConsultationCard
                   key={c.id}
                   data={c}
+                  isFavorite={favorites.includes(c.id)}
+                  onToggleFavorite={() => toggleFavorite(c.id)}
                   onClick={() => navigate(`/consultation/${c.id}`)}
                   onEdit={(data) => openModal('editConsultation', data)}
                   onDelete={(data) => openModal('deleteConfirm', data)}

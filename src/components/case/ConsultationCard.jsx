@@ -1,5 +1,5 @@
 import { Card, Group, Text, Badge as MantineBadge, ActionIcon } from '@mantine/core'
-import { IconEdit, IconTrash } from '@tabler/icons-react'
+import { IconEdit, IconTrash, IconStar, IconStarFilled } from '@tabler/icons-react'
 import Badge from '../ui/Badge'
 
 function getDday(dateStr) {
@@ -15,7 +15,7 @@ function formatDate(dateStr) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function ConsultationCard({ data, onClick, onEdit, onDelete }) {
+export default function ConsultationCard({ data, onClick, onEdit, onDelete, isFavorite, onToggleFavorite }) {
   const dday = getDday(data.deadline)
   const isUrgent = dday !== null && dday <= 7
 
@@ -32,13 +32,23 @@ export default function ConsultationCard({ data, onClick, onEdit, onDelete }) {
       <Group justify="space-between" mb="sm" wrap="nowrap">
         <div style={{ flex: 1, minWidth: 0 }}>
           <Group gap="xs" mb={4}>
-            <MantineBadge variant="light" color="grape" size="xs">자문</MantineBadge>
+            <MantineBadge variant="light" color="grape" size="xs">{'\uC790\uBB38'}</MantineBadge>
             <Text size="sm" c="dimmed">{data.type}</Text>
             <Badge status={data.status} />
           </Group>
           <Text fw={600} truncate>{data.clientName}</Text>
         </div>
         <Group gap={4}>
+          {onToggleFavorite && (
+            <ActionIcon
+              variant="subtle"
+              color={isFavorite ? 'yellow' : 'gray'}
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite() }}
+            >
+              {isFavorite ? <IconStarFilled size={14} /> : <IconStar size={14} />}
+            </ActionIcon>
+          )}
           <ActionIcon
             variant="subtle"
             color="gray"
@@ -64,7 +74,7 @@ export default function ConsultationCard({ data, onClick, onEdit, onDelete }) {
 
       {data.deadline && (
         <Text size="sm" c={isUrgent ? 'orange' : 'dimmed'} fw={isUrgent ? 600 : undefined}>
-          마감: {formatDate(data.deadline)}
+          {'\uB9C8\uAC10'}: {formatDate(data.deadline)}
           {dday !== null && ` (D-${dday})`}
         </Text>
       )}
