@@ -7,10 +7,9 @@ import {
   SimpleGrid, Divider,
 } from '@mantine/core'
 import {
-  IconArrowLeft, IconUsers, IconFolder,
-  IconPlus, IconCheck, IconX, IconTrash, IconShare,
-  IconUser, IconBuilding, IconMail, IconRefresh,
-  IconLink, IconExternalLink, IconSearch,
+  IconUsers, IconFolder,
+  IconPlus, IconUser, IconBuilding, IconMail, IconRefresh,
+  IconLink, IconSearch, IconShieldCheck,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import {
@@ -83,27 +82,22 @@ export default function WorkspaceSettings() {
   const [searchError, setSearchError] = useState(null)
   const [hasSearched, setHasSearched] = useState(false)
 
-  // \uACF5\uC720 \uCD08\uB300 \uC0C1\uD0DC
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('writer')
   const [isInviting, setIsInviting] = useState(false)
 
-  // \uAD8C\uD55C \uBAA9\uB85D
   const [permissions, setPermissions] = useState([])
   const [isLoadingPerms, setIsLoadingPerms] = useState(false)
 
-  // \uC804\uD658 \uC911
   const [isSwitching, setIsSwitching] = useState(false)
 
   const isOwnWorkspace = !workspace || workspace.type === 'own'
 
-  // \uACF5\uC720\uB41C LegalDesk \uD3F4\uB354 \uAC80\uC0C9
   const searchSharedFolders = async () => {
     setIsSearching(true)
     setSearchError(null)
     try {
       const folders = await findSharedLegalDeskFolders()
-      // \uAC01 \uD3F4\uB354\uC758 \uC18C\uC720\uC790 \uC815\uBCF4 \uAC00\uC838\uC624\uAE30
       const enriched = []
       for (const f of folders) {
         try {
@@ -129,7 +123,6 @@ export default function WorkspaceSettings() {
     }
   }
 
-  // \uAD8C\uD55C \uBAA9\uB85D \uB85C\uB4DC (own workspace\uC77C\uB54C\uB9CC)
   const loadPermissions = async () => {
     if (!driveRootId || !isOwnWorkspace) return
     setIsLoadingPerms(true)
@@ -147,7 +140,6 @@ export default function WorkspaceSettings() {
     loadPermissions()
   }, [driveRootId])
 
-  // \uC791\uC5C5\uACF5\uAC04 \uC804\uD658
   const handleSwitch = async (config) => {
     setIsSwitching(true)
     try {
@@ -174,7 +166,6 @@ export default function WorkspaceSettings() {
     })
   }
 
-  // \uC9C1\uC6D0 \uCD08\uB300
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !driveRootId) return
     setIsInviting(true)
@@ -210,27 +201,29 @@ export default function WorkspaceSettings() {
   }
 
   return (
-    <Container size="sm" py="lg">
+    <Container size="xl" py="lg">
       <Stack gap="lg">
-            {/* Back + Title */}
-            <Group gap="sm">
-              <ActionIcon variant="subtle" color="gray" onClick={() => navigate('/')}>
-                <IconArrowLeft size={18} />
-              </ActionIcon>
-              <Text size="lg" fw={700}>{'\uC791\uC5C5\uACF5\uAC04 \uC124\uC815'}</Text>
-            </Group>
+        {/* \uD5E4\uB354 */}
+        <Group gap="xs">
+          <IconUsers size={22} color="var(--mantine-color-orange-6)" />
+          <Text size="lg" fw={700}>{'\uC791\uC5C5\uACF5\uAC04 \uC124\uC815'}</Text>
+        </Group>
 
-            {isSwitching && (
-              <Center py="xl">
-                <Stack align="center" gap="sm">
-                  <Loader size="md" color="indigo" />
-                  <Text size="sm" c="dimmed">{'\uC791\uC5C5\uACF5\uAC04 \uC804\uD658 \uC911...'}</Text>
-                </Stack>
-              </Center>
-            )}
+        {isSwitching && (
+          <Center py="xl">
+            <Stack align="center" gap="sm">
+              <Loader size="md" color="indigo" />
+              <Text size="sm" c="dimmed">{'\uC791\uC5C5\uACF5\uAC04 \uC804\uD658 \uC911...'}</Text>
+            </Stack>
+          </Center>
+        )}
 
-            {!isSwitching && (
-              <>
+        {!isSwitching && (
+          <>
+            {/* PC: 2\uCEEC\uB7FC \uB808\uC774\uC544\uC6C3 / \uBAA8\uBC14\uC77C: 1\uCEEC\uB7FC */}
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+              {/* \uC67C\uCABD: \uD604\uC7AC \uC791\uC5C5\uACF5\uAC04 + \uC9C1\uC6D0 \uCD08\uB300 */}
+              <Stack gap="lg">
                 {/* \uD604\uC7AC \uC791\uC5C5\uACF5\uAC04 */}
                 <Card padding="lg">
                   <Group gap="xs" mb="md">
@@ -241,7 +234,7 @@ export default function WorkspaceSettings() {
                   </Group>
 
                   <Card padding="md" bg="indigo.0" withBorder style={{ borderColor: 'var(--mantine-color-indigo-3)' }}>
-                    <Group justify="space-between">
+                    <Group justify="space-between" wrap="wrap" gap="sm">
                       <Group gap="xs">
                         <ThemeIcon
                           size={36}
@@ -283,12 +276,12 @@ export default function WorkspaceSettings() {
                   )}
                 </Card>
 
-                {/* \uC9C1\uC6D0 \uCD08\uB300 (\uB0B4 \uC791\uC5C5\uACF5\uAC04\uC77C \uB54C\uB9CC) */}
+                {/* \uC9C1\uC6D0 \uCD08\uB300 */}
                 {isOwnWorkspace && (
                   <Card padding="lg">
                     <Group gap="xs" mb="md">
                       <ThemeIcon size={24} variant="light" color="teal" radius="xl">
-                        <IconShare size={14} />
+                        <IconUsers size={14} />
                       </ThemeIcon>
                       <Text fw={600}>{'\uC9C1\uC6D0 \uCD08\uB300'}</Text>
                     </Group>
@@ -362,7 +355,10 @@ export default function WorkspaceSettings() {
                     )}
                   </Card>
                 )}
+              </Stack>
 
+              {/* \uC624\uB978\uCABD: \uACF5\uC720\uB41C \uC791\uC5C5\uACF5\uAC04 + \uC548\uB0B4 */}
+              <Stack gap="lg">
                 {/* \uACF5\uC720\uB41C \uC791\uC5C5\uACF5\uAC04 \uAC80\uC0C9 */}
                 <Card padding="lg">
                   <Group gap="xs" mb="md">
@@ -405,7 +401,7 @@ export default function WorkspaceSettings() {
                             borderColor: isCurrent ? 'var(--mantine-color-teal-5)' : undefined,
                             cursor: isCurrent ? 'default' : 'pointer',
                           }}>
-                            <Group justify="space-between">
+                            <Group justify="space-between" wrap="wrap" gap="sm">
                               <Group gap="xs">
                                 {folder.ownerPhoto ? (
                                   <Avatar src={folder.ownerPhoto} size="sm" radius="xl" />
@@ -442,25 +438,46 @@ export default function WorkspaceSettings() {
                 </Card>
 
                 {/* \uC548\uB0B4 */}
-                <Alert color="gray" variant="light">
-                  <Stack gap={4}>
-                    <Text size="xs" fw={600}>{'\uC791\uC5C5\uACF5\uAC04 \uC548\uB0B4'}</Text>
-                    <Text size="xs" c="dimmed">
-                      {'\u2022 \uB0B4 \uC791\uC5C5\uACF5\uAC04: \uB370\uC774\uD130\uAC00 \uB0B4 Google Drive\uC5D0 \uC800\uC7A5\uB429\uB2C8\uB2E4.'}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {'\u2022 \uACF5\uC720 \uC791\uC5C5\uACF5\uAC04: \uB2E4\uB978 \uC0AC\uB78C\uC758 Drive\uC5D0 \uC800\uC7A5\uB41C \uB370\uC774\uD130\uB97C \uD568\uAED8 \uC0AC\uC6A9\uD569\uB2C8\uB2E4.'}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {'\u2022 \uCD08\uB300\uBC1B\uC740 \uC0AC\uB78C\uC740 \uD3B8\uC9D1 \uAD8C\uD55C\uC73C\uB85C \uC0AC\uAC74 \uC870\uD68C/\uC218\uC815/\uC0DD\uC131\uC774 \uAC00\uB2A5\uD569\uB2C8\uB2E4.'}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {'\u2022 \uC5B8\uC81C\uB4E0 \uB0B4 \uC791\uC5C5\uACF5\uAC04\uC73C\uB85C \uB3CC\uC544\uC62C \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
-                    </Text>
+                <Card padding="lg">
+                  <Group gap="xs" mb="md">
+                    <ThemeIcon size={24} variant="light" color="gray" radius="xl">
+                      <IconShieldCheck size={14} />
+                    </ThemeIcon>
+                    <Text fw={600}>{'\uC791\uC5C5\uACF5\uAC04 \uC548\uB0B4'}</Text>
+                  </Group>
+                  <Stack gap="sm">
+                    <Group gap="xs" wrap="nowrap" align="flex-start">
+                      <Text size="sm" c="indigo" fw={600} style={{ flexShrink: 0 }}>{'\u2022'}</Text>
+                      <Text size="sm" c="dimmed">
+                        <Text span fw={500} c="dark">{'\uB0B4 \uC791\uC5C5\uACF5\uAC04'}</Text>
+                        {': \uB370\uC774\uD130\uAC00 \uB0B4 Google Drive\uC5D0 \uC800\uC7A5\uB429\uB2C8\uB2E4. \uC678\uBD80 \uC11C\uBC84\uB97C \uC0AC\uC6A9\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.'}
+                      </Text>
+                    </Group>
+                    <Group gap="xs" wrap="nowrap" align="flex-start">
+                      <Text size="sm" c="teal" fw={600} style={{ flexShrink: 0 }}>{'\u2022'}</Text>
+                      <Text size="sm" c="dimmed">
+                        <Text span fw={500} c="dark">{'\uACF5\uC720 \uC791\uC5C5\uACF5\uAC04'}</Text>
+                        {': \uB2E4\uB978 \uC0AC\uB78C\uC758 Drive\uC5D0 \uC800\uC7A5\uB41C \uB370\uC774\uD130\uB97C \uD568\uAED8 \uC0AC\uC6A9\uD569\uB2C8\uB2E4.'}
+                      </Text>
+                    </Group>
+                    <Group gap="xs" wrap="nowrap" align="flex-start">
+                      <Text size="sm" c="orange" fw={600} style={{ flexShrink: 0 }}>{'\u2022'}</Text>
+                      <Text size="sm" c="dimmed">
+                        {'\uCD08\uB300\uBC1B\uC740 \uC0AC\uB78C\uC740 \uD3B8\uC9D1 \uAD8C\uD55C\uC73C\uB85C \uC0AC\uAC74 \uC870\uD68C/\uC218\uC815/\uC0DD\uC131\uC774 \uAC00\uB2A5\uD569\uB2C8\uB2E4.'}
+                      </Text>
+                    </Group>
+                    <Group gap="xs" wrap="nowrap" align="flex-start">
+                      <Text size="sm" c="gray" fw={600} style={{ flexShrink: 0 }}>{'\u2022'}</Text>
+                      <Text size="sm" c="dimmed">
+                        {'\uC5B8\uC81C\uB4E0 \uB0B4 \uC791\uC5C5\uACF5\uAC04\uC73C\uB85C \uB3CC\uC544\uC62C \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
+                      </Text>
+                    </Group>
                   </Stack>
-                </Alert>
-              </>
-            )}
+                </Card>
+              </Stack>
+            </SimpleGrid>
+          </>
+        )}
       </Stack>
     </Container>
   )

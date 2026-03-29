@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import {
   Group, Text, Button, Card,
   SimpleGrid, Stack, Box, Container, UnstyledButton,
-  TextInput, Select, Badge, ActionIcon, Alert, Textarea,
+  TextInput, Select, Badge, Alert, Textarea,
   Table, ThemeIcon, Center, Loader, Collapse,
 } from '@mantine/core'
 import {
-  IconArrowLeft, IconPlus, IconReceipt,
+  IconPlus, IconReceipt,
   IconCash, IconCreditCard, IconTrash, IconEdit,
   IconSearch, IconChartBar, IconCheck, IconX,
   IconChevronDown, IconChevronUp,
@@ -397,11 +397,9 @@ export default function Billing() {
     <>
       <Container size="xl" py="lg">
           <Stack gap="lg">
-            {/* Back + Title */}
-            <Group gap="sm">
-              <ActionIcon variant="subtle" color="gray" onClick={() => navigate('/')}>
-                <IconArrowLeft size={18} />
-              </ActionIcon>
+            {/* Title */}
+            <Group gap="xs">
+              <IconReceipt size={22} color="var(--mantine-color-teal-6)" />
               <Text size="lg" fw={700}>{'\uBE44\uC6A9 \uAD00\uB9AC'}</Text>
             </Group>
 
@@ -533,7 +531,7 @@ export default function Billing() {
               </Center>
             ) : (
               <Card padding={0}>
-                <Box style={{ overflowX: 'auto' }}>
+                <Table.ScrollContainer minWidth={800}>
                   <Table striped={false} highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
@@ -563,7 +561,7 @@ export default function Billing() {
                       ))}
                     </Table.Tbody>
                   </Table>
-                </Box>
+                </Table.ScrollContainer>
               </Card>
             )}
           </Stack>

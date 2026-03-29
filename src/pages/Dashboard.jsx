@@ -277,63 +277,72 @@ export default function Dashboard() {
         </SimpleGrid>
 
         {/* \uCE98\uB9B0\uB354 + \uC77C\uC815 */}
-        <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
-          <Box>
-            <MiniCalendar
-              events={calendarEvents}
-              onEventClick={(ev) => {
-                if (!ev.caseId) return
-                if (ev.type === 'deadline') {
-                  navigate(`/consultation/${ev.caseId}`)
-                } else {
-                  navigate(`/case/${ev.caseId}`)
-                }
-              }}
-            />
-          </Box>
-          <Box style={{ gridColumn: 'span 2' }}>
-            <Card padding="md" h="100%">
-              <Text size="sm" fw={600} mb="sm">
-                {'\uC77C\uC815'} ({sortedEvents.length})
-              </Text>
-              {sortedEvents.length === 0 ? (
-                <Text size="sm" c="dimmed" py="lg">{'\uB4F1\uB85D\uB41C \uC77C\uC815\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
-              ) : (
-                <Stack gap={4} mah={320} style={{ overflowY: 'auto' }}>
-                  {sortedEvents.map((ev, i) => {
-                    const isPast = ev.dday !== null && ev.dday < 0
-                    return (
-                      <UnstyledButton
-                        key={i}
-                        onClick={() => {
-                          if (!ev.caseId) return
-                          if (ev.type === 'deadline') {
-                            navigate(`/consultation/${ev.caseId}`)
-                          } else {
-                            navigate(`/case/${ev.caseId}`)
-                          }
-                        }}
-                        p="xs"
-                        style={{ borderRadius: 8, opacity: isPast ? 0.5 : 1 }}
-                      >
-                        <Group gap="sm" wrap="nowrap">
-                          <DdayBadge dday={ev.dday} type={ev.type} />
-                          <Box style={{ flex: 1, minWidth: 0 }}>
-                            <Text size="sm" truncate>{ev.label}</Text>
-                            <Text size="xs" c="dimmed">
-                              {formatDate(ev.date)}{ev.time ? ` ${ev.time}` : ''}
-                              {' \u00B7 '}{ev.type === 'hearing' ? '\uAE30\uC77C' : '\uB9C8\uAC10'}
-                            </Text>
-                          </Box>
-                        </Group>
-                      </UnstyledButton>
-                    )
-                  })}
-                </Stack>
-              )}
-            </Card>
-          </Box>
-        </SimpleGrid>
+        <Box style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr)',
+          gap: 'var(--mantine-spacing-md)',
+        }}
+          className="dashboard-calendar-grid"
+        >
+          <style>{`
+            @media (min-width: 62em) {
+              .dashboard-calendar-grid {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) !important;
+              }
+            }
+          `}</style>
+          <MiniCalendar
+            events={calendarEvents}
+            onEventClick={(ev) => {
+              if (!ev.caseId) return
+              if (ev.type === 'deadline') {
+                navigate(`/consultation/${ev.caseId}`)
+              } else {
+                navigate(`/case/${ev.caseId}`)
+              }
+            }}
+          />
+          <Card padding="md">
+            <Text size="sm" fw={600} mb="sm">
+              {'\uC77C\uC815'} ({sortedEvents.length})
+            </Text>
+            {sortedEvents.length === 0 ? (
+              <Text size="sm" c="dimmed" py="lg">{'\uB4F1\uB85D\uB41C \uC77C\uC815\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
+            ) : (
+              <Stack gap={4} mah={320} style={{ overflowY: 'auto' }}>
+                {sortedEvents.map((ev, i) => {
+                  const isPast = ev.dday !== null && ev.dday < 0
+                  return (
+                    <UnstyledButton
+                      key={i}
+                      onClick={() => {
+                        if (!ev.caseId) return
+                        if (ev.type === 'deadline') {
+                          navigate(`/consultation/${ev.caseId}`)
+                        } else {
+                          navigate(`/case/${ev.caseId}`)
+                        }
+                      }}
+                      p="xs"
+                      style={{ borderRadius: 8, opacity: isPast ? 0.5 : 1 }}
+                    >
+                      <Group gap="sm" wrap="nowrap">
+                        <DdayBadge dday={ev.dday} type={ev.type} />
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Text size="sm" truncate>{ev.label}</Text>
+                          <Text size="xs" c="dimmed">
+                            {formatDate(ev.date)}{ev.time ? ` ${ev.time}` : ''}
+                            {' \u00B7 '}{ev.type === 'hearing' ? '\uAE30\uC77C' : '\uB9C8\uAC10'}
+                          </Text>
+                        </Box>
+                      </Group>
+                    </UnstyledButton>
+                  )
+                })}
+              </Stack>
+            )}
+          </Card>
+        </Box>
 
         {/* \uCD5C\uADFC \uD65C\uB3D9 */}
         {recentActivity.length > 0 && !isSearching && (
