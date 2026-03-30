@@ -869,9 +869,17 @@ function buildInvoiceEmailBody(invoice, caseInfo, config) {
   return lines.filter((l) => l !== null).join('\n')
 }
 
+function getAuthUserEmail() {
+  try {
+    const userJson = localStorage.getItem('gd_user')
+    return userJson ? JSON.parse(userJson).email : ''
+  } catch { return '' }
+}
+
 function openGmailCompose(to, subject, body) {
-  const isMobile = /iPad|iPhone|iPod|Android/.test(navigator.userAgent)
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const isMobile = /iPad|iPhone|iPod|Android/.test(navigator.userAgent)
+  const authEmail = getAuthUserEmail()
 
   if (isIOS) {
     // iOS: Gmail 앱 URL scheme → 실패 시 mailto 폴백
@@ -880,13 +888,17 @@ function openGmailCompose(to, subject, body) {
     window.location.href = gmailAppUrl
     setTimeout(() => { window.location.href = mailtoUrl }, 2000)
   } else if (isMobile) {
-    // Android: intent로 Gmail 앱 열기 시도 → 폴백 mailto
+    // Android: mailto로 기본 메일 앱
     const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     window.location.href = mailtoUrl
   } else {
-    // 데스크톱: Gmail 웹 작성 창
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    window.open(gmailUrl, '_blank')
+    // 데스크톱: authuser로 로그인된 Google 계정 지정
+    const params = new URLSearchParams({
+      view: 'cm', fs: '1',
+      to, su: subject, body,
+    })
+    if (authEmail) params.set('authuser', authEmail)
+    window.open(`https://mail.google.com/mail/?${params.toString()}`, '_blank')
   }
 }
 

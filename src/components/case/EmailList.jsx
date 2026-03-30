@@ -92,7 +92,14 @@ function ThreadCard({ thread }) {
           <Group justify="flex-end" mt="xs">
             <Button
               component="a"
-              href={`https://mail.google.com/mail/#inbox/${thread.id}`}
+              href={(() => {
+                try {
+                  const u = JSON.parse(localStorage.getItem('gd_user') || '{}')
+                  return u.email
+                    ? `https://mail.google.com/mail/?authuser=${encodeURIComponent(u.email)}#inbox/${thread.id}`
+                    : `https://mail.google.com/mail/#inbox/${thread.id}`
+                } catch { return `https://mail.google.com/mail/#inbox/${thread.id}` }
+              })()}
               target="_blank"
               rel="noopener"
               variant="subtle"
