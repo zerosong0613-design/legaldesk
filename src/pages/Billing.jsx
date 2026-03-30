@@ -1013,13 +1013,18 @@ async function generateInvoicePdf(invoice, caseInfo) {
 
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
     if (isIOS) {
-      // iOS Safari: download 속성 미지원
-      // Data URL로 새 탭을 열면 Safari PDF 뷰어에서 공유시트로 저장 가능
-      const dataUrl = pdf.output('dataurlstring')
-      const link = document.createElement('a')
-      link.href = dataUrl
-      link.target = '_blank'
-      link.click()
+      // iOS Safari: download 속성 및 Data URL 새 탭 모두 차단됨
+      // Web Share API로 공유시트 열기 → "파일에 저장" 가능
+      const blob = pdf.output('blob')
+      const file = new File([blob], `${invoice.invoiceNumber}.pdf`, { type: 'application/pdf' })
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: `${invoice.invoiceNumber}.pdf` })
+      } else {
+        // Web Share 미지원 시 Blob URL로 현재 탭에서 열기
+        const blobUrl = URL.createObjectURL(blob)
+        window.location.href = blobUrl
+      }
     } else {
       pdf.save(`${invoice.invoiceNumber}.pdf`)
     }
