@@ -1274,17 +1274,13 @@ function InvoicePanel({ invoices, retainers, disbursements, cases, consultations
     )
     onSave('invoices', newInvoices)
 
+    // 4) 메일 작성 창 열기
+    // iOS: await navigator.share()가 공유시트 닫힐 때까지 대기하므로 바로 실행
+    // 데스크톱: PDF 다운로드 후 약간의 딜레이
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
     if (isIOS) {
-      // iOS: PDF가 새 탭에서 열리므로, 사용자가 돌아온 뒤 메일 열기
-      showToast('PDF가 열렸습니다. 저장 후 돌아오면 메일이 열립니다.', 'info')
-      const handleFocus = () => {
-        window.removeEventListener('focus', handleFocus)
-        setTimeout(() => openGmailCompose(clientEmail, subject, bodyWithAttachNote), 500)
-      }
-      window.addEventListener('focus', handleFocus)
-      // 30초 내 돌아오지 않으면 정리
-      setTimeout(() => window.removeEventListener('focus', handleFocus), 30000)
+      openGmailCompose(clientEmail, subject, bodyWithAttachNote)
+      showToast('PDF 저장 완료. Gmail에서 첨부 후 발송하세요.', 'success')
     } else {
       setTimeout(() => openGmailCompose(clientEmail, subject, bodyWithAttachNote), 1000)
       showToast('PDF가 다운로드되었습니다. Gmail에서 첨부 후 발송하세요.', 'success')
