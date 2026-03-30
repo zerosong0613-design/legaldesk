@@ -92,27 +92,13 @@ function ThreadCard({ thread }) {
           <Group justify="flex-end" mt="xs">
             <Button
               component="a"
-              href={/iPad|iPhone|iPod|Android/.test(navigator.userAgent)
-                ? `googlegmail:///mail/u/0/#inbox/${thread.id}`
-                : `https://mail.google.com/mail/u/0/#inbox/${thread.id}`
-              }
+              href={`https://mail.google.com/mail/#inbox/${thread.id}`}
               target="_blank"
               rel="noopener"
               variant="subtle"
               size="xs"
               leftSection={<IconExternalLink size={12} />}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (/iPad|iPhone|iPod|Android/.test(navigator.userAgent)) {
-                  e.preventDefault()
-                  // Gmail 앱 딥링크 시도 → 실패 시 웹으로 폴백
-                  const webUrl = `https://mail.google.com/mail/u/0/#inbox/${thread.id}`
-                  const appUrl = `googlegmail:///mail/u/0/#inbox/${thread.id}`
-                  const timeout = setTimeout(() => { window.location.href = webUrl }, 1500)
-                  window.location.href = appUrl
-                  window.addEventListener('blur', () => clearTimeout(timeout), { once: true })
-                }
-              }}
+              onClick={(e) => e.stopPropagation()}
             >
               Gmail{'\uC5D0\uC11C \uBCF4\uAE30'}
             </Button>
