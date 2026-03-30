@@ -877,29 +877,19 @@ function getAuthUserEmail() {
 }
 
 function openGmailCompose(to, subject, body) {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-  const isMobile = /iPad|iPhone|iPod|Android/.test(navigator.userAgent)
-  const authEmail = getAuthUserEmail()
+  // mailto: 통일 — 브라우저/OS의 기본 메일 핸들러로 열림
+  // Chrome에서 Gmail을 기본 핸들러로 설정하면 올바른 계정으로 열림
+  // iOS에서는 Gmail 앱이 기본이면 Gmail 앱으로 열림
+  const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
   if (isIOS) {
-    // iOS: Gmail 앱 URL scheme → 실패 시 mailto 폴백
+    // iOS: Gmail 앱 URL scheme 먼저 시도
     const gmailAppUrl = `googlegmail:///co?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     window.location.href = gmailAppUrl
     setTimeout(() => { window.location.href = mailtoUrl }, 2000)
-  } else if (isMobile) {
-    // Android: mailto로 기본 메일 앱
-    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    window.location.href = mailtoUrl
   } else {
-    // 데스크톱: Gmail 웹 compose
-    // authuser를 경로에 넣어야 계정 리다이렉트 후에도 compose 파라미터 유지
-    const composeParams = `view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    if (authEmail) {
-      window.open(`https://mail.google.com/mail/u/?authuser=${encodeURIComponent(authEmail)}&${composeParams}`, '_blank')
-    } else {
-      window.open(`https://mail.google.com/mail/?${composeParams}`, '_blank')
-    }
+    window.location.href = mailtoUrl
   }
 }
 
