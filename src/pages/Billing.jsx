@@ -892,13 +892,14 @@ function openGmailCompose(to, subject, body) {
     const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     window.location.href = mailtoUrl
   } else {
-    // 데스크톱: authuser로 로그인된 Google 계정 지정
-    const params = new URLSearchParams({
-      view: 'cm', fs: '1',
-      to, su: subject, body,
-    })
-    if (authEmail) params.set('authuser', authEmail)
-    window.open(`https://mail.google.com/mail/?${params.toString()}`, '_blank')
+    // 데스크톱: Gmail 웹 compose
+    // authuser를 경로에 넣어야 계정 리다이렉트 후에도 compose 파라미터 유지
+    const composeParams = `view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    if (authEmail) {
+      window.open(`https://mail.google.com/mail/u/?authuser=${encodeURIComponent(authEmail)}&${composeParams}`, '_blank')
+    } else {
+      window.open(`https://mail.google.com/mail/?${composeParams}`, '_blank')
+    }
   }
 }
 
@@ -1266,37 +1267,19 @@ function InvoicePanel({ invoices, retainers, disbursements, cases, consultations
     const consultObj = consultations.find((c) => c.id === invoice.caseId)
     const clientEmail = caseObj?.clientEmail || consultObj?.clientEmail || ''
 
-    // 1) PDF 자동 다운로드
-    showToast('청구서 PDF를 생성하고 있습니다...', 'info')
-    try {
-      await generateInvoicePdf(invoice, caseInfo)
-    } catch (err) {
-      console.error('PDF 생성 실패:', err)
-    }
-
-    // 2) Gmail 작성 창 열기 (PDF 첨부 안내 포함)
-    // PDF 다운로드 직후 location 변경이 무시되므로 딜레이 필요
     const subject = `[${caseInfo.sub || ''}] 수임료 청구서 (${formatDate(invoice.issueDate)}) 청구번호: ${invoice.invoiceNumber}`
     const body = buildInvoiceEmailBody(invoice, caseInfo)
-    const bodyWithAttachNote = body + '\n\n※ 청구서 PDF 파일이 다운로드되었습니다.\n   이 이메일에 첨부하여 발송해 주세요.'
+    const bodyWithAttachNote = body + '\n\n※ 청구서 PDF를 별도로 다운로드하여 첨부해 주세요.'
 
-    // 3) 발송 상태 업데이트
+    // 발송 상태 업데이트
     const newInvoices = invoices.map((inv) =>
       inv.id === invoice.id ? { ...inv, status: inv.status === 'draft' ? 'sent' : inv.status, sentAt: new Date().toISOString(), clientEmail } : inv
     )
     onSave('invoices', newInvoices)
 
-    // 4) 메일 작성 창 열기
-    // iOS: await navigator.share()가 공유시트 닫힐 때까지 대기하므로 바로 실행
-    // 데스크톱: PDF 다운로드 후 약간의 딜레이
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-    if (isIOS) {
-      openGmailCompose(clientEmail, subject, bodyWithAttachNote)
-      showToast('PDF 저장 완료. Gmail에서 첨부 후 발송하세요.', 'success')
-    } else {
-      setTimeout(() => openGmailCompose(clientEmail, subject, bodyWithAttachNote), 1000)
-      showToast('PDF가 다운로드되었습니다. Gmail에서 첨부 후 발송하세요.', 'success')
-    }
+    // 바로 메일 작성 창 열기 (PDF 자동 다운로드 제거)
+    openGmailCompose(clientEmail, subject, bodyWithAttachNote)
+    showToast('Gmail 작성 창이 열립니다. PDF를 별도로 다운로드하여 첨부하세요.', 'success')
   }
 
   const handleDelete = async (id) => {

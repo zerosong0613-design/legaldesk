@@ -96,7 +96,7 @@ function ThreadCard({ thread }) {
                 try {
                   const u = JSON.parse(localStorage.getItem('gd_user') || '{}')
                   return u.email
-                    ? `https://mail.google.com/mail/?authuser=${encodeURIComponent(u.email)}#inbox/${thread.id}`
+                    ? `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(u.email)}#inbox/${thread.id}`
                     : `https://mail.google.com/mail/#inbox/${thread.id}`
                 } catch { return `https://mail.google.com/mail/#inbox/${thread.id}` }
               })()}
