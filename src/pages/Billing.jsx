@@ -870,10 +870,24 @@ function buildInvoiceEmailBody(invoice, caseInfo, config) {
 }
 
 function openGmailCompose(to, subject, body) {
-  // mailto: 링크로 통일 — OS 기본 메일 앱(Gmail 앱/웹)으로 열림
-  // Gmail 웹 URL은 멀티 계정 시 파라미터가 유실되는 문제가 있음
-  const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-  window.location.href = mailtoUrl
+  const isMobile = /iPad|iPhone|iPod|Android/.test(navigator.userAgent)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+
+  if (isIOS) {
+    // iOS: Gmail 앱 URL scheme → 실패 시 mailto 폴백
+    const gmailAppUrl = `googlegmail:///co?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = gmailAppUrl
+    setTimeout(() => { window.location.href = mailtoUrl }, 2000)
+  } else if (isMobile) {
+    // Android: intent로 Gmail 앱 열기 시도 → 폴백 mailto
+    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailtoUrl
+  } else {
+    // 데스크톱: Gmail 웹 작성 창
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.open(gmailUrl, '_blank')
+  }
 }
 
 // ==================================================
@@ -996,7 +1010,19 @@ async function generateInvoicePdf(invoice, caseInfo) {
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width
 
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-    pdf.save(`${invoice.invoiceNumber}.pdf`)
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    if (isIOS) {
+      // iOS Safari: download 속성 미지원
+      // Data URL로 새 탭을 열면 Safari PDF 뷰어에서 공유시트로 저장 가능
+      const dataUrl = pdf.output('dataurlstring')
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.target = '_blank'
+      link.click()
+    } else {
+      pdf.save(`${invoice.invoiceNumber}.pdf`)
+    }
   } finally {
     document.body.removeChild(container)
   }
@@ -1237,14 +1263,27 @@ function InvoicePanel({ invoices, retainers, disbursements, cases, consultations
     const body = buildInvoiceEmailBody(invoice, caseInfo)
     const bodyWithAttachNote = body + '\n\n※ 청구서 PDF 파일이 다운로드되었습니다.\n   이 이메일에 첨부하여 발송해 주세요.'
 
-    setTimeout(() => openGmailCompose(clientEmail, subject, bodyWithAttachNote), 1000)
-
     // 3) 발송 상태 업데이트
     const newInvoices = invoices.map((inv) =>
       inv.id === invoice.id ? { ...inv, status: inv.status === 'draft' ? 'sent' : inv.status, sentAt: new Date().toISOString(), clientEmail } : inv
     )
     onSave('invoices', newInvoices)
-    showToast('PDF가 다운로드되었습니다. Gmail에서 첨부 후 발송하세요.', 'success')
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    if (isIOS) {
+      // iOS: PDF가 새 탭에서 열리므로, 사용자가 돌아온 뒤 메일 열기
+      showToast('PDF가 열렸습니다. 저장 후 돌아오면 메일이 열립니다.', 'info')
+      const handleFocus = () => {
+        window.removeEventListener('focus', handleFocus)
+        setTimeout(() => openGmailCompose(clientEmail, subject, bodyWithAttachNote), 500)
+      }
+      window.addEventListener('focus', handleFocus)
+      // 30초 내 돌아오지 않으면 정리
+      setTimeout(() => window.removeEventListener('focus', handleFocus), 30000)
+    } else {
+      setTimeout(() => openGmailCompose(clientEmail, subject, bodyWithAttachNote), 1000)
+      showToast('PDF가 다운로드되었습니다. Gmail에서 첨부 후 발송하세요.', 'success')
+    }
   }
 
   const handleDelete = async (id) => {
