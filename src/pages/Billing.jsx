@@ -870,8 +870,19 @@ function buildInvoiceEmailBody(invoice, caseInfo, config) {
 }
 
 function openGmailCompose(to, subject, body) {
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-  window.open(gmailUrl, '_blank')
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  const isAndroid = /Android/.test(navigator.userAgent)
+  const isMobile = isIOS || isAndroid
+
+  if (isMobile) {
+    // 모바일: mailto 링크로 기본 메일 앱 (Gmail 앱 포함) 열기
+    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailtoUrl
+  } else {
+    // 데스크톱: Gmail 웹 작성 창
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.open(gmailUrl, '_blank')
+  }
 }
 
 // ==================================================
