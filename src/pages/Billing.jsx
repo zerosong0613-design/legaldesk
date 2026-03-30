@@ -1232,11 +1232,12 @@ function InvoicePanel({ invoices, retainers, disbursements, cases, consultations
     }
 
     // 2) Gmail 작성 창 열기 (PDF 첨부 안내 포함)
+    // PDF 다운로드 직후 location 변경이 무시되므로 딜레이 필요
     const subject = `[${caseInfo.sub || ''}] 수임료 청구서 (${formatDate(invoice.issueDate)}) 청구번호: ${invoice.invoiceNumber}`
     const body = buildInvoiceEmailBody(invoice, caseInfo)
     const bodyWithAttachNote = body + '\n\n※ 청구서 PDF 파일이 다운로드되었습니다.\n   이 이메일에 첨부하여 발송해 주세요.'
 
-    openGmailCompose(clientEmail, subject, bodyWithAttachNote)
+    setTimeout(() => openGmailCompose(clientEmail, subject, bodyWithAttachNote), 1000)
 
     // 3) 발송 상태 업데이트
     const newInvoices = invoices.map((inv) =>
