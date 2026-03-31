@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Group, Text, ActionIcon, Tabs, Center, Loader,
   Container, Stack, Box, Card, SimpleGrid, Badge as MantineBadge,
-  TextInput, Select, Button,
+  TextInput, Textarea, Select, Button,
 } from '@mantine/core'
 import {
   IconArrowLeft, IconTimeline, IconCalendarEvent, IconMessageCircle,
@@ -14,10 +14,10 @@ import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import Badge from '../components/ui/Badge'
 import HearingList from '../components/case/HearingList'
-import KakaoParser from '../components/case/KakaoParser'
 import Timeline from '../components/case/Timeline'
 import EmailList from '../components/case/EmailList'
 import DocumentList from '../components/case/DocumentList'
+import ConsultRecordTab from '../components/case/ConsultRecordTab'
 import { getDday } from '../utils/dateUtils'
 
 const CASE_TYPES = ['\uBBFC\uC0AC', '\uD615\uC0AC', '\uAC00\uC0AC', '\uD589\uC815', '\uAE30\uD0C0']
@@ -25,9 +25,9 @@ const CASE_STATUSES = ['\uC811\uC218', '\uC9C4\uD589', '\uC885\uACB0', '\uBCF4\u
 
 const TABS = [
   { id: 'info', label: '\uC0AC\uAC74\uC815\uBCF4', icon: IconInfoCircle },
-  { id: 'timeline', label: '\uD0C0\uC784\uB77C\uC778', icon: IconTimeline },
+  { id: 'consultation', label: '\uC0C1\uB2F4', icon: IconMessageCircle },
   { id: 'hearings', label: '\uAE30\uC77C', icon: IconCalendarEvent },
-  { id: 'kakao', label: '\uCE74\uCE74\uC624\uD1A1', icon: IconMessageCircle },
+  { id: 'timeline', label: '\uD0C0\uC784\uB77C\uC778', icon: IconTimeline },
   { id: 'email', label: '\uC774\uBA54\uC77C', icon: IconMail },
   { id: 'docs', label: '\uBB38\uC11C', icon: IconFiles },
 ]
@@ -58,6 +58,8 @@ function InfoTab({ caseData }) {
       division: caseData.division || '',
       clientEmails: toArray(caseData.clientEmails || caseData.clientEmail),
       clientPhones: toArray(caseData.clientPhones || caseData.clientPhone),
+      clientBirthdate: caseData.clientBirthdate || '',
+      clientMemo: caseData.clientMemo || '',
       tags: caseData.tags?.join(', ') || '',
     })
     setEditing(true)
@@ -244,6 +246,23 @@ function InfoTab({ caseData }) {
           </div>
 
           <TextInput
+            label={'생년월일'}
+            type="date"
+            value={form.clientBirthdate}
+            onChange={(e) => handleChange('clientBirthdate', e.currentTarget.value)}
+          />
+
+          <Textarea
+            label={'메모'}
+            placeholder={'의뢰인 관련 메모 (선택)'}
+            minRows={2}
+            autosize
+            maxRows={4}
+            value={form.clientMemo}
+            onChange={(e) => handleChange('clientMemo', e.currentTarget.value)}
+          />
+
+          <TextInput
             label={'\uD0DC\uADF8'}
             placeholder={'\uC190\uD574\uBC30\uC0C1, \uACC4\uC57D (\uC274\uD45C\uB85C \uAD6C\uBD84)'}
             value={form.tags}
@@ -369,6 +388,19 @@ function InfoTab({ caseData }) {
               })()}
             </div>
           </SimpleGrid>
+          <SimpleGrid cols={2}>
+            <div>
+              <Text size="xs" c="dimmed">{'생년월일'}</Text>
+              <Text size="sm">{caseData.clientBirthdate || '-'}</Text>
+            </div>
+            <div />
+          </SimpleGrid>
+          {caseData.clientMemo && (
+            <div>
+              <Text size="xs" c="dimmed">{'메모'}</Text>
+              <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{caseData.clientMemo}</Text>
+            </div>
+          )}
           {!caseData.clientEmail && !(caseData.clientEmails?.length > 0) && (
             <Text size="xs" c="orange">
               {'\uC758\uB8B0\uC778 \uC774\uBA54\uC77C\uC744 \uC785\uB825\uD558\uBA74 \uC774\uBA54\uC77C \uD0ED\uC5D0\uC11C \uAD00\uB828 \uBA54\uC77C\uC744 \uC790\uB3D9 \uAC80\uC0C9\uD569\uB2C8\uB2E4.'}
@@ -443,9 +475,9 @@ export default function CaseDetail() {
       {/* \uCF58\uD150\uCE20 */}
       <Container size="xl" py="lg">
         {activeTab === 'info' && <InfoTab caseData={currentCase} />}
-        {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
+        {activeTab === 'consultation' && <ConsultRecordTab caseData={currentCase} />}
         {activeTab === 'hearings' && <HearingList caseData={currentCase} />}
-        {activeTab === 'kakao' && <KakaoParser caseData={currentCase} />}
+        {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
         {activeTab === 'email' && <EmailList caseData={currentCase} />}
         {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
       </Container>

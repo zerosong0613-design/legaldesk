@@ -337,6 +337,64 @@ export const useCaseStore = create((set, get) => ({
     }
   },
 
+  // ─── 상담 기록 CRUD ───
+
+  addConsultationRecord: async (caseId, consultation) => {
+    const { cases, consultations: consultList, currentCase } = get()
+    const item = cases.find((c) => c.id === caseId) || consultList.find((c) => c.id === caseId)
+    if (!item?.driveFileId) return
+
+    try {
+      const detail = await readCaseDetail(item.driveFileId)
+      detail.consultations = [...(detail.consultations || []), consultation]
+      await writeCaseDetail(item.driveFileId, detail)
+
+      if (currentCase?.id === caseId) {
+        set({ currentCase: { ...currentCase, ...detail } })
+      }
+    } catch (err) {
+      set({ error: `상담 저장 실패: ${err.message}` })
+    }
+  },
+
+  updateConsultationRecord: async (caseId, consultationId, updates) => {
+    const { cases, consultations: consultList, currentCase } = get()
+    const item = cases.find((c) => c.id === caseId) || consultList.find((c) => c.id === caseId)
+    if (!item?.driveFileId) return
+
+    try {
+      const detail = await readCaseDetail(item.driveFileId)
+      detail.consultations = (detail.consultations || []).map((c) =>
+        c.id === consultationId ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
+      )
+      await writeCaseDetail(item.driveFileId, detail)
+
+      if (currentCase?.id === caseId) {
+        set({ currentCase: { ...currentCase, ...detail } })
+      }
+    } catch (err) {
+      set({ error: `상담 수정 실패: ${err.message}` })
+    }
+  },
+
+  deleteConsultationRecord: async (caseId, consultationId) => {
+    const { cases, consultations: consultList, currentCase } = get()
+    const item = cases.find((c) => c.id === caseId) || consultList.find((c) => c.id === caseId)
+    if (!item?.driveFileId) return
+
+    try {
+      const detail = await readCaseDetail(item.driveFileId)
+      detail.consultations = (detail.consultations || []).filter((c) => c.id !== consultationId)
+      await writeCaseDetail(item.driveFileId, detail)
+
+      if (currentCase?.id === caseId) {
+        set({ currentCase: { ...currentCase, ...detail } })
+      }
+    } catch (err) {
+      set({ error: `상담 삭제 실패: ${err.message}` })
+    }
+  },
+
   // ─── 메모 추가 ───
 
   addMemo: async (caseId, memo) => {
