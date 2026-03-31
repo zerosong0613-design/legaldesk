@@ -13,7 +13,7 @@ import {
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import Badge from '../components/ui/Badge'
-import KakaoParser from '../components/case/KakaoParser'
+import ConsultRecordTab from '../components/case/ConsultRecordTab'
 import Timeline from '../components/case/Timeline'
 import DocumentList from '../components/case/DocumentList'
 import { readCaseDetail, writeCaseDetail } from '../api/drive'
@@ -25,8 +25,8 @@ const CONSULT_STATUSES = ['\uC811\uC218', '\uC9C4\uD589', '\uC644\uB8CC', '\uBCF
 
 const TABS = [
   { id: 'info', label: '\uC790\uBB38\uC815\uBCF4', icon: IconInfoCircle },
+  { id: 'consultation', label: '\uC0C1\uB2F4', icon: IconMessageCircle },
   { id: 'timeline', label: '\uD0C0\uC784\uB77C\uC778', icon: IconTimeline },
-  { id: 'kakao', label: '\uCE74\uCE74\uC624\uD1A1', icon: IconMessageCircle },
   { id: 'docs', label: '\uBB38\uC11C', icon: IconFiles },
 ]
 
@@ -518,10 +518,10 @@ export default function ConsultationDetail() {
 
       {/* Content */}
       <Container size="xl" py="lg">
-        {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
-        {activeTab === 'kakao' && <KakaoParser caseData={currentCase} />}
-        {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
         {activeTab === 'info' && <InfoTab caseData={currentCase} />}
+        {activeTab === 'consultation' && <ConsultRecordTab caseData={currentCase} />}
+        {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
+        {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
       </Container>
     </>
   )
