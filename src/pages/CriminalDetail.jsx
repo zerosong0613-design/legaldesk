@@ -21,6 +21,7 @@ import ConsultRecordTab from '../components/case/ConsultRecordTab'
 import CriminalStageBar from '../components/case/CriminalStageBar'
 import CaseBillingSummary from '../components/case/CaseBillingSummary'
 import CaseBillingTab from '../components/case/CaseBillingTab'
+import ContactList, { migrateContacts } from '../components/case/ContactList'
 import { readCaseDetail, writeCaseDetail } from '../api/drive'
 import { getDday } from '../utils/dateUtils'
 
@@ -61,8 +62,6 @@ function InfoTab({ caseData }) {
 
   const [form, setForm] = useState({
     clientName: caseData.clientName || '',
-    clientEmail: caseData.clientEmail || '',
-    clientPhone: caseData.clientPhone || '',
     opponent: caseData.opponent || '',
     status: caseData.status || '접수',
     court: caseData.court || '',
@@ -82,30 +81,19 @@ function InfoTab({ caseData }) {
     prosecutionCaseNumber: criminal.prosecutionCaseNumber || '',
     indictmentResult: criminal.indictmentResult || null,
     verdictSummary: criminal.verdictSummary || '',
-    // 가족 연락처
-    familyContacts: caseData.familyContacts?.length > 0
-      ? caseData.familyContacts
-      : [{ name: '', phone: '', relation: '' }],
+    contacts: migrateContacts(caseData),
   })
 
   const h = (name, value) => setForm({ ...form, [name]: value })
-
-  const handleFamilyChange = (index, field, value) => {
-    const arr = [...form.familyContacts]
-    arr[index] = { ...arr[index], [field]: value }
-    setForm({ ...form, familyContacts: arr })
-  }
-  const handleFamilyAdd = () => setForm({ ...form, familyContacts: [...form.familyContacts, { name: '', phone: '', relation: '' }] })
-  const handleFamilyRemove = (index) => {
-    const arr = form.familyContacts.filter((_, i) => i !== index)
-    setForm({ ...form, familyContacts: arr.length > 0 ? arr : [{ name: '', phone: '', relation: '' }] })
-  }
 
   const handleSave = async () => {
     if (!form.clientName.trim()) return
     setIsSaving(true)
     try {
-      const familyContacts = form.familyContacts.filter((f) => f.name.trim() || f.phone.trim())
+      const contacts = form.contacts.filter((c) => c.name.trim() || c.phone.trim() || c.email.trim())
+      const mainContact = contacts.find((c) => c.role === '본인') || contacts[0] || {}
+      const allEmails = contacts.map((c) => c.email).filter(Boolean)
+      const allPhones = contacts.map((c) => c.phone).filter(Boolean)
       const criminalInfo = {
         position: form.position,
         currentStage: form.currentStage,
@@ -122,16 +110,18 @@ function InfoTab({ caseData }) {
       }
       const data = {
         clientName: form.clientName,
-        clientEmail: form.clientEmail,
-        clientPhone: form.clientPhone,
         opponent: form.opponent,
         status: form.status,
         court: form.court,
         division: form.division,
         caseNumber: form.caseNumber,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-        familyContacts,
+        contacts,
         criminalInfo,
+        clientEmail: mainContact.email || '',
+        clientPhone: mainContact.phone || '',
+        clientEmails: allEmails,
+        clientPhones: allPhones,
       }
       // save criminalInfo to detail JSON too
       const detail = await readCaseDetail(caseData.driveFileId)
@@ -218,35 +208,10 @@ function InfoTab({ caseData }) {
           </Card>
         </Stack>
 
-        {/* 오른쪽: 연락처 + 가족 */}
+        {/* 오른쪽: 연락처 */}
         <Stack gap="md">
           <Card padding="lg">
-            <Text size="sm" fw={600} mb="md">의뢰인 연락처</Text>
-            <Stack gap="sm">
-              <TextInput label="이메일" type="email" value={form.clientEmail} onChange={(e) => h('clientEmail', e.currentTarget.value)} />
-              <TextInput label="전화번호" value={form.clientPhone} onChange={(e) => h('clientPhone', e.currentTarget.value)} />
-            </Stack>
-          </Card>
-
-          <Card padding="lg">
-            <Group justify="space-between" mb="md">
-              <Text size="sm" fw={600}>가족 연락처</Text>
-              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={handleFamilyAdd}>추가</Button>
-            </Group>
-            <Stack gap="sm">
-              {form.familyContacts.map((fc, i) => (
-                <Card key={i} padding="xs" withBorder>
-                  <Group gap={4} wrap="nowrap" mb={4}>
-                    <TextInput size="sm" placeholder="이름" value={fc.name} onChange={(e) => handleFamilyChange(i, 'name', e.currentTarget.value)} style={{ flex: 1 }} />
-                    <TextInput size="sm" placeholder="관계" value={fc.relation} onChange={(e) => handleFamilyChange(i, 'relation', e.currentTarget.value)} style={{ flex: 0.7 }} />
-                    {form.familyContacts.length > 1 && (
-                      <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleFamilyRemove(i)}><IconTrash size={12} /></ActionIcon>
-                    )}
-                  </Group>
-                  <TextInput size="sm" placeholder="010-0000-0000" value={fc.phone} onChange={(e) => handleFamilyChange(i, 'phone', e.currentTarget.value)} />
-                </Card>
-              ))}
-            </Stack>
+            <ContactList contacts={form.contacts} onChange={(contacts) => h('contacts', contacts)} />
           </Card>
 
           <CaseBillingSummary caseId={caseData.id} />

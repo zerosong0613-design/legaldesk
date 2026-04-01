@@ -16,6 +16,7 @@ import Badge from '../components/ui/Badge'
 import ConsultRecordTab from '../components/case/ConsultRecordTab'
 import Timeline from '../components/case/Timeline'
 import DocumentList from '../components/case/DocumentList'
+import ContactList, { migrateContacts } from '../components/case/ContactList'
 import CaseBillingTab from '../components/case/CaseBillingTab'
 import { readCaseDetail, writeCaseDetail } from '../api/drive'
 import { createCalendarEvent, deleteCalendarEvent } from '../api/calendar'
@@ -144,22 +145,15 @@ function InfoTab({ caseData }) {
   const { showToast } = useUiStore()
   const [isSaving, setIsSaving] = useState(false)
 
-  function toArray(val) {
-    if (Array.isArray(val)) return val.length > 0 ? val : ['']
-    if (val) return [val]
-    return ['']
-  }
-
   const [form, setForm] = useState({
     clientName: caseData.clientName || '',
     type: caseData.type || '계약검토',
     status: caseData.status || '접수',
     subject: caseData.subject || '',
     deadline: caseData.deadline || '',
-    clientEmails: toArray(caseData.clientEmails || caseData.clientEmail),
-    clientPhones: toArray(caseData.clientPhones || caseData.clientPhone),
     tags: caseData.tags?.join(', ') || '',
     note: caseData.note || '',
+    contacts: migrateContacts(caseData),
   })
 
   const h = (name, value) => setForm({ ...form, [name]: value })
@@ -168,15 +162,23 @@ function InfoTab({ caseData }) {
     if (!form.clientName.trim()) return
     setIsSaving(true)
     try {
-      const emails = form.clientEmails.map((e) => e.trim()).filter(Boolean)
-      const phones = form.clientPhones.map((p) => p.trim()).filter(Boolean)
+      const contacts = form.contacts.filter((c) => c.name.trim() || c.phone.trim() || c.email.trim())
+      const mainContact = contacts.find((c) => c.role === '본인') || contacts[0] || {}
+      const allEmails = contacts.map((c) => c.email).filter(Boolean)
+      const allPhones = contacts.map((c) => c.phone).filter(Boolean)
       const data = {
-        ...form,
+        clientName: form.clientName,
+        type: form.type,
+        status: form.status,
+        subject: form.subject,
+        deadline: form.deadline,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-        clientEmails: emails,
-        clientPhones: phones,
-        clientEmail: emails[0] || '',
-        clientPhone: phones[0] || '',
+        note: form.note,
+        contacts,
+        clientEmail: mainContact.email || '',
+        clientPhone: mainContact.phone || '',
+        clientEmails: allEmails,
+        clientPhones: allPhones,
       }
       await updateConsultation(caseData.id, data)
       await loadCaseDetail(caseData.id)
@@ -186,17 +188,6 @@ function InfoTab({ caseData }) {
     } finally {
       setIsSaving(false)
     }
-  }
-
-  const handleArrayChange = (field, index, value) => {
-    const arr = [...form[field]]
-    arr[index] = value
-    setForm({ ...form, [field]: arr })
-  }
-  const handleArrayAdd = (field) => setForm({ ...form, [field]: [...form[field], ''] })
-  const handleArrayRemove = (field, index) => {
-    const arr = form[field].filter((_, i) => i !== index)
-    setForm({ ...form, [field]: arr.length > 0 ? arr : [''] })
   }
 
   const handleUpdate = async (updates) => {
@@ -212,9 +203,7 @@ function InfoTab({ caseData }) {
         <Card padding="lg">
           <Group justify="space-between" mb="md">
             <Text size="sm" fw={600}>자문 정보</Text>
-            <Button size="xs" leftSection={<IconCheck size={14} />} onClick={handleSave} loading={isSaving}>
-              저장
-            </Button>
+            <Button size="xs" leftSection={<IconCheck size={14} />} onClick={handleSave} loading={isSaving}>저장</Button>
           </Group>
 
           <Stack gap="sm">
@@ -230,50 +219,14 @@ function InfoTab({ caseData }) {
               <TextInput label="마감일" type="date" value={form.deadline} onChange={(e) => h('deadline', e.currentTarget.value)} />
             </SimpleGrid>
 
-            <TextInput label="태그" placeholder="쉼표로 구분 (예: 계약, 검토)" value={form.tags} onChange={(e) => h('tags', e.currentTarget.value)} />
-
+            <TextInput label="태그" placeholder="쉼표로 구분" value={form.tags} onChange={(e) => h('tags', e.currentTarget.value)} />
             <Textarea label="메모" placeholder="자문 관련 메모" value={form.note} onChange={(e) => h('note', e.currentTarget.value)} minRows={2} autosize />
           </Stack>
         </Card>
       </Stack>
 
       <Card padding="lg">
-        <Text size="sm" fw={600} mb="md">연락처</Text>
-        <Stack gap="sm">
-          <div>
-            <Group justify="space-between" mb={4}>
-              <Text size="sm" fw={500}>이메일</Text>
-              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientEmails')}>추가</Button>
-            </Group>
-            <Stack gap={4}>
-              {form.clientEmails?.map((email, i) => (
-                <Group key={i} gap={4}>
-                  <TextInput size="sm" type="email" placeholder="client@example.com" value={email} onChange={(e) => handleArrayChange('clientEmails', i, e.currentTarget.value)} style={{ flex: 1 }} />
-                  {form.clientEmails.length > 1 && (
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientEmails', i)}><IconTrash size={12} /></ActionIcon>
-                  )}
-                </Group>
-              ))}
-            </Stack>
-          </div>
-
-          <div>
-            <Group justify="space-between" mb={4}>
-              <Text size="sm" fw={500}>전화번호</Text>
-              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientPhones')}>추가</Button>
-            </Group>
-            <Stack gap={4}>
-              {form.clientPhones?.map((phone, i) => (
-                <Group key={i} gap={4}>
-                  <TextInput size="sm" placeholder="010-0000-0000" value={phone} onChange={(e) => handleArrayChange('clientPhones', i, e.currentTarget.value)} style={{ flex: 1 }} />
-                  {form.clientPhones.length > 1 && (
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientPhones', i)}><IconTrash size={12} /></ActionIcon>
-                  )}
-                </Group>
-              ))}
-            </Stack>
-          </div>
-        </Stack>
+        <ContactList contacts={form.contacts} onChange={(contacts) => h('contacts', contacts)} />
       </Card>
     </SimpleGrid>
   )

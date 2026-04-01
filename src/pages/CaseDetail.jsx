@@ -7,8 +7,7 @@ import {
 } from '@mantine/core'
 import {
   IconArrowLeft, IconTimeline, IconCalendarEvent, IconMessageCircle,
-  IconMail, IconFiles, IconInfoCircle, IconEdit, IconCheck, IconX,
-  IconPlus, IconTrash, IconReceipt,
+  IconMail, IconFiles, IconInfoCircle, IconCheck, IconReceipt,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
@@ -20,6 +19,7 @@ import DocumentList from '../components/case/DocumentList'
 import ConsultRecordTab from '../components/case/ConsultRecordTab'
 import CaseBillingSummary from '../components/case/CaseBillingSummary'
 import CaseBillingTab from '../components/case/CaseBillingTab'
+import ContactList, { migrateContacts } from '../components/case/ContactList'
 import { getDday } from '../utils/dateUtils'
 
 const CASE_TYPES = ['민사', '가사', '행정', '기타']
@@ -40,12 +40,6 @@ function InfoTab({ caseData }) {
   const { showToast } = useUiStore()
   const [isSaving, setIsSaving] = useState(false)
 
-  function toArray(val) {
-    if (Array.isArray(val)) return val.length > 0 ? val : ['']
-    if (val) return [val]
-    return ['']
-  }
-
   const [form, setForm] = useState({
     clientName: caseData.clientName || '',
     opponent: caseData.opponent || '',
@@ -55,31 +49,38 @@ function InfoTab({ caseData }) {
     status: caseData.status || '접수',
     court: caseData.court || '',
     division: caseData.division || '',
-    clientEmails: toArray(caseData.clientEmails || caseData.clientEmail),
-    clientPhones: toArray(caseData.clientPhones || caseData.clientPhone),
-    clientBirthdate: caseData.clientBirthdate || '',
     clientMemo: caseData.clientMemo || '',
     tags: caseData.tags?.join(', ') || '',
-    clientType: caseData.clientType || 'individual',
-    companyName: caseData.companyName || '',
-    contactPerson: caseData.contactPerson || '',
-    contactPersonPhone: caseData.contactPersonPhone || '',
     clientPosition: caseData.clientPosition || 'plaintiff',
+    contacts: migrateContacts(caseData),
   })
 
   const handleSave = async () => {
     if (!form.clientName.trim()) return
     setIsSaving(true)
     try {
-      const emails = form.clientEmails.map((e) => e.trim()).filter(Boolean)
-      const phones = form.clientPhones.map((p) => p.trim()).filter(Boolean)
+      const contacts = form.contacts.filter((c) => c.name.trim() || c.phone.trim() || c.email.trim())
+      const mainContact = contacts.find((c) => c.role === '본인') || contacts[0] || {}
+      const allEmails = contacts.map((c) => c.email).filter(Boolean)
+      const allPhones = contacts.map((c) => c.phone).filter(Boolean)
       const data = {
-        ...form,
+        clientName: form.clientName,
+        opponent: form.opponent,
+        caseNumber: form.caseNumber,
+        caseName: form.caseName,
+        type: form.type,
+        status: form.status,
+        court: form.court,
+        division: form.division,
+        clientMemo: form.clientMemo,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-        clientEmails: emails,
-        clientPhones: phones,
-        clientEmail: emails[0] || '',
-        clientPhone: phones[0] || '',
+        clientPosition: form.clientPosition,
+        contacts,
+        // backward compat
+        clientEmail: mainContact.email || '',
+        clientPhone: mainContact.phone || '',
+        clientEmails: allEmails,
+        clientPhones: allPhones,
       }
       await updateCase(caseData.id, data)
       await loadCaseDetail(caseData.id)
@@ -93,28 +94,17 @@ function InfoTab({ caseData }) {
 
   const h = (name, value) => setForm({ ...form, [name]: value })
 
-  const handleArrayChange = (field, index, value) => {
-    const arr = [...form[field]]
-    arr[index] = value
-    setForm({ ...form, [field]: arr })
-  }
-  const handleArrayAdd = (field) => setForm({ ...form, [field]: [...form[field], ''] })
-  const handleArrayRemove = (field, index) => {
-    const arr = form[field].filter((_, i) => i !== index)
-    setForm({ ...form, [field]: arr.length > 0 ? arr : [''] })
-  }
-
   const dday = getDday(caseData.nextHearingDate)
   const ddayText = dday === null ? null : dday === 0 ? 'D-Day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`
+  const hasEmail = form.contacts.some((c) => c.email?.trim())
+
   return (
     <Stack gap="md">
     <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
       <Card padding="lg">
         <Group justify="space-between" mb="md">
           <Text size="sm" fw={600}>사건 정보</Text>
-          <Button size="xs" leftSection={<IconCheck size={14} />} onClick={handleSave} loading={isSaving}>
-            저장
-          </Button>
+          <Button size="xs" leftSection={<IconCheck size={14} />} onClick={handleSave} loading={isSaving}>저장</Button>
         </Group>
 
         <Stack gap="sm">
@@ -170,75 +160,16 @@ function InfoTab({ caseData }) {
           )}
 
           <TextInput label="태그" placeholder="손해배상, 계약 (쉼표로 구분)" value={form.tags} onChange={(e) => h('tags', e.currentTarget.value)} />
+
+          <Textarea label="메모" placeholder="의뢰인 관련 메모 (선택)" minRows={2} autosize maxRows={4} value={form.clientMemo} onChange={(e) => h('clientMemo', e.currentTarget.value)} />
         </Stack>
       </Card>
 
       <Card padding="lg">
-        <Text size="sm" fw={600} mb="md">의뢰인 정보</Text>
-        <Stack gap="sm">
-          <div>
-            <Text size="sm" fw={500} mb={4}>의뢰인 유형</Text>
-            <SegmentedControl
-              size="xs"
-              value={form.clientType}
-              onChange={(val) => h('clientType', val)}
-              data={[
-                { label: '개인', value: 'individual' },
-                { label: '법인', value: 'corporation' },
-              ]}
-            />
-          </div>
-          {form.clientType === 'corporation' && (
-            <>
-              <TextInput label="회사명" placeholder="주식회사 OO" value={form.companyName} onChange={(e) => h('companyName', e.currentTarget.value)} />
-              <SimpleGrid cols={2}>
-                <TextInput label="담당자명" placeholder="김담당" value={form.contactPerson} onChange={(e) => h('contactPerson', e.currentTarget.value)} />
-                <TextInput label="담당자 연락처" placeholder="010-0000-0000" value={form.contactPersonPhone} onChange={(e) => h('contactPersonPhone', e.currentTarget.value)} />
-              </SimpleGrid>
-            </>
-          )}
-          <div>
-            <Group justify="space-between" mb={4}>
-              <Text size="sm" fw={500}>이메일</Text>
-              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientEmails')}>추가</Button>
-            </Group>
-            <Stack gap={4}>
-              {form.clientEmails?.map((email, i) => (
-                <Group key={i} gap={4}>
-                  <TextInput size="sm" type="email" placeholder="client@example.com" value={email} onChange={(e) => handleArrayChange('clientEmails', i, e.currentTarget.value)} style={{ flex: 1 }} />
-                  {form.clientEmails.length > 1 && (
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientEmails', i)}><IconTrash size={12} /></ActionIcon>
-                  )}
-                </Group>
-              ))}
-            </Stack>
-          </div>
-
-          <div>
-            <Group justify="space-between" mb={4}>
-              <Text size="sm" fw={500}>전화번호</Text>
-              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientPhones')}>추가</Button>
-            </Group>
-            <Stack gap={4}>
-              {form.clientPhones?.map((phone, i) => (
-                <Group key={i} gap={4}>
-                  <TextInput size="sm" placeholder="010-1234-5678" value={phone} onChange={(e) => handleArrayChange('clientPhones', i, e.currentTarget.value)} style={{ flex: 1 }} />
-                  {form.clientPhones.length > 1 && (
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientPhones', i)}><IconTrash size={12} /></ActionIcon>
-                  )}
-                </Group>
-              ))}
-            </Stack>
-          </div>
-
-          <TextInput label="생년월일" type="date" value={form.clientBirthdate} onChange={(e) => h('clientBirthdate', e.currentTarget.value)} />
-
-          <Textarea label="메모" placeholder="의뢰인 관련 메모 (선택)" minRows={2} autosize maxRows={4} value={form.clientMemo} onChange={(e) => h('clientMemo', e.currentTarget.value)} />
-
-          {!form.clientEmails?.some((e) => e.trim()) && (
-            <Text size="xs" c="orange">의뢰인 이메일을 입력하면 이메일 탭에서 관련 메일을 자동 검색합니다.</Text>
-          )}
-        </Stack>
+        <ContactList contacts={form.contacts} onChange={(contacts) => h('contacts', contacts)} />
+        {!hasEmail && (
+          <Text size="xs" c="orange" mt="sm">이메일을 입력하면 이메일 탭에서 관련 메일을 자동 검색합니다.</Text>
+        )}
       </Card>
     </SimpleGrid>
     <CaseBillingSummary caseId={caseData.id} />
