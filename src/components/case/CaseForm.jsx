@@ -1,9 +1,20 @@
 import { useState } from 'react'
-import { TextInput, Select, Textarea, Button, Group, Stack, SimpleGrid } from '@mantine/core'
+import { TextInput, Select, Textarea, Button, Group, Stack, SimpleGrid, Switch, Text, Divider } from '@mantine/core'
 import { parseCourtCase } from '../../utils/courtCaseParser'
 
 const CASE_TYPES = ['민사', '형사', '가사', '행정', '기타']
 const CASE_STATUSES = ['접수', '진행', '종결', '보류']
+const CRIMINAL_POSITIONS = [
+  { value: 'defendant', label: '피의자/피고인' },
+  { value: 'complainant', label: '고소인(고소대리)' },
+]
+const CRIMINAL_STAGES = [
+  { value: 'police', label: '경찰 수사' },
+  { value: 'prosecution', label: '검찰' },
+  { value: 'indictment', label: '기소/불기소' },
+  { value: 'trial', label: '재판' },
+  { value: 'verdict', label: '판결' },
+]
 
 export default function CaseForm({ initialData, onSubmit, onCancel }) {
   const isEditing = !!initialData
@@ -20,6 +31,11 @@ export default function CaseForm({ initialData, onSubmit, onCancel }) {
     court: initialData?.court || '',
     division: initialData?.division || '',
     tags: initialData?.tags?.join(', ') || '',
+    // criminal fields
+    criminalPosition: initialData?.criminalInfo?.position || 'defendant',
+    criminalStage: initialData?.criminalInfo?.currentStage || 'police',
+    criminalCharges: initialData?.criminalInfo?.charges || '',
+    criminalDetained: initialData?.criminalInfo?.detained || false,
   })
 
   const [pasteText, setPasteText] = useState('')
@@ -58,9 +74,18 @@ export default function CaseForm({ initialData, onSubmit, onCancel }) {
 
     setIsSubmitting(true)
     try {
+      const { criminalPosition, criminalStage, criminalCharges, criminalDetained, ...rest } = form
       const data = {
-        ...form,
+        ...rest,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      }
+      if (form.type === '형사') {
+        data.criminalInfo = {
+          position: criminalPosition,
+          currentStage: criminalStage,
+          charges: criminalCharges,
+          detained: criminalDetained,
+        }
       }
       if (!isEditing) {
         const year = new Date().getFullYear()
@@ -159,6 +184,37 @@ export default function CaseForm({ initialData, onSubmit, onCancel }) {
             onChange={(e) => handleChange('division', e.currentTarget.value)}
           />
         </SimpleGrid>
+
+        {form.type === '형사' && (
+          <>
+            <Divider label="형사사건 정보" labelPosition="center" />
+            <SimpleGrid cols={2}>
+              <Select
+                label="의뢰인 포지션"
+                data={CRIMINAL_POSITIONS}
+                value={form.criminalPosition}
+                onChange={(val) => handleChange('criminalPosition', val)}
+              />
+              <Select
+                label="현재 단계"
+                data={CRIMINAL_STAGES}
+                value={form.criminalStage}
+                onChange={(val) => handleChange('criminalStage', val)}
+              />
+            </SimpleGrid>
+            <TextInput
+              label="죄명(혐의)"
+              placeholder="사기, 횡령 등"
+              value={form.criminalCharges}
+              onChange={(e) => handleChange('criminalCharges', e.currentTarget.value)}
+            />
+            <Switch
+              label="구속 여부"
+              checked={form.criminalDetained}
+              onChange={(e) => handleChange('criminalDetained', e.currentTarget.checked)}
+            />
+          </>
+        )}
 
         <SimpleGrid cols={2}>
           <TextInput

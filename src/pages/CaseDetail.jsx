@@ -18,6 +18,7 @@ import Timeline from '../components/case/Timeline'
 import EmailList from '../components/case/EmailList'
 import DocumentList from '../components/case/DocumentList'
 import ConsultRecordTab from '../components/case/ConsultRecordTab'
+import CriminalInfoSection from '../components/case/CriminalInfoSection'
 import { getDday } from '../utils/dateUtils'
 
 const CASE_TYPES = ['\uBBFC\uC0AC', '\uD615\uC0AC', '\uAC00\uC0AC', '\uD589\uC815', '\uAE30\uD0C0']
@@ -273,7 +274,10 @@ function InfoTab({ caseData }) {
     )
   }
 
+  const isCriminal = caseData.type === '형사'
+
   return (
+    <Stack gap="md">
     <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
       <Card padding="lg">
         <Group justify="space-between" mb="md">
@@ -409,6 +413,8 @@ function InfoTab({ caseData }) {
         </Stack>
       </Card>
     </SimpleGrid>
+    {isCriminal && <CriminalInfoSection caseData={caseData} />}
+    </Stack>
   )
 }
 
@@ -451,6 +457,12 @@ export default function CaseDetail() {
               <Group gap="xs">
                 <Text size="lg" fw={700} truncate>{currentCase.clientName}</Text>
                 <Badge status={currentCase.status} />
+                {currentCase.type === '형사' && (
+                  <MantineBadge size="xs" variant="light" color="violet">형사</MantineBadge>
+                )}
+                {currentCase.criminalInfo?.detained && (
+                  <MantineBadge size="xs" variant="filled" color="red">구속중</MantineBadge>
+                )}
               </Group>
               <Text size="sm" c="dimmed" ff="monospace">
                 {currentCase.caseNumber || '\uC0AC\uAC74\uBC88\uD638 \uBBF8\uC815'}

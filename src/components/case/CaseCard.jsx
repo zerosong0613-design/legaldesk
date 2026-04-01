@@ -36,6 +36,12 @@ export default function CaseCard({ caseData, onClick, onEdit, onDelete, isFavori
               {caseData.caseNumber || '\uBC88\uD638 \uBBF8\uC815'}
             </Text>
             <Badge status={caseData.status} />
+            {caseData.type === '형사' && (
+              <MantineBadge size="xs" variant="light" color="violet">형사</MantineBadge>
+            )}
+            {caseData.criminalInfo?.detained && (
+              <MantineBadge size="xs" variant="filled" color="red">구속중</MantineBadge>
+            )}
           </Group>
           <Text fw={600} truncate>{caseData.clientName}</Text>
         </div>

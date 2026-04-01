@@ -10,7 +10,8 @@ import { createCalendarEvent, deleteCalendarEvent, fetchCalendarEvents, matchEve
 import { readCaseDetail, writeCaseDetail } from '../../api/drive'
 import { formatDateWithDay, parseCalendarTitle } from '../../utils/dateUtils'
 
-const HEARING_TYPES = ['\uBCC0\uB860', '\uC870\uC815', '\uC120\uACE0', '\uC99D\uC778\uC2E0\uBB38', '\uAC10\uC815', '\uAE30\uD0C0']
+const HEARING_TYPES_CIVIL = ['변론', '조정', '선고', '증인신문', '감정', '기타']
+const HEARING_TYPES_CRIMINAL = ['공판', '경찰 조사', '검찰 조사', '영장실질심사', '변론', '선고', '기타']
 
 function getDday(dateStr) {
   const diff = Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24))
@@ -57,8 +58,11 @@ export default function HearingList({ caseData }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [calendarEvents, setCalendarEvents] = useState(null)
+  const isCriminal = caseData.type === '형사'
+  const HEARING_TYPES = isCriminal ? HEARING_TYPES_CRIMINAL : HEARING_TYPES_CIVIL
+  const defaultType = isCriminal ? '공판' : '변론'
   const [form, setForm] = useState({
-    datetime: '', type: '\uBCC0\uB860', court: caseData.court || '', room: '', note: '',
+    datetime: '', type: defaultType, court: caseData.court || '', room: '', note: '',
   })
 
   const hearings = [...(caseData.hearings || [])].sort((a, b) => new Date(a.datetime) - new Date(b.datetime))
@@ -128,7 +132,7 @@ export default function HearingList({ caseData }) {
       if (nextHearing) await updateCase(caseData.id, { nextHearingDate: nextHearing.datetime })
       await loadCaseDetail(caseData.id)
       setShowForm(false)
-      setForm({ datetime: '', type: '\uBCC0\uB860', court: caseData.court || '', room: '', note: '' })
+      setForm({ datetime: '', type: defaultType, court: caseData.court || '', room: '', note: '' })
       showToast('\uAE30\uC77C\uC774 \uCD94\uAC00\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
     } catch (err) { showToast(`\uAE30\uC77C \uCD94\uAC00 \uC2E4\uD328: ${err.message}`, 'error') }
     finally { setIsSubmitting(false) }
