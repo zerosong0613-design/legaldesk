@@ -7,7 +7,7 @@ import {
 } from '@mantine/core'
 import {
   IconLogout, IconHome, IconScale, IconFileText,
-  IconReceipt, IconUsers, IconBuilding,
+  IconReceipt, IconUsers, IconBuilding, IconShieldLock,
 } from '@tabler/icons-react'
 import { useAuthStore } from '../../auth/useAuth'
 import { useCaseStore } from '../../store/caseStore'
@@ -23,11 +23,16 @@ export default function Layout({ children }) {
   const isShared = workspace?.type === 'shared'
   const isDashboard = location.pathname === '/'
 
-  const activeCases = cases.filter((c) => c.status === '\uC9C4\uD589' || c.status === '\uC811\uC218').length
-  const activeConsults = consultations.filter((c) => c.status === '\uC9C4\uD589' || c.status === '\uC811\uC218').length
+  const activeCases = cases.filter((c) => c.type !== '형사' && (c.status === '진행' || c.status === '접수')).length
+  const activeCriminal = cases.filter((c) => c.type === '형사' && (c.status === '진행' || c.status === '접수')).length
+  const activeConsults = consultations.filter((c) => c.status === '진행' || c.status === '접수').length
 
   const handleNavCases = () => {
     navigate('/cases')
+    setNavOpened(false)
+  }
+  const handleNavCriminal = () => {
+    navigate('/criminal')
     setNavOpened(false)
   }
 
@@ -110,6 +115,19 @@ export default function Layout({ children }) {
               onClick={handleNavCases}
               rightSection={
                 <Badge size="xs" variant="light" color="blue">{activeCases}</Badge>
+              }
+            />
+
+            {/* 형사사건 */}
+            <NavLink
+              label="형사사건"
+              leftSection={<IconShieldLock size={18} />}
+              active={location.pathname.startsWith('/criminal')}
+              color="red"
+              variant="light"
+              onClick={handleNavCriminal}
+              rightSection={
+                <Badge size="xs" variant="light" color="red">{activeCriminal}</Badge>
               }
             />
 

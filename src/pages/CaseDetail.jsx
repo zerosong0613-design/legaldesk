@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Group, Text, ActionIcon, Tabs, Center, Loader,
   Container, Stack, Box, Card, SimpleGrid, Badge as MantineBadge,
-  TextInput, Textarea, Select, Button,
+  TextInput, Textarea, Select, Button, SegmentedControl,
 } from '@mantine/core'
 import {
   IconArrowLeft, IconTimeline, IconCalendarEvent, IconMessageCircle,
@@ -18,12 +18,11 @@ import Timeline from '../components/case/Timeline'
 import EmailList from '../components/case/EmailList'
 import DocumentList from '../components/case/DocumentList'
 import ConsultRecordTab from '../components/case/ConsultRecordTab'
-import CriminalInfoSection from '../components/case/CriminalInfoSection'
 import CaseBillingSummary from '../components/case/CaseBillingSummary'
 import CaseBillingTab from '../components/case/CaseBillingTab'
 import { getDday } from '../utils/dateUtils'
 
-const CASE_TYPES = ['\uBBFC\uC0AC', '\uD615\uC0AC', '\uAC00\uC0AC', '\uD589\uC815', '\uAE30\uD0C0']
+const CASE_TYPES = ['민사', '가사', '행정', '기타']
 const CASE_STATUSES = ['\uC811\uC218', '\uC9C4\uD589', '\uC885\uACB0', '\uBCF4\uB958']
 
 const TABS = [
@@ -61,6 +60,10 @@ function InfoTab({ caseData }) {
     clientBirthdate: caseData.clientBirthdate || '',
     clientMemo: caseData.clientMemo || '',
     tags: caseData.tags?.join(', ') || '',
+    clientType: caseData.clientType || 'individual',
+    companyName: caseData.companyName || '',
+    contactPerson: caseData.contactPerson || '',
+    contactPersonPhone: caseData.contactPersonPhone || '',
   })
 
   const handleSave = async () => {
@@ -102,8 +105,6 @@ function InfoTab({ caseData }) {
 
   const dday = getDday(caseData.nextHearingDate)
   const ddayText = dday === null ? null : dday === 0 ? 'D-Day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`
-  const isCriminal = form.type === '형사'
-
   return (
     <Stack gap="md">
     <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
@@ -160,8 +161,29 @@ function InfoTab({ caseData }) {
       </Card>
 
       <Card padding="lg">
-        <Text size="sm" fw={600} mb="md">연락처</Text>
+        <Text size="sm" fw={600} mb="md">의뢰인 정보</Text>
         <Stack gap="sm">
+          <div>
+            <Text size="sm" fw={500} mb={4}>의뢰인 유형</Text>
+            <SegmentedControl
+              size="xs"
+              value={form.clientType}
+              onChange={(val) => h('clientType', val)}
+              data={[
+                { label: '개인', value: 'individual' },
+                { label: '법인', value: 'corporation' },
+              ]}
+            />
+          </div>
+          {form.clientType === 'corporation' && (
+            <>
+              <TextInput label="회사명" placeholder="주식회사 OO" value={form.companyName} onChange={(e) => h('companyName', e.currentTarget.value)} />
+              <SimpleGrid cols={2}>
+                <TextInput label="담당자명" placeholder="김담당" value={form.contactPerson} onChange={(e) => h('contactPerson', e.currentTarget.value)} />
+                <TextInput label="담당자 연락처" placeholder="010-0000-0000" value={form.contactPersonPhone} onChange={(e) => h('contactPersonPhone', e.currentTarget.value)} />
+              </SimpleGrid>
+            </>
+          )}
           <div>
             <Group justify="space-between" mb={4}>
               <Text size="sm" fw={500}>이메일</Text>
@@ -206,7 +228,6 @@ function InfoTab({ caseData }) {
         </Stack>
       </Card>
     </SimpleGrid>
-    {isCriminal && <CriminalInfoSection caseData={caseData} />}
     <CaseBillingSummary caseId={caseData.id} />
     </Stack>
   )
@@ -251,12 +272,6 @@ export default function CaseDetail() {
               <Group gap="xs">
                 <Text size="lg" fw={700} truncate>{currentCase.clientName}</Text>
                 <Badge status={currentCase.status} />
-                {currentCase.type === '형사' && (
-                  <MantineBadge size="xs" variant="light" color="violet">형사</MantineBadge>
-                )}
-                {currentCase.criminalInfo?.detained && (
-                  <MantineBadge size="xs" variant="filled" color="red">구속중</MantineBadge>
-                )}
               </Group>
               <Text size="sm" c="dimmed" ff="monospace">
                 {currentCase.caseNumber || '\uC0AC\uAC74\uBC88\uD638 \uBBF8\uC815'}

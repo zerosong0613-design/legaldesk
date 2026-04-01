@@ -11,6 +11,8 @@ import CaseList from './pages/CaseList'
 import ConsultationList from './pages/ConsultationList'
 import CaseDetail from './pages/CaseDetail'
 import ConsultationDetail from './pages/ConsultationDetail'
+import CriminalList from './pages/CriminalList'
+import CriminalDetail from './pages/CriminalDetail'
 import Billing from './pages/Billing'
 import WorkspaceSettings from './pages/WorkspaceSettings'
 
@@ -67,8 +69,10 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/cases" element={<CaseList />} />
+        <Route path="/criminal" element={<CriminalList />} />
         <Route path="/consultations" element={<ConsultationList />} />
         <Route path="/case/:id" element={<CaseDetail />} />
+        <Route path="/criminal/:id" element={<CriminalDetail />} />
         <Route path="/consultation/:id" element={<ConsultationDetail />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/workspace" element={<WorkspaceSettings />} />

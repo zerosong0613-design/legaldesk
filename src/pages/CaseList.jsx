@@ -62,8 +62,10 @@ export default function CaseList() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
 
+  const civilCases = useMemo(() => cases.filter((c) => c.type !== '형사'), [cases])
+
   const filtered = useMemo(() => {
-    let result = cases
+    let result = civilCases
     if (showFavoritesOnly) result = result.filter((c) => favorites.includes(c.id))
     if (statusFilter) result = result.filter((c) => c.status === statusFilter)
     if (searchQuery.trim()) {
@@ -77,7 +79,7 @@ export default function CaseList() {
       if (bFav !== aFav) return bFav - aFav
       return new Date(b.lastActivityAt || 0) - new Date(a.lastActivityAt || 0)
     })
-  }, [cases, statusFilter, searchQuery, favorites, showFavoritesOnly])
+  }, [civilCases, statusFilter, searchQuery, favorites, showFavoritesOnly])
 
   const handleCreate = async (data) => {
     const result = await createCase(data)
@@ -101,7 +103,7 @@ export default function CaseList() {
             <Group gap="xs">
               <IconScale size={22} color="var(--mantine-color-blue-6)" />
               <Text size="lg" fw={700}>{'\uC0AC\uAC74 \uAD00\uB9AC'}</Text>
-              <Badge variant="light" color="blue" size="lg">{cases.length}</Badge>
+              <Badge variant="light" color="blue" size="lg">{civilCases.length}</Badge>
             </Group>
             <Group gap="xs">
               <SegmentedControl
@@ -139,7 +141,7 @@ export default function CaseList() {
               {'\uC990\uACA8\uCC3E\uAE30'}
             </Button>
             {STATUS_FILTERS.map((f) => {
-              const count = f.value ? cases.filter((c) => c.status === f.value).length : cases.length
+              const count = f.value ? civilCases.filter((c) => c.status === f.value).length : civilCases.length
               return (
                 <Button
                   key={f.label}
@@ -159,11 +161,11 @@ export default function CaseList() {
           {filtered.length === 0 ? (
             <Stack align="center" py="xl" gap="xs">
               <Text c="dimmed">
-                {cases.length === 0
+                {civilCases.length === 0
                   ? '\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC0AC\uAC74\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'
                   : '\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}
               </Text>
-              {cases.length === 0 && (
+              {civilCases.length === 0 && (
                 <Button variant="subtle" onClick={() => openModal('createCase')}>
                   {'\uCCAB \uBC88\uC9F8 \uC0AC\uAC74 \uB4F1\uB85D\uD558\uAE30'}
                 </Button>
