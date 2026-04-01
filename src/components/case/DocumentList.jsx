@@ -8,11 +8,11 @@ import {
   IconExternalLink, IconRefresh, IconFile, IconPhoto,
   IconFileTypePdf, IconFileText, IconFileSpreadsheet,
   IconFileZip, IconMovie, IconNote, IconCheck, IconX,
-  IconChevronRight,
+  IconChevronRight, IconEdit,
 } from '@tabler/icons-react'
 import {
   listFilesInFolder, uploadFileToDrive, deleteFile,
-  createSubFolder, updateFileDescription, getFileMetadata,
+  createSubFolder, updateFileDescription, getFileMetadata, renameFile,
 } from '../../api/drive'
 import { useUiStore } from '../../store/uiStore'
 
@@ -56,7 +56,7 @@ function formatFileDate(dateStr) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
-function FileCard({ file, onNavigateFolder, onDelete, onMemoSaved }) {
+function FileCard({ file, onNavigateFolder, onDelete, onMemoSaved, onRenamed }) {
   const isFolder = file.mimeType === FOLDER_MIME
   const FileIcon = getFileIcon(file.mimeType)
   const iconColor = getFileIconColor(file.mimeType)
@@ -66,6 +66,26 @@ function FileCard({ file, onNavigateFolder, onDelete, onMemoSaved }) {
   const [memo, setMemo] = useState(file.description || '')
   const [editingMemo, setEditingMemo] = useState(false)
   const [savingMemo, setSavingMemo] = useState(false)
+
+  // Rename state
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [newName, setNewName] = useState(file.name)
+  const [savingName, setSavingName] = useState(false)
+
+  const handleRename = async () => {
+    if (!newName.trim() || newName.trim() === file.name) { setIsRenaming(false); return }
+    setSavingName(true)
+    try {
+      await renameFile(file.id, newName.trim())
+      showToast('이름이 변경되었습니다.', 'success')
+      setIsRenaming(false)
+      if (onRenamed) onRenamed(file.id, newName.trim())
+    } catch (err) {
+      showToast(`이름 변경 실패: ${err.message}`, 'error')
+    } finally {
+      setSavingName(false)
+    }
+  }
 
   const handleSaveMemo = async () => {
     setSavingMemo(true)
@@ -98,12 +118,32 @@ function FileCard({ file, onNavigateFolder, onDelete, onMemoSaved }) {
         </ThemeIcon>
         <Box
           style={{ flex: 1, minWidth: 0, cursor: isFolder ? 'pointer' : undefined }}
-          onClick={isFolder ? () => onNavigateFolder(file) : () => setExpanded(!expanded)}
+          onClick={isFolder && !isRenaming ? () => onNavigateFolder(file) : !isRenaming ? () => setExpanded(!expanded) : undefined}
         >
+          {isRenaming ? (
+            <Group gap={4} wrap="nowrap">
+              <TextInput
+                size="xs"
+                value={newName}
+                onChange={(e) => setNewName(e.currentTarget.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setIsRenaming(false) }}
+                style={{ flex: 1 }}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+              <ActionIcon size="sm" color="teal" variant="light" onClick={(e) => { e.stopPropagation(); handleRename() }} loading={savingName}>
+                <IconCheck size={12} />
+              </ActionIcon>
+              <ActionIcon size="sm" color="gray" variant="subtle" onClick={(e) => { e.stopPropagation(); setIsRenaming(false); setNewName(file.name) }}>
+                <IconX size={12} />
+              </ActionIcon>
+            </Group>
+          ) : (
           <Text size="sm" fw={500} truncate c={isFolder ? 'yellow.8' : undefined}>
             {file.name}
             {isFolder && <IconChevronRight size={12} style={{ marginLeft: 4, verticalAlign: 'middle' }} />}
           </Text>
+          )}
           <Group gap="xs">
             {!isFolder && file.size && (
               <Text size="xs" c="dimmed">{formatFileSize(file.size)}</Text>
@@ -118,6 +158,15 @@ function FileCard({ file, onNavigateFolder, onDelete, onMemoSaved }) {
           </Group>
         </Box>
         <Group gap={4}>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); setIsRenaming(true); setNewName(file.name) }}
+            title="이름 변경"
+          >
+            <IconEdit size={14} />
+          </ActionIcon>
           {!isFolder && (
             <ActionIcon
               variant="subtle"
@@ -318,6 +367,10 @@ export default function DocumentList({ caseData }) {
     setFiles((prev) => prev.map((f) => f.id === fileId ? { ...f, description: memo } : f))
   }
 
+  const handleRenamed = (fileId, newName) => {
+    setFiles((prev) => prev.map((f) => f.id === fileId ? { ...f, name: newName } : f))
+  }
+
   if (!rootFolderId) {
     return (
       <Center py="xl">
@@ -487,6 +540,7 @@ export default function DocumentList({ caseData }) {
             onNavigateFolder={handleNavigateFolder}
             onDelete={handleDelete}
             onMemoSaved={handleMemoSaved}
+            onRenamed={handleRenamed}
           />
         ))}
       </Stack>

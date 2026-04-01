@@ -298,6 +298,15 @@ export async function updateFileDescription(fileId, description) {
   return res.json()
 }
 
+export async function renameFile(fileId, name) {
+  const res = await driveRequest(`${DRIVE_API}/files/${fileId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': JSON_MIME },
+    body: JSON.stringify({ name }),
+  })
+  return res.json()
+}
+
 export async function getFileMetadata(fileId) {
   const res = await driveRequest(
     `${DRIVE_API}/files/${fileId}?fields=id,name,mimeType,size,description,createdTime,modifiedTime,webViewLink`
