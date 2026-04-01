@@ -142,9 +142,7 @@ function DeadlineCard({ caseData, onUpdate }) {
 function InfoTab({ caseData }) {
   const { updateConsultation, loadCaseDetail } = useCaseStore()
   const { showToast } = useUiStore()
-  const [editing, setEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [form, setForm] = useState({})
 
   function toArray(val) {
     if (Array.isArray(val)) return val.length > 0 ? val : ['']
@@ -152,22 +150,19 @@ function InfoTab({ caseData }) {
     return ['']
   }
 
-  const startEdit = () => {
-    setForm({
-      clientName: caseData.clientName || '',
-      type: caseData.type || '\uACC4\uC57D\uAC80\uD1A0',
-      status: caseData.status || '\uC811\uC218',
-      subject: caseData.subject || '',
-      deadline: caseData.deadline || '',
-      clientEmails: toArray(caseData.clientEmails || caseData.clientEmail),
-      clientPhones: toArray(caseData.clientPhones || caseData.clientPhone),
-      tags: caseData.tags?.join(', ') || '',
-      note: caseData.note || '',
-    })
-    setEditing(true)
-  }
+  const [form, setForm] = useState({
+    clientName: caseData.clientName || '',
+    type: caseData.type || '계약검토',
+    status: caseData.status || '접수',
+    subject: caseData.subject || '',
+    deadline: caseData.deadline || '',
+    clientEmails: toArray(caseData.clientEmails || caseData.clientEmail),
+    clientPhones: toArray(caseData.clientPhones || caseData.clientPhone),
+    tags: caseData.tags?.join(', ') || '',
+    note: caseData.note || '',
+  })
 
-  const cancelEdit = () => setEditing(false)
+  const h = (name, value) => setForm({ ...form, [name]: value })
 
   const handleSave = async () => {
     if (!form.clientName.trim()) return
@@ -185,27 +180,20 @@ function InfoTab({ caseData }) {
       }
       await updateConsultation(caseData.id, data)
       await loadCaseDetail(caseData.id)
-      setEditing(false)
-      showToast('\uC790\uBB38 \uC815\uBCF4\uAC00 \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
+      showToast('자문 정보가 저장되었습니다.', 'success')
     } catch (err) {
-      showToast(`\uC218\uC815 \uC2E4\uD328: ${err.message}`, 'error')
+      showToast(`저장 실패: ${err.message}`, 'error')
     } finally {
       setIsSaving(false)
     }
   }
-
-  const handleChange = (name, value) => setForm({ ...form, [name]: value })
 
   const handleArrayChange = (field, index, value) => {
     const arr = [...form[field]]
     arr[index] = value
     setForm({ ...form, [field]: arr })
   }
-
-  const handleArrayAdd = (field) => {
-    setForm({ ...form, [field]: [...form[field], ''] })
-  }
-
+  const handleArrayAdd = (field) => setForm({ ...form, [field]: [...form[field], ''] })
   const handleArrayRemove = (field, index) => {
     const arr = form[field].filter((_, i) => i !== index)
     setForm({ ...form, [field]: arr.length > 0 ? arr : [''] })
@@ -216,228 +204,74 @@ function InfoTab({ caseData }) {
     await loadCaseDetail(caseData.id)
   }
 
-  // --- \uC218\uC815 \uBAA8\uB4DC ---
-  if (editing) {
-    return (
-      <Card padding="md">
-        <Group justify="space-between" mb="md">
-          <Text size="sm" fw={600}>{'\uC790\uBB38 \uC815\uBCF4 \uC218\uC815'}</Text>
-          <Group gap={4}>
-            <Button size="xs" variant="subtle" color="gray" leftSection={<IconX size={14} />} onClick={cancelEdit}>
-              {'\uCDE8\uC18C'}
-            </Button>
-            <Button size="xs" leftSection={<IconCheck size={14} />} onClick={handleSave} loading={isSaving}>
-              {'\uC800\uC7A5'}
-            </Button>
-          </Group>
-        </Group>
-
-        <Stack gap="sm">
-          <SimpleGrid cols={2}>
-            <TextInput
-              label={'\uC758\uB8B0\uC778'}
-              value={form.clientName}
-              onChange={(e) => handleChange('clientName', e.currentTarget.value)}
-              required
-            />
-            <Select
-              label={'\uC790\uBB38 \uC720\uD615'}
-              data={CONSULT_TYPES}
-              value={form.type}
-              onChange={(val) => handleChange('type', val)}
-            />
-          </SimpleGrid>
-
-          <TextInput
-            label={'\uC8FC\uC81C'}
-            value={form.subject}
-            onChange={(e) => handleChange('subject', e.currentTarget.value)}
-          />
-
-          <SimpleGrid cols={2}>
-            <Select
-              label={'\uC0C1\uD0DC'}
-              data={CONSULT_STATUSES}
-              value={form.status}
-              onChange={(val) => handleChange('status', val)}
-            />
-            <TextInput
-              label={'\uB9C8\uAC10\uC77C'}
-              type="date"
-              value={form.deadline}
-              onChange={(e) => handleChange('deadline', e.currentTarget.value)}
-            />
-          </SimpleGrid>
-
-          {/* \uC774\uBA54\uC77C \uBCF5\uC218 */}
-          <div>
-            <Group justify="space-between" mb={4}>
-              <Text size="sm" fw={500}>{'\uC774\uBA54\uC77C'}</Text>
-              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientEmails')}>
-                {'\uCD94\uAC00'}
-              </Button>
-            </Group>
-            <Stack gap={4}>
-              {form.clientEmails?.map((email, i) => (
-                <Group key={i} gap={4}>
-                  <TextInput
-                    size="sm"
-                    type="email"
-                    placeholder="client@example.com"
-                    value={email}
-                    onChange={(e) => handleArrayChange('clientEmails', i, e.currentTarget.value)}
-                    style={{ flex: 1 }}
-                  />
-                  {form.clientEmails.length > 1 && (
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientEmails', i)}>
-                      <IconTrash size={12} />
-                    </ActionIcon>
-                  )}
-                </Group>
-              ))}
-            </Stack>
-          </div>
-
-          {/* \uC804\uD654\uBC88\uD638 \uBCF5\uC218 */}
-          <div>
-            <Group justify="space-between" mb={4}>
-              <Text size="sm" fw={500}>{'\uC804\uD654\uBC88\uD638'}</Text>
-              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientPhones')}>
-                {'\uCD94\uAC00'}
-              </Button>
-            </Group>
-            <Stack gap={4}>
-              {form.clientPhones?.map((phone, i) => (
-                <Group key={i} gap={4}>
-                  <TextInput
-                    size="sm"
-                    type="tel"
-                    placeholder="010-0000-0000"
-                    value={phone}
-                    onChange={(e) => handleArrayChange('clientPhones', i, e.currentTarget.value)}
-                    style={{ flex: 1 }}
-                  />
-                  {form.clientPhones.length > 1 && (
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientPhones', i)}>
-                      <IconTrash size={12} />
-                    </ActionIcon>
-                  )}
-                </Group>
-              ))}
-            </Stack>
-          </div>
-
-          <TextInput
-            label={'\uD0DC\uADF8'}
-            placeholder={'\uC27C\uD45C\uB85C \uAD6C\uBD84 (\uC608: \uACC4\uC57D, \uAC80\uD1A0)'}
-            value={form.tags}
-            onChange={(e) => handleChange('tags', e.currentTarget.value)}
-          />
-
-          <Textarea
-            label={'\uBA54\uBAA8'}
-            placeholder={'\uC790\uBB38 \uAD00\uB828 \uBA54\uBAA8'}
-            value={form.note}
-            onChange={(e) => handleChange('note', e.currentTarget.value)}
-            minRows={2}
-          />
-        </Stack>
-      </Card>
-    )
-  }
-
-  // --- \uBCF4\uAE30 \uBAA8\uB4DC ---
-  const emails = caseData.clientEmails?.length > 0 ? caseData.clientEmails : (caseData.clientEmail ? [caseData.clientEmail] : [])
-  const phones = caseData.clientPhones?.length > 0 ? caseData.clientPhones : (caseData.clientPhone ? [caseData.clientPhone] : [])
-
   return (
     <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-      {/* 자문 정보 */}
       <Stack gap="md">
         <DeadlineCard caseData={caseData} onUpdate={handleUpdate} />
 
         <Card padding="lg">
           <Group justify="space-between" mb="md">
-            <Text size="sm" fw={600}>{'\uC790\uBB38 \uC815\uBCF4'}</Text>
-            <Button
-              variant="subtle"
-              color="gray"
-              size="xs"
-              leftSection={<IconEdit size={14} />}
-              onClick={startEdit}
-            >
-              {'\uC218\uC815'}
+            <Text size="sm" fw={600}>자문 정보</Text>
+            <Button size="xs" leftSection={<IconCheck size={14} />} onClick={handleSave} loading={isSaving}>
+              저장
             </Button>
           </Group>
 
           <Stack gap="sm">
             <SimpleGrid cols={2}>
-              <div>
-                <Text size="xs" c="dimmed">{'\uC758\uB8B0\uC778'}</Text>
-                <Text size="sm" fw={500}>{caseData.clientName}</Text>
-              </div>
-              <div>
-                <Text size="xs" c="dimmed">{'\uC790\uBB38 \uC720\uD615'}</Text>
-                <Text size="sm">{caseData.type || '-'}</Text>
-              </div>
+              <TextInput label="의뢰인" value={form.clientName} onChange={(e) => h('clientName', e.currentTarget.value)} required />
+              <Select label="자문 유형" data={CONSULT_TYPES} value={form.type} onChange={(val) => h('type', val)} />
             </SimpleGrid>
+
+            <TextInput label="주제" value={form.subject} onChange={(e) => h('subject', e.currentTarget.value)} />
 
             <SimpleGrid cols={2}>
-              <div>
-                <Text size="xs" c="dimmed">{'\uC0C1\uD0DC'}</Text>
-                <Badge status={caseData.status} />
-              </div>
-              <div>
-                <Text size="xs" c="dimmed">{'\uB4F1\uB85D\uC77C'}</Text>
-                <Text size="sm">{caseData.openedAt || '-'}</Text>
-              </div>
+              <Select label="상태" data={CONSULT_STATUSES} value={form.status} onChange={(val) => h('status', val)} />
+              <TextInput label="마감일" type="date" value={form.deadline} onChange={(e) => h('deadline', e.currentTarget.value)} />
             </SimpleGrid>
 
-            {caseData.subject && (
-              <div>
-                <Text size="xs" c="dimmed">{'\uC8FC\uC81C'}</Text>
-                <Text size="sm">{caseData.subject}</Text>
-              </div>
-            )}
+            <TextInput label="태그" placeholder="쉼표로 구분 (예: 계약, 검토)" value={form.tags} onChange={(e) => h('tags', e.currentTarget.value)} />
 
-            {caseData.tags?.length > 0 && (
-              <div>
-                <Text size="xs" c="dimmed" mb={4}>{'\uD0DC\uADF8'}</Text>
-                <Group gap={4}>
-                  {caseData.tags.map((tag) => (
-                    <MantineBadge key={tag} variant="light" color="gray" size="xs">
-                      {tag}
-                    </MantineBadge>
-                  ))}
-                </Group>
-              </div>
-            )}
-
-            {caseData.note && (
-              <div>
-                <Text size="xs" c="dimmed">{'\uBA54\uBAA8'}</Text>
-                <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{caseData.note}</Text>
-              </div>
-            )}
+            <Textarea label="메모" placeholder="자문 관련 메모" value={form.note} onChange={(e) => h('note', e.currentTarget.value)} minRows={2} autosize />
           </Stack>
         </Card>
       </Stack>
 
-      {/* 연락처 */}
       <Card padding="lg">
-        <Text size="sm" fw={600} mb="md">{'\uC5F0\uB77D\uCC98'}</Text>
+        <Text size="sm" fw={600} mb="md">연락처</Text>
         <Stack gap="sm">
           <div>
-            <Text size="xs" c="dimmed">{'\uC774\uBA54\uC77C'}</Text>
-            {emails.length > 0 ? emails.map((e, i) => (
-              <Text key={i} size="sm">{e}</Text>
-            )) : <Text size="sm" c="dimmed">-</Text>}
+            <Group justify="space-between" mb={4}>
+              <Text size="sm" fw={500}>이메일</Text>
+              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientEmails')}>추가</Button>
+            </Group>
+            <Stack gap={4}>
+              {form.clientEmails?.map((email, i) => (
+                <Group key={i} gap={4}>
+                  <TextInput size="sm" type="email" placeholder="client@example.com" value={email} onChange={(e) => handleArrayChange('clientEmails', i, e.currentTarget.value)} style={{ flex: 1 }} />
+                  {form.clientEmails.length > 1 && (
+                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientEmails', i)}><IconTrash size={12} /></ActionIcon>
+                  )}
+                </Group>
+              ))}
+            </Stack>
           </div>
+
           <div>
-            <Text size="xs" c="dimmed">{'\uC804\uD654\uBC88\uD638'}</Text>
-            {phones.length > 0 ? phones.map((p, i) => (
-              <Text key={i} size="sm">{p}</Text>
-            )) : <Text size="sm" c="dimmed">-</Text>}
+            <Group justify="space-between" mb={4}>
+              <Text size="sm" fw={500}>전화번호</Text>
+              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientPhones')}>추가</Button>
+            </Group>
+            <Stack gap={4}>
+              {form.clientPhones?.map((phone, i) => (
+                <Group key={i} gap={4}>
+                  <TextInput size="sm" placeholder="010-0000-0000" value={phone} onChange={(e) => handleArrayChange('clientPhones', i, e.currentTarget.value)} style={{ flex: 1 }} />
+                  {form.clientPhones.length > 1 && (
+                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientPhones', i)}><IconTrash size={12} /></ActionIcon>
+                  )}
+                </Group>
+              ))}
+            </Stack>
           </div>
         </Stack>
       </Card>

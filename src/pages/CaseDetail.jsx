@@ -39,37 +39,29 @@ const TABS = [
 function InfoTab({ caseData }) {
   const { updateCase, loadCaseDetail } = useCaseStore()
   const { showToast } = useUiStore()
-  const [editing, setEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [form, setForm] = useState({})
 
-  // normalize emails/phones: support both old string and new array format
   function toArray(val) {
     if (Array.isArray(val)) return val.length > 0 ? val : ['']
     if (val) return [val]
     return ['']
   }
 
-  const startEdit = () => {
-    setForm({
-      clientName: caseData.clientName || '',
-      opponent: caseData.opponent || '',
-      caseNumber: caseData.caseNumber || '',
-      caseName: caseData.caseName || '',
-      type: caseData.type || '\uBBFC\uC0AC',
-      status: caseData.status || '\uC811\uC218',
-      court: caseData.court || '',
-      division: caseData.division || '',
-      clientEmails: toArray(caseData.clientEmails || caseData.clientEmail),
-      clientPhones: toArray(caseData.clientPhones || caseData.clientPhone),
-      clientBirthdate: caseData.clientBirthdate || '',
-      clientMemo: caseData.clientMemo || '',
-      tags: caseData.tags?.join(', ') || '',
-    })
-    setEditing(true)
-  }
-
-  const cancelEdit = () => setEditing(false)
+  const [form, setForm] = useState({
+    clientName: caseData.clientName || '',
+    opponent: caseData.opponent || '',
+    caseNumber: caseData.caseNumber || '',
+    caseName: caseData.caseName || '',
+    type: caseData.type || '민사',
+    status: caseData.status || '접수',
+    court: caseData.court || '',
+    division: caseData.division || '',
+    clientEmails: toArray(caseData.clientEmails || caseData.clientEmail),
+    clientPhones: toArray(caseData.clientPhones || caseData.clientPhone),
+    clientBirthdate: caseData.clientBirthdate || '',
+    clientMemo: caseData.clientMemo || '',
+    tags: caseData.tags?.join(', ') || '',
+  })
 
   const handleSave = async () => {
     if (!form.clientName.trim()) return
@@ -82,38 +74,27 @@ function InfoTab({ caseData }) {
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
         clientEmails: emails,
         clientPhones: phones,
-        // keep backward compat: first value as single field
         clientEmail: emails[0] || '',
         clientPhone: phones[0] || '',
       }
-      delete data.clientEmails
-      delete data.clientPhones
-      // save both formats
-      data.clientEmails = emails
-      data.clientPhones = phones
       await updateCase(caseData.id, data)
       await loadCaseDetail(caseData.id)
-      setEditing(false)
-      showToast('\uC0AC\uAC74 \uC815\uBCF4\uAC00 \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
+      showToast('사건 정보가 저장되었습니다.', 'success')
     } catch (err) {
-      showToast(`\uC218\uC815 \uC2E4\uD328: ${err.message}`, 'error')
+      showToast(`저장 실패: ${err.message}`, 'error')
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleChange = (name, value) => setForm({ ...form, [name]: value })
+  const h = (name, value) => setForm({ ...form, [name]: value })
 
   const handleArrayChange = (field, index, value) => {
     const arr = [...form[field]]
     arr[index] = value
     setForm({ ...form, [field]: arr })
   }
-
-  const handleArrayAdd = (field) => {
-    setForm({ ...form, [field]: [...form[field], ''] })
-  }
-
+  const handleArrayAdd = (field) => setForm({ ...form, [field]: [...form[field], ''] })
   const handleArrayRemove = (field, index) => {
     const arr = form[field].filter((_, i) => i !== index)
     setForm({ ...form, [field]: arr.length > 0 ? arr : [''] })
@@ -121,237 +102,52 @@ function InfoTab({ caseData }) {
 
   const dday = getDday(caseData.nextHearingDate)
   const ddayText = dday === null ? null : dday === 0 ? 'D-Day' : dday > 0 ? `D-${dday}` : `D+${Math.abs(dday)}`
-
-  if (editing) {
-    return (
-      <Card padding="md">
-        <Group justify="space-between" mb="md">
-          <Text size="sm" fw={600}>{'\uC0AC\uAC74 \uC815\uBCF4 \uC218\uC815'}</Text>
-          <Group gap={4}>
-            <Button size="xs" variant="subtle" color="gray" leftSection={<IconX size={14} />} onClick={cancelEdit}>
-              {'\uCDE8\uC18C'}
-            </Button>
-            <Button size="xs" leftSection={<IconCheck size={14} />} onClick={handleSave} loading={isSaving}>
-              {'\uC800\uC7A5'}
-            </Button>
-          </Group>
-        </Group>
-
-        <Stack gap="sm">
-          <SimpleGrid cols={2}>
-            <TextInput
-              label={'\uC758\uB8B0\uC778(\uC6D0\uACE0)'}
-              value={form.clientName}
-              onChange={(e) => handleChange('clientName', e.currentTarget.value)}
-              required
-            />
-            <TextInput
-              label={'\uC0C1\uB300\uBC29(\uD53C\uACE0)'}
-              value={form.opponent}
-              onChange={(e) => handleChange('opponent', e.currentTarget.value)}
-            />
-          </SimpleGrid>
-
-          <SimpleGrid cols={2}>
-            <TextInput
-              label={'\uC0AC\uAC74\uBC88\uD638'}
-              value={form.caseNumber}
-              onChange={(e) => handleChange('caseNumber', e.currentTarget.value)}
-            />
-            <Select
-              label={'\uC0AC\uAC74 \uC720\uD615'}
-              data={CASE_TYPES}
-              value={form.type}
-              onChange={(val) => handleChange('type', val)}
-            />
-          </SimpleGrid>
-
-          <TextInput
-            label={'\uC0AC\uAC74\uBA85'}
-            value={form.caseName}
-            onChange={(e) => handleChange('caseName', e.currentTarget.value)}
-          />
-
-          <SimpleGrid cols={2}>
-            <TextInput
-              label={'\uBC95\uC6D0'}
-              value={form.court}
-              onChange={(e) => handleChange('court', e.currentTarget.value)}
-            />
-            <TextInput
-              label={'\uC7AC\uD310\uBD80'}
-              value={form.division}
-              onChange={(e) => handleChange('division', e.currentTarget.value)}
-            />
-          </SimpleGrid>
-
-          <Select
-            label={'\uC0C1\uD0DC'}
-            data={CASE_STATUSES}
-            value={form.status}
-            onChange={(val) => handleChange('status', val)}
-          />
-
-          {/* Multiple emails */}
-          <div>
-            <Group justify="space-between" mb={4}>
-              <Text size="sm" fw={500}>{'\uC774\uBA54\uC77C'}</Text>
-              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientEmails')}>
-                {'\uCD94\uAC00'}
-              </Button>
-            </Group>
-            <Stack gap={4}>
-              {form.clientEmails?.map((email, i) => (
-                <Group key={i} gap={4}>
-                  <TextInput
-                    size="sm"
-                    type="email"
-                    placeholder="client@example.com"
-                    value={email}
-                    onChange={(e) => handleArrayChange('clientEmails', i, e.currentTarget.value)}
-                    style={{ flex: 1 }}
-                  />
-                  {form.clientEmails.length > 1 && (
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientEmails', i)}>
-                      <IconTrash size={12} />
-                    </ActionIcon>
-                  )}
-                </Group>
-              ))}
-            </Stack>
-          </div>
-
-          {/* Multiple phones */}
-          <div>
-            <Group justify="space-between" mb={4}>
-              <Text size="sm" fw={500}>{'\uC804\uD654\uBC88\uD638'}</Text>
-              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientPhones')}>
-                {'\uCD94\uAC00'}
-              </Button>
-            </Group>
-            <Stack gap={4}>
-              {form.clientPhones?.map((phone, i) => (
-                <Group key={i} gap={4}>
-                  <TextInput
-                    size="sm"
-                    placeholder="010-1234-5678"
-                    value={phone}
-                    onChange={(e) => handleArrayChange('clientPhones', i, e.currentTarget.value)}
-                    style={{ flex: 1 }}
-                  />
-                  {form.clientPhones.length > 1 && (
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientPhones', i)}>
-                      <IconTrash size={12} />
-                    </ActionIcon>
-                  )}
-                </Group>
-              ))}
-            </Stack>
-          </div>
-
-          <TextInput
-            label={'생년월일'}
-            type="date"
-            value={form.clientBirthdate}
-            onChange={(e) => handleChange('clientBirthdate', e.currentTarget.value)}
-          />
-
-          <Textarea
-            label={'메모'}
-            placeholder={'의뢰인 관련 메모 (선택)'}
-            minRows={2}
-            autosize
-            maxRows={4}
-            value={form.clientMemo}
-            onChange={(e) => handleChange('clientMemo', e.currentTarget.value)}
-          />
-
-          <TextInput
-            label={'\uD0DC\uADF8'}
-            placeholder={'\uC190\uD574\uBC30\uC0C1, \uACC4\uC57D (\uC274\uD45C\uB85C \uAD6C\uBD84)'}
-            value={form.tags}
-            onChange={(e) => handleChange('tags', e.currentTarget.value)}
-          />
-        </Stack>
-      </Card>
-    )
-  }
-
-  const isCriminal = caseData.type === '형사'
+  const isCriminal = form.type === '형사'
 
   return (
     <Stack gap="md">
     <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
       <Card padding="lg">
         <Group justify="space-between" mb="md">
-          <Text size="sm" fw={600}>{'\uC0AC\uAC74 \uC815\uBCF4'}</Text>
-          <Button size="xs" variant="subtle" color="gray" leftSection={<IconEdit size={14} />} onClick={startEdit}>
-            {'\uC218\uC815'}
+          <Text size="sm" fw={600}>사건 정보</Text>
+          <Button size="xs" leftSection={<IconCheck size={14} />} onClick={handleSave} loading={isSaving}>
+            저장
           </Button>
         </Group>
 
         <Stack gap="sm">
           <SimpleGrid cols={2}>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC758\uB8B0\uC778(\uC6D0\uACE0)'}</Text>
-              <Text size="sm" fw={500}>{caseData.clientName || '-'}</Text>
-            </div>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC0C1\uB300\uBC29(\uD53C\uACE0)'}</Text>
-              <Text size="sm">{caseData.opponent || '-'}</Text>
-            </div>
+            <TextInput label="의뢰인(원고)" value={form.clientName} onChange={(e) => h('clientName', e.currentTarget.value)} required />
+            <TextInput label="상대방(피고)" value={form.opponent} onChange={(e) => h('opponent', e.currentTarget.value)} />
           </SimpleGrid>
 
           <SimpleGrid cols={2}>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC0AC\uAC74\uBC88\uD638'}</Text>
-              <Text size="sm" ff="monospace">{caseData.caseNumber || '-'}</Text>
-            </div>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC0AC\uAC74 \uC720\uD615'}</Text>
-              <Text size="sm">{caseData.type || '-'}</Text>
-            </div>
+            <TextInput label="사건번호" value={form.caseNumber} onChange={(e) => h('caseNumber', e.currentTarget.value)} />
+            <Select label="사건 유형" data={CASE_TYPES} value={form.type} onChange={(val) => h('type', val)} />
           </SimpleGrid>
 
-          {caseData.caseName && (
-            <div>
-              <Text size="xs" c="dimmed">{'\uC0AC\uAC74\uBA85'}</Text>
-              <Text size="sm">{caseData.caseName}</Text>
-            </div>
-          )}
+          <TextInput label="사건명" value={form.caseName} onChange={(e) => h('caseName', e.currentTarget.value)} />
 
           <SimpleGrid cols={2}>
-            <div>
-              <Text size="xs" c="dimmed">{'\uBC95\uC6D0'}</Text>
-              <Text size="sm">{caseData.court || '-'}</Text>
-            </div>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC7AC\uD310\uBD80'}</Text>
-              <Text size="sm">{caseData.division || '-'}</Text>
-            </div>
+            <TextInput label="법원" value={form.court} onChange={(e) => h('court', e.currentTarget.value)} />
+            <TextInput label="재판부" value={form.division} onChange={(e) => h('division', e.currentTarget.value)} />
           </SimpleGrid>
 
           <SimpleGrid cols={2}>
+            <Select label="상태" data={CASE_STATUSES} value={form.status} onChange={(val) => h('status', val)} />
             <div>
-              <Text size="xs" c="dimmed">{'\uC0C1\uD0DC'}</Text>
-              <Badge status={caseData.status} />
-            </div>
-            <div>
-              <Text size="xs" c="dimmed">{'\uB4F1\uB85D\uC77C'}</Text>
-              <Text size="sm">{caseData.openedAt || '-'}</Text>
+              <Text size="sm" fw={500} mb={4}>등록일</Text>
+              <Text size="sm" c="dimmed">{caseData.openedAt || '-'}</Text>
             </div>
           </SimpleGrid>
 
           {caseData.nextHearingDate && (
             <div>
-              <Text size="xs" c="dimmed">{'\uB2E4\uC74C \uAE30\uC77C'}</Text>
+              <Text size="sm" fw={500} mb={4}>다음 기일</Text>
               <Group gap="xs">
                 <Text size="sm">{new Date(caseData.nextHearingDate).toLocaleString('ko-KR')}</Text>
                 {ddayText && (
-                  <MantineBadge
-                    size="xs" variant="light" ff="monospace"
-                    color={dday <= 7 && dday >= 0 ? 'red' : dday < 0 ? 'gray' : 'indigo'}
-                  >
+                  <MantineBadge size="xs" variant="light" ff="monospace" color={dday <= 7 && dday >= 0 ? 'red' : dday < 0 ? 'gray' : 'indigo'}>
                     {ddayText}
                   </MantineBadge>
                 )}
@@ -359,59 +155,53 @@ function InfoTab({ caseData }) {
             </div>
           )}
 
-          {caseData.tags?.length > 0 && (
-            <div>
-              <Text size="xs" c="dimmed" mb={4}>{'\uD0DC\uADF8'}</Text>
-              <Group gap={4}>
-                {caseData.tags.map((tag) => (
-                  <MantineBadge key={tag} variant="light" color="gray" size="xs">{tag}</MantineBadge>
-                ))}
-              </Group>
-            </div>
-          )}
+          <TextInput label="태그" placeholder="손해배상, 계약 (쉼표로 구분)" value={form.tags} onChange={(e) => h('tags', e.currentTarget.value)} />
         </Stack>
       </Card>
 
       <Card padding="lg">
-        <Text size="sm" fw={600} mb="md">{'\uC5F0\uB77D\uCC98'}</Text>
+        <Text size="sm" fw={600} mb="md">연락처</Text>
         <Stack gap="sm">
-          <SimpleGrid cols={2}>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC774\uBA54\uC77C'}</Text>
-              {(() => {
-                const emails = caseData.clientEmails?.length > 0 ? caseData.clientEmails : (caseData.clientEmail ? [caseData.clientEmail] : [])
-                return emails.length > 0
-                  ? emails.map((e, i) => <Text key={i} size="sm">{e}</Text>)
-                  : <Text size="sm">-</Text>
-              })()}
-            </div>
-            <div>
-              <Text size="xs" c="dimmed">{'\uC804\uD654\uBC88\uD638'}</Text>
-              {(() => {
-                const phones = caseData.clientPhones?.length > 0 ? caseData.clientPhones : (caseData.clientPhone ? [caseData.clientPhone] : [])
-                return phones.length > 0
-                  ? phones.map((p, i) => <Text key={i} size="sm">{p}</Text>)
-                  : <Text size="sm">-</Text>
-              })()}
-            </div>
-          </SimpleGrid>
-          <SimpleGrid cols={2}>
-            <div>
-              <Text size="xs" c="dimmed">{'생년월일'}</Text>
-              <Text size="sm">{caseData.clientBirthdate || '-'}</Text>
-            </div>
-            <div />
-          </SimpleGrid>
-          {caseData.clientMemo && (
-            <div>
-              <Text size="xs" c="dimmed">{'메모'}</Text>
-              <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{caseData.clientMemo}</Text>
-            </div>
-          )}
-          {!caseData.clientEmail && !(caseData.clientEmails?.length > 0) && (
-            <Text size="xs" c="orange">
-              {'\uC758\uB8B0\uC778 \uC774\uBA54\uC77C\uC744 \uC785\uB825\uD558\uBA74 \uC774\uBA54\uC77C \uD0ED\uC5D0\uC11C \uAD00\uB828 \uBA54\uC77C\uC744 \uC790\uB3D9 \uAC80\uC0C9\uD569\uB2C8\uB2E4.'}
-            </Text>
+          <div>
+            <Group justify="space-between" mb={4}>
+              <Text size="sm" fw={500}>이메일</Text>
+              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientEmails')}>추가</Button>
+            </Group>
+            <Stack gap={4}>
+              {form.clientEmails?.map((email, i) => (
+                <Group key={i} gap={4}>
+                  <TextInput size="sm" type="email" placeholder="client@example.com" value={email} onChange={(e) => handleArrayChange('clientEmails', i, e.currentTarget.value)} style={{ flex: 1 }} />
+                  {form.clientEmails.length > 1 && (
+                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientEmails', i)}><IconTrash size={12} /></ActionIcon>
+                  )}
+                </Group>
+              ))}
+            </Stack>
+          </div>
+
+          <div>
+            <Group justify="space-between" mb={4}>
+              <Text size="sm" fw={500}>전화번호</Text>
+              <Button variant="subtle" size="xs" leftSection={<IconPlus size={12} />} onClick={() => handleArrayAdd('clientPhones')}>추가</Button>
+            </Group>
+            <Stack gap={4}>
+              {form.clientPhones?.map((phone, i) => (
+                <Group key={i} gap={4}>
+                  <TextInput size="sm" placeholder="010-1234-5678" value={phone} onChange={(e) => handleArrayChange('clientPhones', i, e.currentTarget.value)} style={{ flex: 1 }} />
+                  {form.clientPhones.length > 1 && (
+                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => handleArrayRemove('clientPhones', i)}><IconTrash size={12} /></ActionIcon>
+                  )}
+                </Group>
+              ))}
+            </Stack>
+          </div>
+
+          <TextInput label="생년월일" type="date" value={form.clientBirthdate} onChange={(e) => h('clientBirthdate', e.currentTarget.value)} />
+
+          <Textarea label="메모" placeholder="의뢰인 관련 메모 (선택)" minRows={2} autosize maxRows={4} value={form.clientMemo} onChange={(e) => h('clientMemo', e.currentTarget.value)} />
+
+          {!form.clientEmails?.some((e) => e.trim()) && (
+            <Text size="xs" c="orange">의뢰인 이메일을 입력하면 이메일 탭에서 관련 메일을 자동 검색합니다.</Text>
           )}
         </Stack>
       </Card>
