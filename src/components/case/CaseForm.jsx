@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TextInput, Select, Textarea, Button, Group, Stack, SimpleGrid } from '@mantine/core'
+import { TextInput, Select, Textarea, Button, Group, Stack, SimpleGrid, SegmentedControl, Text } from '@mantine/core'
 import { parseCourtCase } from '../../utils/courtCaseParser'
 
 const CASE_TYPES = ['민사', '가사', '행정', '기타']
@@ -20,6 +20,7 @@ export default function CaseForm({ initialData, onSubmit, onCancel }) {
     court: initialData?.court || '',
     division: initialData?.division || '',
     tags: initialData?.tags?.join(', ') || '',
+    clientPosition: initialData?.clientPosition || 'plaintiff',
   })
 
   const [pasteText, setPasteText] = useState('')
@@ -107,8 +108,21 @@ export default function CaseForm({ initialData, onSubmit, onCancel }) {
           </>
         )}
 
+        <div>
+          <Text size="sm" fw={500} mb={4}>의뢰인 포지션</Text>
+          <SegmentedControl
+            size="xs"
+            value={form.clientPosition}
+            onChange={(val) => handleChange('clientPosition', val)}
+            data={[
+              { label: '원고 대리', value: 'plaintiff' },
+              { label: '피고 대리', value: 'defendant' },
+            ]}
+          />
+        </div>
+
         <TextInput
-          label="의뢰인(원고)"
+          label={form.clientPosition === 'plaintiff' ? '의뢰인(원고)' : '의뢰인(피고)'}
           placeholder="홍길동"
           required
           withAsterisk
@@ -117,7 +131,7 @@ export default function CaseForm({ initialData, onSubmit, onCancel }) {
         />
 
         <TextInput
-          label="상대방(피고)"
+          label={form.clientPosition === 'plaintiff' ? '상대방(피고)' : '상대방(원고)'}
           placeholder="상대방"
           value={form.opponent}
           onChange={(e) => handleChange('opponent', e.currentTarget.value)}

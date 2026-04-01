@@ -64,6 +64,7 @@ function InfoTab({ caseData }) {
     companyName: caseData.companyName || '',
     contactPerson: caseData.contactPerson || '',
     contactPersonPhone: caseData.contactPersonPhone || '',
+    clientPosition: caseData.clientPosition || 'plaintiff',
   })
 
   const handleSave = async () => {
@@ -117,9 +118,21 @@ function InfoTab({ caseData }) {
         </Group>
 
         <Stack gap="sm">
+          <div>
+            <Text size="sm" fw={500} mb={4}>의뢰인 포지션</Text>
+            <SegmentedControl
+              size="xs"
+              value={form.clientPosition}
+              onChange={(val) => h('clientPosition', val)}
+              data={[
+                { label: '원고 대리', value: 'plaintiff' },
+                { label: '피고 대리', value: 'defendant' },
+              ]}
+            />
+          </div>
           <SimpleGrid cols={2}>
-            <TextInput label="의뢰인(원고)" value={form.clientName} onChange={(e) => h('clientName', e.currentTarget.value)} required />
-            <TextInput label="상대방(피고)" value={form.opponent} onChange={(e) => h('opponent', e.currentTarget.value)} />
+            <TextInput label={form.clientPosition === 'plaintiff' ? '의뢰인(원고)' : '의뢰인(피고)'} value={form.clientName} onChange={(e) => h('clientName', e.currentTarget.value)} required />
+            <TextInput label={form.clientPosition === 'plaintiff' ? '상대방(피고)' : '상대방(원고)'} value={form.opponent} onChange={(e) => h('opponent', e.currentTarget.value)} />
           </SimpleGrid>
 
           <SimpleGrid cols={2}>
