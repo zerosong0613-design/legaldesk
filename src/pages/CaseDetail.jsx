@@ -19,6 +19,7 @@ import EmailList from '../components/case/EmailList'
 import DocumentList from '../components/case/DocumentList'
 import ConsultRecordTab from '../components/case/ConsultRecordTab'
 import CriminalInfoSection from '../components/case/CriminalInfoSection'
+import CaseBillingSummary from '../components/case/CaseBillingSummary'
 import { getDday } from '../utils/dateUtils'
 
 const CASE_TYPES = ['\uBBFC\uC0AC', '\uD615\uC0AC', '\uAC00\uC0AC', '\uD589\uC815', '\uAE30\uD0C0']
@@ -414,6 +415,7 @@ function InfoTab({ caseData }) {
       </Card>
     </SimpleGrid>
     {isCriminal && <CriminalInfoSection caseData={caseData} />}
+    <CaseBillingSummary caseId={caseData.id} />
     </Stack>
   )
 }

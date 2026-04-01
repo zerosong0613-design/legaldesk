@@ -1,15 +1,18 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Group, Text, Badge, Card, Button, Checkbox,
   SimpleGrid, TextInput, Stack, Box, Alert,
   UnstyledButton, Container, ThemeIcon, ActionIcon,
+  Divider,
 } from '@mantine/core'
 import {
   IconSearch, IconScale,
   IconFileText, IconClock, IconArrowRight, IconPlus, IconCalendarEvent,
+  IconSun, IconCash, IconAlertCircle, IconReceipt,
 } from '@tabler/icons-react'
 import { fetchAllCalendarEvents } from '../api/calendar'
+import { readCasesIndex } from '../api/drive'
 import { useCaseStore } from '../store/caseStore'
 import { useScheduleStore } from '../store/scheduleStore'
 import { useUiStore } from '../store/uiStore'
@@ -63,9 +66,26 @@ function matchesQuery(item, q) {
   )
 }
 
+function formatCurrency(amount) {
+  if (!amount && amount !== 0) return '0원'
+  return amount.toLocaleString('ko-KR') + '원'
+}
+
+function isToday(dateStr) {
+  if (!dateStr) return false
+  const d = new Date(dateStr)
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+}
+
+function isThisWeek(dateStr) {
+  const dday = getDday(dateStr)
+  return dday !== null && dday >= 0 && dday <= 7
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { cases, consultations } = useCaseStore()
+  const { cases, consultations, casesFileId } = useCaseStore()
   const { schedules, createSchedule, updateSchedule, deleteSchedule, importFromCalendar } = useScheduleStore()
   const { searchQuery, setSearchQuery } = useUiStore()
   const showToast = useUiStore((s) => s.showToast)
@@ -74,6 +94,19 @@ export default function Dashboard() {
   const [calImportEvents, setCalImportEvents] = useState(null)
   const [calImportSelected, setCalImportSelected] = useState(new Set())
   const [isImporting, setIsImporting] = useState(false)
+
+  // 빌링 데이터 로드
+  const [billingData, setBillingData] = useState({ retainers: [], disbursements: [], invoices: [] })
+  useEffect(() => {
+    if (!casesFileId) return
+    readCasesIndex(casesFileId).then((data) => {
+      setBillingData({
+        retainers: data.retainers || [],
+        disbursements: data.disbursements || [],
+        invoices: data.invoices || [],
+      })
+    }).catch(() => {})
+  }, [casesFileId])
 
   const handleFetchCalendarEvents = async () => {
     setIsImporting(true)
@@ -140,6 +173,89 @@ export default function Dashboard() {
       urgentDeadlines: urgentDeadlines.length,
     }
   }, [cases, consultations])
+
+  // 브리핑 데이터
+  const briefing = useMemo(() => {
+    // 오늘 기일
+    const todayHearings = []
+    cases.forEach((c) => {
+      if (c.nextHearingDate && isToday(c.nextHearingDate) && c.status !== '종결') {
+        todayHearings.push({
+          time: formatTime(c.nextHearingDate),
+          label: `[${c.caseNumber || '번호 미정'}] ${c.clientName}`,
+          sub: c.court || '',
+          caseId: c.id,
+          category: 'case',
+        })
+      }
+    })
+    schedules.forEach((s) => {
+      if (isToday(s.datetime)) {
+        todayHearings.push({
+          time: s.allDay ? null : formatTime(s.datetime),
+          label: `[${s.type}] ${s.title}`,
+          sub: s.location || '',
+          scheduleId: s.id,
+          category: 'schedule',
+        })
+      }
+    })
+    todayHearings.sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
+
+    // 이번 주 마감
+    const weekDeadlines = []
+    consultations.forEach((c) => {
+      if (c.deadline && isThisWeek(c.deadline) && c.status !== '완료') {
+        weekDeadlines.push({
+          dday: getDday(c.deadline),
+          label: `${c.clientName} — ${c.subject || c.type}`,
+          caseId: c.id,
+        })
+      }
+    })
+    // 이번 주 기일 (오늘 제외)
+    cases.forEach((c) => {
+      if (c.nextHearingDate && !isToday(c.nextHearingDate) && isThisWeek(c.nextHearingDate) && c.status !== '종결') {
+        weekDeadlines.push({
+          dday: getDday(c.nextHearingDate),
+          label: `[${c.caseNumber || '번호 미정'}] ${c.clientName} 기일`,
+          caseId: c.id,
+          isHearing: true,
+        })
+      }
+    })
+    weekDeadlines.sort((a, b) => a.dday - b.dday)
+
+    // 미수금
+    const unpaidInvoices = billingData.invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled')
+    const unpaidTotal = unpaidInvoices.reduce((s, i) => s + (i.total || 0), 0)
+
+    return { todayHearings, weekDeadlines, unpaidCount: unpaidInvoices.length, unpaidTotal }
+  }, [cases, consultations, schedules, billingData])
+
+  // 빌링 통계
+  const billingStats = useMemo(() => {
+    const unpaidInvoices = billingData.invoices.filter((i) => i.status !== 'paid' && i.status !== 'cancelled')
+    const unpaidTotal = unpaidInvoices.reduce((s, i) => s + (i.total || 0), 0)
+
+    const now = new Date()
+    const thisMonth = now.getMonth()
+    const thisYear = now.getFullYear()
+    const monthlyPaid = billingData.retainers.reduce((s, r) => {
+      let amt = 0
+      if (r.retainerPaidAt) {
+        const d = new Date(r.retainerPaidAt)
+        if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) amt += (r.retainerPaid || 0)
+      }
+      if (r.contingencyPaidAt) {
+        const d = new Date(r.contingencyPaidAt)
+        if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) amt += (r.contingencyPaid || 0)
+      }
+      return s + amt
+    }, 0)
+
+    return { unpaidCount: unpaidInvoices.length, unpaidTotal, monthlyPaid }
+  }, [billingData])
 
   const calendarEvents = useMemo(() => {
     const events = []
@@ -236,6 +352,108 @@ export default function Dashboard() {
           onChange={(e) => setSearchQuery(e.currentTarget.value)}
         />
 
+        {/* 오늘의 브리핑 (검색 중이 아닐 때만) */}
+        {!isSearching && (
+          <Card padding="md" style={{ borderLeft: '4px solid var(--mantine-color-indigo-5)' }}>
+            <Group gap="xs" mb="sm">
+              <IconSun size={18} color="var(--mantine-color-yellow-6)" />
+              <Text size="sm" fw={700}>오늘의 브리핑</Text>
+              <Text size="xs" c="dimmed">
+                {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+              </Text>
+            </Group>
+
+            {briefing.todayHearings.length === 0 && briefing.weekDeadlines.length === 0 && briefing.unpaidCount === 0 ? (
+              <Text size="sm" c="dimmed" py="xs">오늘은 여유로운 하루입니다.</Text>
+            ) : (
+              <Stack gap="sm">
+                {/* 오늘 기일 */}
+                {briefing.todayHearings.length > 0 && (
+                  <div>
+                    <Group gap={6} mb={4}>
+                      <IconCalendarEvent size={14} color="var(--mantine-color-red-6)" />
+                      <Text size="xs" fw={600} c="red">오늘 기일 {briefing.todayHearings.length}건</Text>
+                    </Group>
+                    <Stack gap={2} ml={20}>
+                      {briefing.todayHearings.map((h, i) => (
+                        <UnstyledButton
+                          key={i}
+                          onClick={() => {
+                            if (h.category === 'schedule') {
+                              const s = schedules.find((x) => x.id === h.scheduleId)
+                              if (s) { setEditingSchedule(s); setScheduleModalOpen(true) }
+                            } else {
+                              navigate(`/case/${h.caseId}`)
+                            }
+                          }}
+                          style={{ borderRadius: 6 }}
+                          p={4}
+                        >
+                          <Group gap="xs" wrap="nowrap">
+                            {h.time && <Text size="xs" fw={600} ff="monospace" c="red" miw={40}>{h.time}</Text>}
+                            <Text size="sm" truncate>{h.label}</Text>
+                            {h.sub && <Text size="xs" c="dimmed">{h.sub}</Text>}
+                          </Group>
+                        </UnstyledButton>
+                      ))}
+                    </Stack>
+                  </div>
+                )}
+
+                {/* 이번 주 마감 */}
+                {briefing.weekDeadlines.length > 0 && (
+                  <div>
+                    <Group gap={6} mb={4}>
+                      <IconClock size={14} color="var(--mantine-color-orange-6)" />
+                      <Text size="xs" fw={600} c="orange">이번 주 {briefing.weekDeadlines.length}건</Text>
+                    </Group>
+                    <Stack gap={2} ml={20}>
+                      {briefing.weekDeadlines.map((d, i) => (
+                        <UnstyledButton
+                          key={i}
+                          onClick={() => {
+                            if (d.isHearing) navigate(`/case/${d.caseId}`)
+                            else navigate(`/consultation/${d.caseId}`)
+                          }}
+                          style={{ borderRadius: 6 }}
+                          p={4}
+                        >
+                          <Group gap="xs" wrap="nowrap">
+                            <Badge
+                              size="xs" variant="light" ff="monospace" miw={40}
+                              color={d.dday <= 3 ? 'red' : 'orange'}
+                            >
+                              D-{d.dday}
+                            </Badge>
+                            <Text size="sm" truncate>{d.label}</Text>
+                          </Group>
+                        </UnstyledButton>
+                      ))}
+                    </Stack>
+                  </div>
+                )}
+
+                {/* 미수금 */}
+                {briefing.unpaidCount > 0 && (
+                  <UnstyledButton
+                    onClick={() => navigate('/billing')}
+                    style={{ borderRadius: 6 }}
+                    p={4}
+                  >
+                    <Group gap={6}>
+                      <IconAlertCircle size={14} color="var(--mantine-color-red-6)" />
+                      <Text size="xs" fw={600} c="red">
+                        미수금 {briefing.unpaidCount}건 · {formatCurrency(briefing.unpaidTotal)}
+                      </Text>
+                      <IconArrowRight size={12} color="var(--mantine-color-dimmed)" />
+                    </Group>
+                  </UnstyledButton>
+                )}
+              </Stack>
+            )}
+          </Card>
+        )}
+
         {isSearching ? (
           <>
             <Text size="sm" c="dimmed">
@@ -312,34 +530,55 @@ export default function Dashboard() {
           </>
         ) : (
         <>
-        {/* \uD1B5\uACC4 \uCE74\uB4DC */}
-        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
+        {/* 통계 카드 */}
+        <SimpleGrid cols={{ base: 2, md: 3 }} spacing="md">
           <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => navigate('/cases')}>
-            <Text size="xs" c="dimmed" mb={4}>{'\uC9C4\uD589\uC911 \uC0AC\uAC74'}</Text>
+            <Text size="xs" c="dimmed" mb={4}>진행중 사건</Text>
             <Group gap={4} align="baseline">
               <Text size="xl" fw={700} c="indigo">{stats.activeCases}</Text>
-              <Text size="sm" c="dimmed">{'\uAC74'}</Text>
+              <Text size="sm" c="dimmed">건</Text>
             </Group>
           </Card>
           <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => navigate('/cases')}>
-            <Text size="xs" c="dimmed" mb={4}>{'\uC774\uBC88\uC8FC \uAE30\uC77C'}</Text>
+            <Text size="xs" c="dimmed" mb={4}>이번주 기일</Text>
             <Group gap={4} align="baseline">
               <Text size="xl" fw={700} c={stats.thisWeekHearings > 0 ? 'red' : undefined}>{stats.thisWeekHearings}</Text>
-              <Text size="sm" c="dimmed">{'\uAC74'}</Text>
+              <Text size="sm" c="dimmed">건</Text>
             </Group>
           </Card>
           <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => navigate('/consultations')}>
-            <Text size="xs" c="dimmed" mb={4}>{'\uB9C8\uAC10 \uC784\uBC15 \uC790\uBB38'}</Text>
-            <Group gap={4} align="baseline">
-              <Text size="xl" fw={700} c={stats.urgentDeadlines > 0 ? 'orange' : undefined}>{stats.urgentDeadlines}</Text>
-              <Text size="sm" c="dimmed">{'\uAC74'}</Text>
-            </Group>
-          </Card>
-          <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => navigate('/consultations')}>
-            <Text size="xs" c="dimmed" mb={4}>{'\uC9C4\uD589\uC911 \uC790\uBB38'}</Text>
+            <Text size="xs" c="dimmed" mb={4}>진행중 자문</Text>
             <Group gap={4} align="baseline">
               <Text size="xl" fw={700} c="indigo">{stats.activeConsults}</Text>
-              <Text size="sm" c="dimmed">{'\uAC74'}</Text>
+              <Text size="sm" c="dimmed">건</Text>
+            </Group>
+          </Card>
+          <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => navigate('/billing')}>
+            <Group gap={4} mb={4}>
+              <IconAlertCircle size={14} color={billingStats.unpaidTotal > 0 ? 'var(--mantine-color-red-6)' : 'var(--mantine-color-green-6)'} />
+              <Text size="xs" c="dimmed">미수금</Text>
+            </Group>
+            <Text size="xl" fw={700} c={billingStats.unpaidTotal > 0 ? 'red' : 'green'}>
+              {formatCurrency(billingStats.unpaidTotal)}
+            </Text>
+            {billingStats.unpaidCount > 0 && (
+              <Text size="xs" c="dimmed">{billingStats.unpaidCount}건 미입금</Text>
+            )}
+          </Card>
+          <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => navigate('/billing')}>
+            <Group gap={4} mb={4}>
+              <IconCash size={14} color="var(--mantine-color-teal-6)" />
+              <Text size="xs" c="dimmed">이번달 입금</Text>
+            </Group>
+            <Text size="xl" fw={700} c="teal">
+              {formatCurrency(billingStats.monthlyPaid)}
+            </Text>
+          </Card>
+          <Card padding="md" style={{ cursor: 'pointer' }} onClick={() => navigate('/consultations')}>
+            <Text size="xs" c="dimmed" mb={4}>마감 임박 자문</Text>
+            <Group gap={4} align="baseline">
+              <Text size="xl" fw={700} c={stats.urgentDeadlines > 0 ? 'orange' : undefined}>{stats.urgentDeadlines}</Text>
+              <Text size="sm" c="dimmed">건</Text>
             </Group>
           </Card>
         </SimpleGrid>
