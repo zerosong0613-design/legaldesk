@@ -8,7 +8,7 @@ import {
 import {
   IconArrowLeft, IconTimeline, IconCalendarEvent, IconMessageCircle,
   IconMail, IconFiles, IconInfoCircle, IconEdit, IconCheck, IconX,
-  IconPlus, IconTrash,
+  IconPlus, IconTrash, IconReceipt,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
@@ -20,6 +20,7 @@ import DocumentList from '../components/case/DocumentList'
 import ConsultRecordTab from '../components/case/ConsultRecordTab'
 import CriminalInfoSection from '../components/case/CriminalInfoSection'
 import CaseBillingSummary from '../components/case/CaseBillingSummary'
+import CaseBillingTab from '../components/case/CaseBillingTab'
 import { getDday } from '../utils/dateUtils'
 
 const CASE_TYPES = ['\uBBFC\uC0AC', '\uD615\uC0AC', '\uAC00\uC0AC', '\uD589\uC815', '\uAE30\uD0C0']
@@ -32,6 +33,7 @@ const TABS = [
   { id: 'timeline', label: '\uD0C0\uC784\uB77C\uC778', icon: IconTimeline },
   { id: 'email', label: '\uC774\uBA54\uC77C', icon: IconMail },
   { id: 'docs', label: '\uBB38\uC11C', icon: IconFiles },
+  { id: 'billing', label: '\uBE44\uC6A9', icon: IconReceipt },
 ]
 
 function InfoTab({ caseData }) {
@@ -494,6 +496,7 @@ export default function CaseDetail() {
         {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
         {activeTab === 'email' && <EmailList caseData={currentCase} />}
         {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
+        {activeTab === 'billing' && <CaseBillingTab caseData={currentCase} />}
       </Container>
 
     </>

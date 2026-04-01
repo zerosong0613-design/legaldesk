@@ -8,7 +8,7 @@ import {
 import {
   IconArrowLeft, IconTimeline, IconMessageCircle,
   IconFiles, IconInfoCircle, IconEdit, IconCalendarEvent,
-  IconCheck, IconX, IconPlus, IconTrash,
+  IconCheck, IconX, IconPlus, IconTrash, IconReceipt,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
@@ -16,6 +16,7 @@ import Badge from '../components/ui/Badge'
 import ConsultRecordTab from '../components/case/ConsultRecordTab'
 import Timeline from '../components/case/Timeline'
 import DocumentList from '../components/case/DocumentList'
+import CaseBillingTab from '../components/case/CaseBillingTab'
 import { readCaseDetail, writeCaseDetail } from '../api/drive'
 import { createCalendarEvent, deleteCalendarEvent } from '../api/calendar'
 import { formatDateWithDay, getDday } from '../utils/dateUtils'
@@ -28,6 +29,7 @@ const TABS = [
   { id: 'consultation', label: '\uC0C1\uB2F4', icon: IconMessageCircle },
   { id: 'timeline', label: '\uD0C0\uC784\uB77C\uC778', icon: IconTimeline },
   { id: 'docs', label: '\uBB38\uC11C', icon: IconFiles },
+  { id: 'billing', label: '\uBE44\uC6A9', icon: IconReceipt },
 ]
 
 function getDdayText(dateStr) {
@@ -522,6 +524,7 @@ export default function ConsultationDetail() {
         {activeTab === 'consultation' && <ConsultRecordTab caseData={currentCase} />}
         {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
         {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
+        {activeTab === 'billing' && <CaseBillingTab caseData={currentCase} />}
       </Container>
     </>
   )
