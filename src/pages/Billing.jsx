@@ -21,7 +21,7 @@ import {
 import { useRef, useCallback } from 'react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
-import { readCasesIndex, writeCasesIndex } from '../api/drive'
+import { readCasesIndex, writeCasesIndex, uploadFileToDrive } from '../api/drive'
 import Modal from '../components/ui/Modal'
 
 // --- 상수 ---
@@ -252,6 +252,8 @@ function RetainerForm({ cases, consultations, initialData, onSubmit, onCancel })
     memo: initialData?.memo || '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [contractFile, setContractFile] = useState(null)
+  const fileInputRef = useRef(null)
 
   const h = (name, value) => setForm({ ...form, [name]: value })
   const showRetainer = form.type === 'fixed' || form.type === 'mixed'
@@ -267,7 +269,7 @@ function RetainerForm({ cases, consultations, initialData, onSubmit, onCancel })
     if (!form.caseId) return
     setIsSubmitting(true)
     try {
-      await onSubmit({
+      const data = {
         ...form,
         retainerFee: Number(form.retainerFee) || 0,
         retainerPaid: Number(form.retainerPaid) || 0,
@@ -279,7 +281,23 @@ function RetainerForm({ cases, consultations, initialData, onSubmit, onCancel })
         hoursLogged: initialData?.hoursLogged || 0,
         hourlyPaid: initialData?.hourlyPaid || 0,
         id: isEditing ? initialData.id : `ret-${Date.now()}`,
-      })
+        contractFileId: initialData?.contractFileId || null,
+        contractFileName: initialData?.contractFileName || null,
+        contractFileLink: initialData?.contractFileLink || null,
+      }
+
+      // 계약서 파일 업로드
+      if (contractFile) {
+        const caseItem = cases.find((c) => c.id === form.caseId) || consultations.find((c) => c.id === form.caseId)
+        if (caseItem?.driveFolderId) {
+          const uploaded = await uploadFileToDrive(caseItem.driveFolderId, contractFile)
+          data.contractFileId = uploaded.id
+          data.contractFileName = uploaded.name
+          data.contractFileLink = uploaded.webViewLink
+        }
+      }
+
+      await onSubmit(data)
     } finally {
       setIsSubmitting(false)
     }
@@ -345,6 +363,39 @@ function RetainerForm({ cases, consultations, initialData, onSubmit, onCancel })
 
         <TextInput label="메모" placeholder="기타 메모" value={form.memo} onChange={(e) => h('memo', e.currentTarget.value)} />
 
+        {/* 계약서 첨부 */}
+        <Divider label="계약서 첨부" labelPosition="left" />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.doc,.docx,.hwp,.hwpx,.jpg,.jpeg,.png"
+          style={{ display: 'none' }}
+          onChange={(e) => { setContractFile(e.target.files?.[0] || null); e.target.value = '' }}
+        />
+        <Group gap="sm">
+          <Button
+            variant="light"
+            color="gray"
+            size="xs"
+            leftSection={<IconPaperclip size={14} />}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            파일 선택
+          </Button>
+          {contractFile ? (
+            <Group gap={4}>
+              <Text size="xs" c="indigo" fw={500}>{contractFile.name}</Text>
+              <Button variant="subtle" color="red" size="xs" p={0} onClick={() => setContractFile(null)}>
+                <IconX size={12} />
+              </Button>
+            </Group>
+          ) : initialData?.contractFileName ? (
+            <Text size="xs" c="dimmed">기존 파일: {initialData.contractFileName}</Text>
+          ) : (
+            <Text size="xs" c="dimmed">PDF, Word, 한글, 이미지 파일 지원</Text>
+          )}
+        </Group>
+
         <Group justify="flex-end" gap="sm" mt="sm">
           <Button variant="default" onClick={onCancel} leftSection={<IconX size={14} />}>취소</Button>
           <Button type="submit" loading={isSubmitting} disabled={!form.caseId} leftSection={<IconCheck size={14} />}>{isEditing ? '수정' : '등록'}</Button>
@@ -375,6 +426,19 @@ function RetainerCard({ retainer, getItemName, onEdit, onDelete, onPaymentConfir
           <Badge variant="light" color="indigo" size="sm">{typeLabel}</Badge>
         </Group>
         <Group gap="xs">
+          {retainer.contractFileLink && (
+            <Button
+              variant="subtle" size="xs" color="teal"
+              leftSection={<IconPaperclip size={14} />}
+              component="a"
+              href={retainer.contractFileLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              계약서
+            </Button>
+          )}
           <Button variant="subtle" size="xs" color="gray" leftSection={<IconEdit size={14} />} onClick={() => onEdit(retainer)}>수정</Button>
           <Button variant="subtle" size="xs" color="red" leftSection={<IconTrash size={14} />} onClick={() => onDelete(retainer.id)}>삭제</Button>
         </Group>
