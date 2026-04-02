@@ -1,5 +1,12 @@
 import { Card, Group, Text, Badge as MantineBadge, Stack } from '@mantine/core'
 
+const ACTIVITY_TYPE_MAP = {
+  police_attend: { label: '경찰입회', icon: '🚔' },
+  prosecution_attend: { label: '검찰입회', icon: '⚖️' },
+  visit: { label: '접견', icon: '🏛️' },
+  other_activity: { label: '기타활동', icon: '📋' },
+}
+
 const METHOD_MAP = {
   visit: { label: '방문상담', icon: '🏢' },
   call: { label: '전화상담', icon: '📞' },
@@ -22,13 +29,39 @@ function formatTime(time) {
   return `${period} ${hour}:${String(m).padStart(2, '0')}`
 }
 
+function getActivityDisplay(consultation) {
+  const type = consultation.activityType || 'consult'
+  if (type === 'consult') {
+    const method = METHOD_MAP[consultation.method] || METHOD_MAP.other
+    return { icon: method.icon, label: method.label }
+  }
+  const activity = ACTIVITY_TYPE_MAP[type] || ACTIVITY_TYPE_MAP.other_activity
+  return { icon: activity.icon, label: activity.label }
+}
+
+function getPreviewText(consultation) {
+  const type = consultation.activityType || 'consult'
+  if (type === 'police_attend' || type === 'prosecution_attend') {
+    return consultation.location
+      ? `${consultation.location}${consultation.investigatorName ? ` — ${consultation.investigatorName}` : ''}`
+      : consultation.actionItems || ''
+  }
+  if (type === 'visit') {
+    return consultation.location
+      ? `${consultation.location}${consultation.clientCondition ? ` — ${consultation.clientCondition}` : ''}`
+      : consultation.content || ''
+  }
+  return consultation.content || ''
+}
+
 export default function ConsultRecordCard({ consultation, onClick }) {
-  const method = METHOD_MAP[consultation.method] || METHOD_MAP.other
+  const { icon, label } = getActivityDisplay(consultation)
   const status = STATUS_MAP[consultation.status] || STATUS_MAP.reviewing
 
   const dateStr = consultation.date || ''
   const timeStr = consultation.time ? formatTime(consultation.time) : ''
   const displayTime = timeStr ? `${dateStr}  ${timeStr}` : dateStr
+  const preview = getPreviewText(consultation)
 
   return (
     <Card
@@ -40,7 +73,7 @@ export default function ConsultRecordCard({ consultation, onClick }) {
       <Stack gap={4}>
         <Group justify="space-between">
           <Text size="sm" fw={600}>
-            {method.icon} {method.label}
+            {icon} {label}
           </Text>
           <MantineBadge variant="light" size="sm" color={status.color}>
             {status.label}
@@ -48,7 +81,7 @@ export default function ConsultRecordCard({ consultation, onClick }) {
         </Group>
         <Text size="xs" c="dimmed">{displayTime}</Text>
         <Text size="sm" lineClamp={2} c="dark">
-          {consultation.content}
+          {preview}
         </Text>
       </Stack>
     </Card>

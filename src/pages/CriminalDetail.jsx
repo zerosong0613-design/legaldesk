@@ -45,7 +45,7 @@ const CASE_STATUSES = ['접수', '진행', '종결', '보류']
 
 const TABS_LIST = [
   { id: 'info', label: '사건정보', icon: IconInfoCircle },
-  { id: 'consultation', label: '상담', icon: IconMessageCircle },
+  { id: 'consultation', label: '활동기록', icon: IconMessageCircle },
   { id: 'hearings', label: '기일', icon: IconCalendarEvent },
   { id: 'timeline', label: '타임라인', icon: IconTimeline },
   { id: 'email', label: '이메일', icon: IconMail },

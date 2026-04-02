@@ -27,7 +27,7 @@ const CASE_STATUSES = ['\uC811\uC218', '\uC9C4\uD589', '\uC885\uACB0', '\uBCF4\u
 
 const TABS = [
   { id: 'info', label: '\uC0AC\uAC74\uC815\uBCF4', icon: IconInfoCircle },
-  { id: 'consultation', label: '\uC0C1\uB2F4', icon: IconMessageCircle },
+  { id: 'consultation', label: '\uD65C\uB3D9\uAE30\uB85D', icon: IconMessageCircle },
   { id: 'hearings', label: '\uAE30\uC77C', icon: IconCalendarEvent },
   { id: 'timeline', label: '\uD0C0\uC784\uB77C\uC778', icon: IconTimeline },
   { id: 'email', label: '\uC774\uBA54\uC77C', icon: IconMail },

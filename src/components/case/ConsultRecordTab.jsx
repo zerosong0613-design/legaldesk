@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Stack, Group, Text, Center, ActionIcon } from '@mantine/core'
-import { IconPlus, IconMessageCircle } from '@tabler/icons-react'
+import { IconPlus, IconClipboardList } from '@tabler/icons-react'
 import { useCaseStore } from '../../store/caseStore'
 import { useUiStore } from '../../store/uiStore'
 import Modal from '../ui/Modal'
@@ -24,7 +24,7 @@ export default function ConsultRecordTab({ caseData }) {
   const handleAdd = async (data) => {
     try {
       await addConsultationRecord(caseData.id, data)
-      showToast('상담 기록이 저장되었습니다.', 'success')
+      showToast('활동 기록이 저장되었습니다.', 'success')
       setShowForm(false)
     } catch (err) {
       showToast(`저장 실패: ${err.message}`, 'error')
@@ -34,7 +34,7 @@ export default function ConsultRecordTab({ caseData }) {
   const handleUpdate = async (data) => {
     try {
       await updateConsultationRecord(caseData.id, editingRecord.id, data)
-      showToast('상담 기록이 수정되었습니다.', 'success')
+      showToast('활동 기록이 수정되었습니다.', 'success')
       setEditingRecord(null)
       setShowForm(false)
       setShowDetail(false)
@@ -46,7 +46,7 @@ export default function ConsultRecordTab({ caseData }) {
   const handleDelete = async (consultationId) => {
     try {
       await deleteConsultationRecord(caseData.id, consultationId)
-      showToast('상담 기록이 삭제되었습니다.', 'success')
+      showToast('활동 기록이 삭제되었습니다.', 'success')
       setShowDetail(false)
       setSelectedRecord(null)
     } catch (err) {
@@ -80,7 +80,7 @@ export default function ConsultRecordTab({ caseData }) {
       <Stack gap="md">
         <Group justify="space-between">
           <Text size="sm" fw={600}>
-            상담 ({records.length})
+            활동기록 ({records.length})
           </Text>
           <ActionIcon variant="light" color="indigo" onClick={openForm}>
             <IconPlus size={16} />
@@ -90,9 +90,9 @@ export default function ConsultRecordTab({ caseData }) {
         {records.length === 0 ? (
           <Center py="xl">
             <Stack align="center" gap="xs">
-              <IconMessageCircle size={40} color="var(--mantine-color-gray-4)" />
-              <Text size="sm" c="dimmed">상담 기록이 없습니다</Text>
-              <Text size="xs" c="dimmed">+ 버튼을 눌러 상담을 추가하세요</Text>
+              <IconClipboardList size={40} color="var(--mantine-color-gray-4)" />
+              <Text size="sm" c="dimmed">활동 기록이 없습니다</Text>
+              <Text size="xs" c="dimmed">+ 버튼을 눌러 상담, 수사입회, 접견 등을 기록하세요</Text>
             </Stack>
           </Center>
         ) : (
@@ -112,7 +112,7 @@ export default function ConsultRecordTab({ caseData }) {
       <Modal
         isOpen={showForm}
         onClose={closeForm}
-        title={editingRecord ? '상담 기록 수정' : '새 상담 기록'}
+        title={editingRecord ? '활동 기록 수정' : '새 활동 기록'}
       >
         <ConsultRecordForm
           initialData={editingRecord}
