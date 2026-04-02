@@ -39,11 +39,18 @@ export const CRIMINAL_TEMPLATES = [
   { id: 'appeal', label: '항소장', icon: '⚖️' },
 ]
 
+export const CONSULT_TEMPLATES = [
+  { id: 'legal_opinion', label: '법률의견서', icon: '📜' },
+  { id: 'contract_review', label: '계약검토서', icon: '🔍' },
+  { id: 'reply_letter', label: '회신서한', icon: '✉️' },
+]
+
 /** @deprecated — 하위 호환용 */
 export const TEMPLATE_LIST = CIVIL_TEMPLATES
 
 export function getTemplateList(caseType) {
   if (caseType === '형사') return CRIMINAL_TEMPLATES
+  if (caseType === '자문') return CONSULT_TEMPLATES
   return CIVIL_TEMPLATES
 }
 
@@ -512,6 +519,151 @@ function appeal(caseData, profile) {
 `
 }
 
+// ─── 자문 서면 ───
+
+/**
+ * 법률의견서
+ */
+function legalOpinion(caseData, profile) {
+  const lawyer = profile?.lawyerName || '[변호사명]'
+  const office = profile?.officeName || '[사무소명]'
+  const phone = profile?.phone || '[연락처]'
+  const client = caseData.clientName || '[의뢰인]'
+  const subject = caseData.subject || caseData.type || '[자문 주제]'
+
+  return `${STYLE}
+<h1>법 률 의 견 서</h1>
+
+<table>
+  <tr><th width="15%">수신</th><td>${client}</td></tr>
+  <tr><th>발신</th><td>${office} 변호사 ${lawyer}</td></tr>
+  <tr><th>연락처</th><td>${phone}</td></tr>
+  <tr><th>일자</th><td>${today()}</td></tr>
+  <tr><th>건명</th><td>${subject}</td></tr>
+</table>
+
+<h2>I. 질의 요지</h2>
+<p class="indent field">[의뢰인의 질의 내용을 정리하세요]</p>
+
+<h2>II. 관련 법령</h2>
+<p class="indent field">[적용될 법령, 시행령, 판례 등을 정리하세요]</p>
+
+<h2>III. 검토 의견</h2>
+
+<h3>1. 쟁점 정리</h3>
+<p class="indent field">[주요 쟁점을 정리하세요]</p>
+
+<h3>2. 법적 분석</h3>
+<p class="indent field">[각 쟁점에 대한 법적 분석을 기재하세요]</p>
+
+<h3>3. 리스크 분석</h3>
+<p class="indent field">[예상되는 법적 리스크를 기재하세요]</p>
+
+<h2>IV. 결론 및 권고사항</h2>
+<p class="indent field">[최종 의견 및 권고사항을 기재하세요]</p>
+
+<br/>
+<p class="right">${today()}</p>
+<p class="right">${office}</p>
+<p class="right">변호사 ${lawyer}</p>
+`
+}
+
+/**
+ * 계약검토서
+ */
+function contractReview(caseData, profile) {
+  const lawyer = profile?.lawyerName || '[변호사명]'
+  const office = profile?.officeName || '[사무소명]'
+  const client = caseData.clientName || '[의뢰인]'
+  const subject = caseData.subject || '[계약서명]'
+
+  return `${STYLE}
+<h1>계 약 검 토 서</h1>
+
+<table>
+  <tr><th width="15%">의뢰인</th><td>${client}</td></tr>
+  <tr><th>검토 대상</th><td>${subject}</td></tr>
+  <tr><th>검토일</th><td>${today()}</td></tr>
+  <tr><th>검토자</th><td>변호사 ${lawyer} (${office})</td></tr>
+</table>
+
+<h2>1. 계약 개요</h2>
+<p class="indent field">[계약 당사자, 계약 유형, 계약 목적을 기재하세요]</p>
+
+<h2>2. 주요 조항 검토</h2>
+
+<h3>가. 계약 기간 및 해지</h3>
+<p class="indent field">[계약 기간, 갱신, 해지 조건 검토]</p>
+
+<h3>나. 대금 및 지급 조건</h3>
+<p class="indent field">[대금, 지급 시기, 지체 시 제재 검토]</p>
+
+<h3>다. 책임 및 면책</h3>
+<p class="indent field">[손해배상, 면책 조항 검토]</p>
+
+<h3>라. 분쟁 해결</h3>
+<p class="indent field">[관할 법원, 중재 조항 검토]</p>
+
+<h2>3. 리스크 요약</h2>
+<table>
+  <tr><th>조항</th><th>리스크 수준</th><th>내용</th></tr>
+  <tr><td class="field">[조항명]</td><td class="field">[상/중/하]</td><td class="field">[리스크 내용]</td></tr>
+</table>
+
+<h2>4. 수정 권고사항</h2>
+<p class="indent field">[수정이 필요한 조항 및 권고 문구를 기재하세요]</p>
+
+<br/>
+<p class="right">${today()}</p>
+<p class="right">${office}</p>
+<p class="right">변호사 ${lawyer}</p>
+`
+}
+
+/**
+ * 회신서한
+ */
+function replyLetter(caseData, profile) {
+  const lawyer = profile?.lawyerName || '[변호사명]'
+  const office = profile?.officeName || '[사무소명]'
+  const phone = profile?.phone || '[연락처]'
+  const client = caseData.clientName || '[수신인]'
+  const subject = caseData.subject || '[건명]'
+
+  return `${STYLE}
+<h1>회 신 서 한</h1>
+
+<table>
+  <tr><th width="15%">수신</th><td>${client}</td></tr>
+  <tr><th>발신</th><td>${office} 변호사 ${lawyer}</td></tr>
+  <tr><th>연락처</th><td>${phone}</td></tr>
+  <tr><th>일자</th><td>${today()}</td></tr>
+  <tr><th>건명</th><td>${subject}</td></tr>
+</table>
+
+<p>${client} 귀하,</p>
+
+<p class="indent">귀하의 문의에 대하여 아래와 같이 회신드립니다.</p>
+
+<h2>1. 질의 사항</h2>
+<p class="indent field">[질의 내용을 요약하세요]</p>
+
+<h2>2. 회신 내용</h2>
+<p class="indent field">[답변 내용을 기재하세요]</p>
+
+<h2>3. 추가 안내</h2>
+<p class="indent field">[추가 안내사항이 있으면 기재하세요]</p>
+
+<p class="indent">추가 문의사항이 있으시면 언제든지 연락 주시기 바랍니다.</p>
+
+<br/>
+<p class="right">${today()}</p>
+<p class="right">${office}</p>
+<p class="right">변호사 ${lawyer}</p>
+`
+}
+
 const GENERATORS = {
   // 민사
   content_cert: contentCertification,
@@ -525,6 +677,10 @@ const GENERATORS = {
   defense_opinion: defenseOpinion,
   bail_request: bailRequest,
   appeal,
+  // 자문
+  legal_opinion: legalOpinion,
+  contract_review: contractReview,
+  reply_letter: replyLetter,
 }
 
 /**
@@ -552,7 +708,7 @@ export function getDefaultTemplate(templateId, caseData, profile) {
  */
 export function generateTemplate(templateId, caseData, profile, customTemplates) {
   // 커스텀 템플릿이 있으면 사용
-  const caseType = caseData.type === '형사' ? 'criminal' : 'civil'
+  const caseType = caseData.type === '형사' ? 'criminal' : caseData.type === '자문' ? 'consult' : 'civil'
   const custom = customTemplates?.[caseType]?.[templateId]
   if (custom) {
     // 플레이스홀더 치환

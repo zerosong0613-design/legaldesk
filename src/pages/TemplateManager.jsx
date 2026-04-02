@@ -12,7 +12,7 @@ import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import Modal from '../components/ui/Modal'
 import {
-  CIVIL_TEMPLATES, CRIMINAL_TEMPLATES,
+  CIVIL_TEMPLATES, CRIMINAL_TEMPLATES, CONSULT_TEMPLATES,
   getDefaultTemplate,
 } from '../utils/legalTemplates'
 
@@ -26,7 +26,9 @@ export default function TemplateManager() {
   const [showPreview, setShowPreview] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  const templates = activeTab === 'civil' ? CIVIL_TEMPLATES : CRIMINAL_TEMPLATES
+  const templates = activeTab === 'criminal' ? CRIMINAL_TEMPLATES
+    : activeTab === 'consult' ? CONSULT_TEMPLATES
+    : CIVIL_TEMPLATES
   const categoryKey = activeTab
 
   const getCustomHtml = (templateId) => {
@@ -45,7 +47,8 @@ export default function TemplateManager() {
         opposingParty: '[상대방]',
         court: '[법원]',
         caseNumber: '[사건번호]',
-        type: activeTab === 'criminal' ? '형사' : '민사',
+        type: activeTab === 'criminal' ? '형사' : activeTab === 'consult' ? '자문' : '민사',
+        subject: '[자문 주제]',
         criminalInfo: { charges: '[죄명]', policeCaseNumber: '[사건번호]' },
       }
       setEditHtml(getDefaultTemplate(tmpl.id, dummyCase, profile))
@@ -113,6 +116,9 @@ export default function TemplateManager() {
             </Tabs.Tab>
             <Tabs.Tab value="criminal" leftSection={<IconGavel size={14} />}>
               형사 ({CRIMINAL_TEMPLATES.length})
+            </Tabs.Tab>
+            <Tabs.Tab value="consult" leftSection={<IconFileText size={14} />}>
+              자문 ({CONSULT_TEMPLATES.length})
             </Tabs.Tab>
           </Tabs.List>
         </Tabs>

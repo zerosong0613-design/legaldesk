@@ -315,7 +315,7 @@ export default function ConsultationDetail() {
         {activeTab === 'info' && <InfoTab caseData={currentCase} />}
         {activeTab === 'consultation' && <ConsultRecordTab caseData={{ ...currentCase, type: '자문' }} />}
         {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
-        {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
+        {activeTab === 'docs' && <DocumentList caseData={{ ...currentCase, type: '자문' }} />}
         {activeTab === 'billing' && <CaseBillingTab caseData={currentCase} />}
       </Container>
 
