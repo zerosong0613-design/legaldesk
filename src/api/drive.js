@@ -139,6 +139,16 @@ export async function createGoogleDoc(folderId, title, htmlContent) {
   return res.json()
 }
 
+/**
+ * Google Docs 파일을 HTML로 export
+ */
+export async function exportGoogleDocAsHtml(fileId) {
+  const res = await driveRequest(
+    `${DRIVE_API}/files/${fileId}/export?mimeType=text/html`
+  )
+  return res.text()
+}
+
 export async function updateJsonFile(fileId, data) {
   const form = new FormData()
   form.append(

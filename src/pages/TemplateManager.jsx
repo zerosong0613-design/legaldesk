@@ -7,9 +7,11 @@ import {
 import {
   IconFileText, IconEdit, IconRefresh, IconCheck,
   IconScale, IconGavel, IconEye, IconCode,
+  IconBrandGoogleDrive, IconDownload,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
+import { createGoogleDoc, exportGoogleDocAsHtml, deleteFile } from '../api/drive'
 import Modal from '../components/ui/Modal'
 import {
   CIVIL_TEMPLATES, CRIMINAL_TEMPLATES, CONSULT_TEMPLATES,
@@ -17,7 +19,7 @@ import {
 } from '../utils/legalTemplates'
 
 export default function TemplateManager() {
-  const { customTemplates, saveTemplates, profile } = useCaseStore()
+  const { customTemplates, saveTemplates, profile, dataFolderId } = useCaseStore()
   const { showToast } = useUiStore()
 
   const [activeTab, setActiveTab] = useState('civil')
@@ -25,6 +27,11 @@ export default function TemplateManager() {
   const [editHtml, setEditHtml] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Google Docs 편집용 — { templateId: { docId, webViewLink } }
+  const [docsMap, setDocsMap] = useState({})
+  const [isCreatingDoc, setIsCreatingDoc] = useState(null)
+  const [isImporting, setIsImporting] = useState(null)
 
   const templates = activeTab === 'criminal' ? CRIMINAL_TEMPLATES
     : activeTab === 'consult' ? CONSULT_TEMPLATES
@@ -87,6 +94,73 @@ export default function TemplateManager() {
       showToast(`초기화 실패: ${err.message}`, 'error')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  // Google Docs로 편집: 현재 템플릿 HTML을 Google Doc으로 생성
+  const handleOpenInDocs = async (tmpl) => {
+    // 이미 만든 Doc이 있으면 바로 열기
+    if (docsMap[tmpl.id]) {
+      window.open(docsMap[tmpl.id].webViewLink, '_blank')
+      return
+    }
+
+    setIsCreatingDoc(tmpl.id)
+    try {
+      const customHtml = getCustomHtml(tmpl.id)
+      let html
+      if (customHtml) {
+        html = customHtml
+      } else {
+        const dummyCase = {
+          clientName: '[의뢰인]', opponent: '[상대방]', opposingParty: '[상대방]',
+          court: '[법원]', caseNumber: '[사건번호]',
+          type: activeTab === 'criminal' ? '형사' : activeTab === 'consult' ? '자문' : '민사',
+          subject: '[자문 주제]',
+          criminalInfo: { charges: '[죄명]', policeCaseNumber: '[사건번호]' },
+        }
+        html = getDefaultTemplate(tmpl.id, dummyCase, profile)
+      }
+
+      const doc = await createGoogleDoc(dataFolderId, `[템플릿] ${tmpl.label}`, html)
+      setDocsMap({ ...docsMap, [tmpl.id]: { docId: doc.id, webViewLink: doc.webViewLink } })
+      window.open(doc.webViewLink, '_blank')
+      showToast('Google Docs에서 편집하세요. 완료 후 "Docs에서 가져오기"를 눌러주세요.', 'success')
+    } catch (err) {
+      showToast(`Google Docs 생성 실패: ${err.message}`, 'error')
+    } finally {
+      setIsCreatingDoc(null)
+    }
+  }
+
+  // Google Docs에서 가져오기: Doc을 HTML로 export → 커스텀 템플릿으로 저장
+  const handleImportFromDocs = async (tmpl) => {
+    const docInfo = docsMap[tmpl.id]
+    if (!docInfo) {
+      showToast('먼저 "Docs로 편집"을 눌러 Google Docs를 생성하세요.', 'error')
+      return
+    }
+
+    setIsImporting(tmpl.id)
+    try {
+      const html = await exportGoogleDocAsHtml(docInfo.docId)
+
+      const updated = { ...(customTemplates || {}) }
+      if (!updated[categoryKey]) updated[categoryKey] = {}
+      updated[categoryKey][tmpl.id] = html
+      await saveTemplates(updated)
+
+      // 임시 Doc 삭제
+      try { await deleteFile(docInfo.docId) } catch { /* 무시 */ }
+      const newMap = { ...docsMap }
+      delete newMap[tmpl.id]
+      setDocsMap(newMap)
+
+      showToast(`${tmpl.label} 템플릿이 Google Docs에서 가져와 저장되었습니다.`, 'success')
+    } catch (err) {
+      showToast(`가져오기 실패: ${err.message}`, 'error')
+    } finally {
+      setIsImporting(null)
     }
   }
 
@@ -156,8 +230,30 @@ export default function TemplateManager() {
                       leftSection={<IconEdit size={12} />}
                       onClick={() => openEditor(tmpl)}
                     >
-                      편집
+                      HTML
                     </Button>
+                    <Button
+                      size="compact-xs"
+                      variant="light"
+                      color="blue"
+                      leftSection={<IconBrandGoogleDrive size={12} />}
+                      loading={isCreatingDoc === tmpl.id}
+                      onClick={() => handleOpenInDocs(tmpl)}
+                    >
+                      {docsMap[tmpl.id] ? 'Docs 열기' : 'Docs로 편집'}
+                    </Button>
+                    {docsMap[tmpl.id] && (
+                      <Button
+                        size="compact-xs"
+                        variant="filled"
+                        color="teal"
+                        leftSection={<IconDownload size={12} />}
+                        loading={isImporting === tmpl.id}
+                        onClick={() => handleImportFromDocs(tmpl)}
+                      >
+                        가져오기
+                      </Button>
+                    )}
                   </Group>
                 </Group>
               </Card>
