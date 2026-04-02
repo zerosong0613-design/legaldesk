@@ -13,6 +13,7 @@ const CONSULTATIONS_FOLDER_NAME = 'consultations'
 const FILES_FOLDER_NAME = 'files'
 const CASES_INDEX_NAME = 'cases.json'
 const SCHEDULES_INDEX_NAME = 'schedules.json'
+const PROFILE_FILE_NAME = 'profile.json'
 
 async function getToken() {
   const token = await useAuthStore.getState().getValidToken()
@@ -186,6 +187,9 @@ export async function initializeDriveStructure() {
     schedulesFile = await createJsonFile(SCHEDULES_INDEX_NAME, dataFolder.id, initialSchedules)
   }
 
+  // profile.json은 첫 로그인 시 없을 수 있음 (온보딩에서 생성)
+  const profileFile = await findFile(PROFILE_FILE_NAME, dataFolder.id)
+
   return {
     rootId: root.id,
     dataFolderId: dataFolder.id,
@@ -194,7 +198,31 @@ export async function initializeDriveStructure() {
     filesFolderId: filesFolder.id,
     casesFileId: casesFile.id,
     schedulesFileId: schedulesFile.id,
+    profileFileId: profileFile?.id || null,
   }
+}
+
+// --- Profile operations ---
+
+export async function readProfile(profileFileId) {
+  if (!profileFileId) return null
+  try {
+    return await readJsonFile(profileFileId)
+  } catch {
+    return null
+  }
+}
+
+export async function writeProfile(dataFolderId, profileFileId, data) {
+  const payload = { ...data, updatedAt: new Date().toISOString() }
+  if (profileFileId) {
+    await writeJsonFile(profileFileId, payload)
+    return profileFileId
+  }
+  // 첫 생성
+  payload.createdAt = new Date().toISOString()
+  const file = await createJsonFile(PROFILE_FILE_NAME, dataFolderId, payload)
+  return file.id
 }
 
 // --- Cases index operations ---
@@ -358,6 +386,7 @@ export async function connectToExistingStructure(rootId) {
   if (!casesFile) throw new Error('cases.json \uD30C\uC77C\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.')
 
   const schedulesFile = await findFile(SCHEDULES_INDEX_NAME, dataFolder.id)
+  const profileFile = await findFile(PROFILE_FILE_NAME, dataFolder.id)
 
   return {
     rootId,
@@ -367,6 +396,7 @@ export async function connectToExistingStructure(rootId) {
     filesFolderId: filesFolder.id,
     casesFileId: casesFile.id,
     schedulesFileId: schedulesFile?.id || null,
+    profileFileId: profileFile?.id || null,
   }
 }
 

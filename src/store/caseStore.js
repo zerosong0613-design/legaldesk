@@ -14,6 +14,8 @@ import {
   listFilePermissions,
   setFileAppProperties,
   findSharedCaseFiles,
+  readProfile,
+  writeProfile,
 } from '../api/drive'
 import { useAuthStore } from '../auth/useAuth'
 import { useScheduleStore } from './scheduleStore'
@@ -41,6 +43,8 @@ export const useCaseStore = create((set, get) => ({
   consultationsFolderId: null,
   filesFolderId: null,
   casesFileId: null,
+  profileFileId: null,
+  profile: null,
   isInitialized: false,
   isLoading: false,
   error: null,
@@ -68,6 +72,9 @@ export const useCaseStore = create((set, get) => ({
         }
       }
 
+      // 프로필 로드
+      const profileData = await readProfile(structure.profileFileId)
+
       set({
         driveRootId: structure.rootId,
         dataFolderId: structure.dataFolderId,
@@ -75,6 +82,8 @@ export const useCaseStore = create((set, get) => ({
         consultationsFolderId: structure.consultationsFolderId,
         filesFolderId: structure.filesFolderId,
         casesFileId: structure.casesFileId,
+        profileFileId: structure.profileFileId,
+        profile: profileData,
         isInitialized: true,
       })
       await get().loadCases()
@@ -421,6 +430,14 @@ export const useCaseStore = create((set, get) => ({
     } catch (err) {
       set({ error: `메모 저장 실패: ${err.message}` })
     }
+  },
+
+  // ─── 프로필 ───
+
+  saveProfile: async (data) => {
+    const { dataFolderId, profileFileId } = get()
+    const newId = await writeProfile(dataFolderId, profileFileId, data)
+    set({ profile: { ...data, updatedAt: new Date().toISOString() }, profileFileId: newId })
   },
 
   // ─── 사건별 공유 ───

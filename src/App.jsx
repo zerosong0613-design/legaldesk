@@ -16,10 +16,11 @@ import CriminalDetail from './pages/CriminalDetail'
 import Billing from './pages/Billing'
 import WorkspaceSettings from './pages/WorkspaceSettings'
 import SharedCaseDetail from './pages/SharedCaseDetail'
+import Onboarding from './pages/Onboarding'
 
 function AppContent() {
   const { user, isLoading: authLoading, initialize } = useAuthStore()
-  const { isInitialized, initDrive, isLoading: driveLoading, error } = useCaseStore()
+  const { isInitialized, initDrive, isLoading: driveLoading, error, profile } = useCaseStore()
 
   useEffect(() => {
     initialize()
@@ -63,6 +64,11 @@ function AppContent() {
         </Stack>
       </Center>
     )
+  }
+
+  // 첫 로그인: 프로필 미설정 → 온보딩
+  if (isInitialized && !profile) {
+    return <Onboarding />
   }
 
   return (

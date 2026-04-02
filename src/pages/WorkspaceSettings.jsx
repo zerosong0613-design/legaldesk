@@ -75,7 +75,7 @@ function WorkspaceCard({ ws, isCurrent, onSelect }) {
 
 export default function WorkspaceSettings() {
   const navigate = useNavigate()
-  const { workspace, switchWorkspace, driveRootId } = useCaseStore()
+  const { workspace, switchWorkspace, driveRootId, profile, saveProfile } = useCaseStore()
   const { showToast } = useUiStore()
 
   const [sharedFolders, setSharedFolders] = useState([])
@@ -91,6 +91,15 @@ export default function WorkspaceSettings() {
   const [isLoadingPerms, setIsLoadingPerms] = useState(false)
 
   const [isSwitching, setIsSwitching] = useState(false)
+
+  // 프로필 편집
+  const [profileForm, setProfileForm] = useState({
+    lawyerName: profile?.lawyerName || '',
+    officeName: profile?.officeName || '',
+    phone: profile?.phone || '',
+    barNumber: profile?.barNumber || '',
+  })
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
 
   const isOwnWorkspace = !workspace || workspace.type === 'own'
 
@@ -221,11 +230,65 @@ export default function WorkspaceSettings() {
 
         {!isSwitching && (
           <>
-            {/* PC: 2\uCEEC\uB7FC \uB808\uC774\uC544\uC6C3 / \uBAA8\uBC14\uC77C: 1\uCEEC\uB7FC */}
+            {/* 내 프로필 */}
+            <Card padding="lg" mb="lg">
+              <Group gap="xs" mb="md">
+                <ThemeIcon size={24} variant="light" color="violet" radius="xl">
+                  <IconUser size={14} />
+                </ThemeIcon>
+                <Text fw={600}>내 프로필</Text>
+              </Group>
+
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                <TextInput
+                  label="변호사명"
+                  value={profileForm.lawyerName}
+                  onChange={(e) => setProfileForm({ ...profileForm, lawyerName: e.currentTarget.value })}
+                />
+                <TextInput
+                  label="사무소명"
+                  value={profileForm.officeName}
+                  onChange={(e) => setProfileForm({ ...profileForm, officeName: e.currentTarget.value })}
+                />
+                <TextInput
+                  label="연락처"
+                  value={profileForm.phone}
+                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.currentTarget.value })}
+                />
+                <TextInput
+                  label="변호사 등록번호"
+                  value={profileForm.barNumber}
+                  onChange={(e) => setProfileForm({ ...profileForm, barNumber: e.currentTarget.value })}
+                />
+              </SimpleGrid>
+
+              <Group justify="flex-end" mt="md">
+                <Button
+                  size="xs"
+                  loading={isSavingProfile}
+                  disabled={!profileForm.lawyerName.trim() || !profileForm.officeName.trim()}
+                  onClick={async () => {
+                    setIsSavingProfile(true)
+                    try {
+                      await saveProfile(profileForm)
+                      showToast('프로필이 저장되었습니다.', 'success')
+                    } catch (err) {
+                      showToast(`저장 실패: ${err.message}`, 'error')
+                    } finally {
+                      setIsSavingProfile(false)
+                    }
+                  }}
+                >
+                  저장
+                </Button>
+              </Group>
+            </Card>
+
+            {/* PC: 2컬럼 레이아웃 / 모바일: 1컬럼 */}
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-              {/* \uC67C\uCABD: \uD604\uC7AC \uC791\uC5C5\uACF5\uAC04 + \uC9C1\uC6D0 \uCD08\uB300 */}
+              {/* 왼쪽: 현재 작업공간 + 직원 초대 */}
               <Stack gap="lg">
-                {/* \uD604\uC7AC \uC791\uC5C5\uACF5\uAC04 */}
+                {/* 현재 작업공간 */}
                 <Card padding="lg">
                   <Group gap="xs" mb="md">
                     <ThemeIcon size={24} variant="light" color="indigo" radius="xl">
