@@ -273,8 +273,13 @@ export default function DocumentList({ caseData }) {
   const [isCreatingDoc, setIsCreatingDoc] = useState(false)
 
   const handleCreateTemplate = async (templateId) => {
-    const tmpl = TEMPLATE_LIST.find((t) => t.id === templateId)
+    const allTemplates = getTemplateList(caseData.type, customTemplates)
+    const tmpl = allTemplates.find((t) => t.id === templateId)
     if (!tmpl) return
+
+    // 팝업 차단 방지: 클릭 시점에 새 창을 먼저 열기
+    const newWindow = window.open('about:blank', '_blank')
+
     setIsCreatingDoc(true)
     try {
       const html = generateTemplate(templateId, caseData, profile, customTemplates)
@@ -283,11 +288,11 @@ export default function DocumentList({ caseData }) {
       showToast(`${tmpl.label} 파일이 생성되었습니다.`, 'success')
       setShowTemplateModal(false)
       await loadFiles()
-      // 새로 만든 Google Docs 바로 열기
-      if (result.webViewLink) {
-        window.open(result.webViewLink, '_blank')
+      if (newWindow && result.webViewLink) {
+        newWindow.location.href = result.webViewLink
       }
     } catch (err) {
+      if (newWindow) newWindow.close()
       showToast(`서면 생성 실패: ${err.message}`, 'error')
     } finally {
       setIsCreatingDoc(false)

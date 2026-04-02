@@ -110,6 +110,10 @@ export default function TemplateManager() {
   // 새 템플릿 만들기
   const handleCreateNew = async () => {
     if (!newName.trim()) return
+
+    // 팝업 차단 방지: 클릭 시점에 새 창을 먼저 열기
+    const newWindow = window.open('about:blank', '_blank')
+
     setIsCreatingNew(true)
     try {
       const templateId = `custom_${Date.now()}`
@@ -169,11 +173,12 @@ export default function TemplateManager() {
       // Docs 맵에 등록
       setDocsMap({ ...docsMap, [templateId]: { docId: doc.id, webViewLink: doc.webViewLink } })
 
-      window.open(doc.webViewLink, '_blank')
+      if (newWindow) newWindow.location.href = doc.webViewLink
       showToast(`"${newName.trim()}" 템플릿이 생성되었습니다. Google Docs에서 편집하세요.`, 'success')
       setNewName('')
       setShowNewForm(false)
     } catch (err) {
+      if (newWindow) newWindow.close()
       showToast(`생성 실패: ${err.message}`, 'error')
     } finally {
       setIsCreatingNew(false)
@@ -208,6 +213,9 @@ export default function TemplateManager() {
       return
     }
 
+    // 팝업 차단 방지: 클릭 시점에 새 창을 먼저 열고, API 완료 후 URL 설정
+    const newWindow = window.open('about:blank', '_blank')
+
     setIsCreatingDoc(tmpl.id)
     try {
       const customHtml = getCustomHtml(tmpl.id)
@@ -227,9 +235,10 @@ export default function TemplateManager() {
 
       const doc = await createGoogleDoc(dataFolderId, `[템플릿] ${tmpl.label}`, html)
       setDocsMap({ ...docsMap, [tmpl.id]: { docId: doc.id, webViewLink: doc.webViewLink } })
-      window.open(doc.webViewLink, '_blank')
-      showToast('Google Docs에서 편집하세요. 완료 후 "Docs에서 가져오기"를 눌러주세요.', 'success')
+      if (newWindow) newWindow.location.href = doc.webViewLink
+      showToast('Google Docs에서 편집하세요. 완료 후 "가져오기"를 눌러주세요.', 'success')
     } catch (err) {
+      if (newWindow) newWindow.close()
       showToast(`Google Docs 생성 실패: ${err.message}`, 'error')
     } finally {
       setIsCreatingDoc(null)
