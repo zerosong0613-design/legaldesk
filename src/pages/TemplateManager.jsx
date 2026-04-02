@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import {
-  Container, Stack, Group, Text, Tabs, Card, Button,
+  Container, Stack, Group, Text, Tabs, Card, Button, TextInput,
   Textarea, ActionIcon, Alert, SimpleGrid, Box,
   ThemeIcon,
 } from '@mantine/core'
@@ -155,8 +155,9 @@ export default function TemplateManager() {
 <p class="right">${officeName}</p>
 <p class="right">변호사 ${lawyerName}</p>`
 
-      // Google Docs 생성
-      const doc = await createGoogleDoc(dataFolderId, `[템플릿] ${newName.trim()}`, baseHtml)
+      // Google Docs 생성 (templates 폴더 또는 data 폴더)
+      const targetFolder = templatesFolderId || dataFolderId
+      const doc = await createGoogleDoc(targetFolder, `[템플릿] ${newName.trim()}`, baseHtml)
 
       // 메타 저장
       const updated = { ...(customTemplates || {}) }
@@ -280,7 +281,7 @@ export default function TemplateManager() {
         html = getDefaultTemplate(tmpl.id, dummyCase, profile)
       }
 
-      const doc = await createGoogleDoc(dataFolderId, `[템플릿] ${tmpl.label}`, html)
+      const doc = await createGoogleDoc(templatesFolderId || dataFolderId, `[템플릿] ${tmpl.label}`, html)
       setDocsMap({ ...docsMap, [tmpl.id]: { docId: doc.id, webViewLink: doc.webViewLink } })
       if (newWindow) newWindow.location.href = doc.webViewLink
       showToast('Google Docs에서 편집하세요. 완료 후 "가져오기"를 눌러주세요.', 'success')
