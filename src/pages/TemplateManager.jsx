@@ -110,20 +110,20 @@ export default function TemplateManager() {
   }
 
   // 새 템플릿 만들기
+  // 생성 완료 후 Docs 링크 표시용
+  const [createdDocLink, setCreatedDocLink] = useState(null)
+
   const handleCreateNew = async () => {
     if (!newName.trim()) return
 
-    // 팝업 차단 방지: 클릭 시점에 새 창을 먼저 열기
-    const newWindow = window.open('about:blank', '_blank')
-
     setIsCreatingNew(true)
+    setCreatedDocLink(null)
     try {
       const templateId = `custom_${Date.now()}`
       const lawyerName = profile?.lawyerName || '[변호사명]'
       const officeName = profile?.officeName || '[사무소명]'
       const phone = profile?.phone || '[연락처]'
 
-      // 기본 틀 HTML 생성
       const baseHtml = `
 <style>
   body { font-family: 'Batang', serif; font-size: 12pt; line-height: 1.8; }
@@ -155,11 +155,9 @@ export default function TemplateManager() {
 <p class="right">${officeName}</p>
 <p class="right">변호사 ${lawyerName}</p>`
 
-      // Google Docs 생성 (templates 폴더 또는 data 폴더)
       const targetFolder = templatesFolderId || dataFolderId
       const doc = await createGoogleDoc(targetFolder, `[템플릿] ${newName.trim()}`, baseHtml)
 
-      // 메타 저장
       const updated = { ...(customTemplates || {}) }
       if (!updated._userTemplates) updated._userTemplates = {}
       if (!updated._userTemplates[categoryKey]) updated._userTemplates[categoryKey] = []
@@ -168,20 +166,16 @@ export default function TemplateManager() {
         label: newName.trim(),
         icon: '📝',
       })
-      // 기본 HTML 저장
       if (!updated[categoryKey]) updated[categoryKey] = {}
       updated[categoryKey][templateId] = baseHtml
       await saveTemplates(updated)
 
-      // Docs 맵에 등록
       setDocsMap({ ...docsMap, [templateId]: { docId: doc.id, webViewLink: doc.webViewLink } })
-
-      if (newWindow) newWindow.location.href = doc.webViewLink
-      showToast(`"${newName.trim()}" 템플릿이 생성되었습니다. Google Docs에서 편집하세요.`, 'success')
+      setCreatedDocLink(doc.webViewLink)
+      showToast(`"${newName.trim()}" 템플릿이 생성되었습니다.`, 'success')
       setNewName('')
       setShowNewForm(false)
     } catch (err) {
-      if (newWindow) newWindow.close()
       showToast(`생성 실패: ${err.message}`, 'error')
     } finally {
       setIsCreatingNew(false)
@@ -255,14 +249,10 @@ export default function TemplateManager() {
 
   // Google Docs로 편집: 현재 템플릿 HTML을 Google Doc으로 생성
   const handleOpenInDocs = async (tmpl) => {
-    // 이미 만든 Doc이 있으면 바로 열기
+    // 이미 만든 Doc이 있으면 링크로 열기 (사용자 클릭이므로 차단 안 됨)
     if (docsMap[tmpl.id]) {
-      window.open(docsMap[tmpl.id].webViewLink, '_blank')
-      return
+      return // 카드의 "Docs 열기" 버튼이 <a> 태그로 열도록 처리
     }
-
-    // 팝업 차단 방지: 클릭 시점에 새 창을 먼저 열고, API 완료 후 URL 설정
-    const newWindow = window.open('about:blank', '_blank')
 
     setIsCreatingDoc(tmpl.id)
     try {
@@ -283,10 +273,8 @@ export default function TemplateManager() {
 
       const doc = await createGoogleDoc(templatesFolderId || dataFolderId, `[템플릿] ${tmpl.label}`, html)
       setDocsMap({ ...docsMap, [tmpl.id]: { docId: doc.id, webViewLink: doc.webViewLink } })
-      if (newWindow) newWindow.location.href = doc.webViewLink
-      showToast('Google Docs에서 편집하세요. 완료 후 "가져오기"를 눌러주세요.', 'success')
+      showToast('Docs가 생성되었습니다. "Docs 열기" 버튼을 눌러 편집하세요.', 'success')
     } catch (err) {
-      if (newWindow) newWindow.close()
       showToast(`Google Docs 생성 실패: ${err.message}`, 'error')
     } finally {
       setIsCreatingDoc(null)
@@ -342,6 +330,30 @@ export default function TemplateManager() {
             <Text span fw={500}>플레이스홀더</Text>: [의뢰인], [상대방], [법원], [사건번호], [변호사명], [사무소명], [연락처], [날짜] — 서면 작성 시 자동 치환됩니다.
           </Text>
         </Alert>
+
+        {createdDocLink && (
+          <Alert
+            color="teal"
+            variant="light"
+            withCloseButton
+            onClose={() => setCreatedDocLink(null)}
+            title="템플릿이 생성되었습니다"
+          >
+            <Group gap="sm">
+              <Text size="sm">Google Docs에서 편집한 후 "가져오기"를 눌러주세요.</Text>
+              <Button
+                size="compact-xs"
+                component="a"
+                href={createdDocLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                leftSection={<IconBrandGoogleDrive size={12} />}
+              >
+                Google Docs 열기
+              </Button>
+            </Group>
+          </Alert>
+        )}
 
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
@@ -457,16 +469,31 @@ export default function TemplateManager() {
                     >
                       HTML
                     </Button>
-                    <Button
-                      size="compact-xs"
-                      variant="light"
-                      color="blue"
-                      leftSection={<IconBrandGoogleDrive size={12} />}
-                      loading={isCreatingDoc === tmpl.id}
-                      onClick={() => handleOpenInDocs(tmpl)}
-                    >
-                      {docsMap[tmpl.id] ? 'Docs 열기' : 'Docs로 편집'}
-                    </Button>
+                    {docsMap[tmpl.id] ? (
+                      <Button
+                        size="compact-xs"
+                        variant="light"
+                        color="blue"
+                        leftSection={<IconBrandGoogleDrive size={12} />}
+                        component="a"
+                        href={docsMap[tmpl.id].webViewLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Docs 열기
+                      </Button>
+                    ) : (
+                      <Button
+                        size="compact-xs"
+                        variant="light"
+                        color="blue"
+                        leftSection={<IconBrandGoogleDrive size={12} />}
+                        loading={isCreatingDoc === tmpl.id}
+                        onClick={() => handleOpenInDocs(tmpl)}
+                      >
+                        Docs 생성
+                      </Button>
+                    )}
                     {docsMap[tmpl.id] && (
                       <Button
                         size="compact-xs"
