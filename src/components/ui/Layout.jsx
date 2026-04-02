@@ -159,9 +159,9 @@ export default function Layout({ children }) {
               }}
             />
 
-            {/* \uC791\uC5C5\uACF5\uAC04 */}
+            {/* \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 */}
             <NavLink
-              label={'\uC791\uC5C5\uACF5\uAC04'}
+              label={'\uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}
               leftSection={<IconUsers size={18} />}
               active={location.pathname === '/workspace'}
               color="orange"
@@ -180,7 +180,7 @@ export default function Layout({ children }) {
         <AppShell.Section>
           <Divider mb="xs" />
           <Box px="xs" pb="xs">
-            <Text size="xs" c="dimmed" mb={4}>{'\uD604\uC7AC \uC791\uC5C5\uACF5\uAC04'}</Text>
+            <Text size="xs" c="dimmed" mb={4}>{'\uD604\uC7AC \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}</Text>
             <Group gap="xs">
               <ThemeIcon
                 size={20}
@@ -191,7 +191,7 @@ export default function Layout({ children }) {
                 {isShared ? <IconBuilding size={10} /> : <IconUsers size={10} />}
               </ThemeIcon>
               <Text size="xs" fw={500} truncate style={{ flex: 1 }}>
-                {workspace?.label || '\uB0B4 \uC791\uC5C5\uACF5\uAC04'}
+                {workspace?.label || '\uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}
               </Text>
             </Group>
             {isShared && workspace.ownerEmail && (

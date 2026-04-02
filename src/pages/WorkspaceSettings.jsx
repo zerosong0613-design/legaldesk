@@ -47,10 +47,10 @@ function WorkspaceCard({ ws, isCurrent, onSelect }) {
           </ThemeIcon>
           <Box>
             <Text size="sm" fw={600}>
-              {ws.label || (isOwn ? '\uB0B4 \uC791\uC5C5\uACF5\uAC04' : '\uACF5\uC720 \uC791\uC5C5\uACF5\uAC04')}
+              {ws.label || (isOwn ? '\uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4' : '\uACF5\uC720 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4')}
             </Text>
             {ws.ownerName && (
-              <Text size="xs" c="dimmed">{ws.ownerName}{'\uB2D8\uC758 \uC791\uC5C5\uACF5\uAC04'}</Text>
+              <Text size="xs" c="dimmed">{ws.ownerName}{'\uB2D8\uC758 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}</Text>
             )}
           </Box>
         </Group>
@@ -66,7 +66,7 @@ function WorkspaceCard({ ws, isCurrent, onSelect }) {
       )}
       {!isCurrent && (
         <Button variant="light" size="xs" mt="sm" fullWidth>
-          {'\uC774 \uC791\uC5C5\uACF5\uAC04\uC73C\uB85C \uC804\uD658'}
+          {'\uC774 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4\uC73C\uB85C \uC804\uD658'}
         </Button>
       )}
     </Card>
@@ -166,7 +166,7 @@ export default function WorkspaceSettings() {
     setIsSwitching(true)
     try {
       await switchWorkspace(config)
-      showToast('\uC791\uC5C5\uACF5\uAC04\uC774 \uC804\uD658\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
+      showToast('\uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4\uC774 \uC804\uD658\uB418\uC5C8\uC2B5\uB2C8\uB2E4.', 'success')
     } catch (err) {
       showToast(`\uC804\uD658 \uC2E4\uD328: ${err.message}`, 'error')
     } finally {
@@ -175,14 +175,14 @@ export default function WorkspaceSettings() {
   }
 
   const handleSwitchToOwn = () => {
-    handleSwitch({ type: 'own', rootId: null, label: '\uB0B4 \uC791\uC5C5\uACF5\uAC04' })
+    handleSwitch({ type: 'own', rootId: null, label: '\uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4' })
   }
 
   const handleSwitchToShared = (folder) => {
     handleSwitch({
       type: 'shared',
       rootId: folder.id,
-      label: `${folder.ownerName || 'Unknown'}\uB2D8\uC758 \uC791\uC5C5\uACF5\uAC04`,
+      label: `${folder.ownerName || 'Unknown'}\uB2D8\uC758 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4`,
       ownerName: folder.ownerName,
       ownerEmail: folder.ownerEmail,
     })
@@ -228,14 +228,14 @@ export default function WorkspaceSettings() {
         {/* \uD5E4\uB354 */}
         <Group gap="xs">
           <IconUsers size={22} color="var(--mantine-color-orange-6)" />
-          <Text size="lg" fw={700}>{'\uC791\uC5C5\uACF5\uAC04 \uC124\uC815'}</Text>
+          <Text size="lg" fw={700}>{'\uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 \uC124\uC815'}</Text>
         </Group>
 
         {isSwitching && (
           <Center py="xl">
             <Stack align="center" gap="sm">
               <Loader size="md" color="indigo" />
-              <Text size="sm" c="dimmed">{'\uC791\uC5C5\uACF5\uAC04 \uC804\uD658 \uC911...'}</Text>
+              <Text size="sm" c="dimmed">{'\uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 \uC804\uD658 \uC911...'}</Text>
             </Stack>
           </Center>
         )}
@@ -298,15 +298,15 @@ export default function WorkspaceSettings() {
 
             {/* PC: 2컬럼 레이아웃 / 모바일: 1컬럼 */}
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-              {/* 왼쪽: 현재 작업공간 + 직원 초대 */}
+              {/* 왼쪽: 현재 워크스페이스 + 직원 초대 */}
               <Stack gap="lg">
-                {/* 현재 작업공간 */}
+                {/* 현재 워크스페이스 */}
                 <Card padding="lg">
                   <Group gap="xs" mb="md">
                     <ThemeIcon size={24} variant="light" color="indigo" radius="xl">
                       <IconFolder size={14} />
                     </ThemeIcon>
-                    <Text fw={600}>{'\uD604\uC7AC \uC791\uC5C5\uACF5\uAC04'}</Text>
+                    <Text fw={600}>{'\uD604\uC7AC \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}</Text>
                   </Group>
 
                   <Card padding="md" bg="indigo.0" withBorder style={{ borderColor: 'var(--mantine-color-indigo-3)' }}>
@@ -322,7 +322,7 @@ export default function WorkspaceSettings() {
                         </ThemeIcon>
                         <Box>
                           <Text fw={600}>
-                            {workspace?.label || '\uB0B4 \uC791\uC5C5\uACF5\uAC04'}
+                            {workspace?.label || '\uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}
                           </Text>
                           {workspace?.ownerEmail && (
                             <Text size="xs" c="dimmed">{workspace.ownerEmail}</Text>
@@ -347,7 +347,7 @@ export default function WorkspaceSettings() {
                       mt="sm"
                       onClick={handleSwitchToOwn}
                     >
-                      {'\uB0B4 \uC791\uC5C5\uACF5\uAC04\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30'}
+                      {'\uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30'}
                     </Button>
                   )}
                 </Card>
@@ -364,7 +364,7 @@ export default function WorkspaceSettings() {
 
                     <Text size="sm" c="dimmed" mb="md">
                       {'\uB2E4\uB978 \uBCC0\uD638\uC0AC\uB098 \uC9C1\uC6D0\uC758 Google \uACC4\uC815\uC744 \uCD08\uB300\uD558\uBA74,'}{' '}
-                      {'\uB0B4 \uC791\uC5C5\uACF5\uAC04\uC758 \uC0AC\uAC74 \uB370\uC774\uD130\uB97C \uD568\uAED8 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
+                      {'\uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4\uC758 \uC0AC\uAC74 \uB370\uC774\uD130\uB97C \uD568\uAED8 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
                     </Text>
 
                     <Group gap="sm">
@@ -388,7 +388,7 @@ export default function WorkspaceSettings() {
                     <Alert color="blue" variant="light" mt="sm">
                       <Text size="xs">
                         {'\uCD08\uB300\uBC1B\uC740 \uC0AC\uB78C\uC740 LegalDesk \uC571\uC5D0 \uB85C\uADF8\uC778 \uD6C4'}{' '}
-                        {'\uC791\uC5C5\uACF5\uAC04 \uC124\uC815\uC5D0\uC11C "\uACF5\uC720\uB41C \uC791\uC5C5\uACF5\uAC04 \uAC80\uC0C9"\uC744 \uB204\uB974\uBA74 \uC5F0\uACB0\uB429\uB2C8\uB2E4.'}
+                        {'\uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 \uC124\uC815\uC5D0\uC11C "\uACF5\uC720\uB41C \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 \uAC80\uC0C9"\uC744 \uB204\uB974\uBA74 \uC5F0\uACB0\uB429\uB2C8\uB2E4.'}
                       </Text>
                     </Alert>
 
@@ -433,19 +433,19 @@ export default function WorkspaceSettings() {
                 )}
               </Stack>
 
-              {/* \uC624\uB978\uCABD: \uACF5\uC720\uB41C \uC791\uC5C5\uACF5\uAC04 + \uC548\uB0B4 */}
+              {/* \uC624\uB978\uCABD: \uACF5\uC720\uB41C \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 + \uC548\uB0B4 */}
               <Stack gap="lg">
-                {/* \uACF5\uC720\uB41C \uC791\uC5C5\uACF5\uAC04 \uAC80\uC0C9 */}
+                {/* \uACF5\uC720\uB41C \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 \uAC80\uC0C9 */}
                 <Card padding="lg">
                   <Group gap="xs" mb="md">
                     <ThemeIcon size={24} variant="light" color="orange" radius="xl">
                       <IconLink size={14} />
                     </ThemeIcon>
-                    <Text fw={600}>{'\uACF5\uC720\uB41C \uC791\uC5C5\uACF5\uAC04'}</Text>
+                    <Text fw={600}>{'\uACF5\uC720\uB41C \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}</Text>
                   </Group>
 
                   <Text size="sm" c="dimmed" mb="md">
-                    {'\uB2E4\uB978 \uBCC0\uD638\uC0AC\uAC00 \uCD08\uB300\uD55C \uC791\uC5C5\uACF5\uAC04\uC774 \uC788\uC73C\uBA74 \uAC80\uC0C9\uD558\uC5EC \uC5F0\uACB0\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
+                    {'\uB2E4\uB978 \uBCC0\uD638\uC0AC\uAC00 \uCD08\uB300\uD55C \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4\uC774 \uC788\uC73C\uBA74 \uAC80\uC0C9\uD558\uC5EC \uC5F0\uACB0\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
                   </Text>
 
                   <Button
@@ -455,7 +455,7 @@ export default function WorkspaceSettings() {
                     leftSection={<IconSearch size={14} />}
                     fullWidth
                   >
-                    {'\uACF5\uC720\uB41C \uC791\uC5C5\uACF5\uAC04 \uAC80\uC0C9'}
+                    {'\uACF5\uC720\uB41C \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 \uAC80\uC0C9'}
                   </Button>
 
                   {searchError && (
@@ -464,7 +464,7 @@ export default function WorkspaceSettings() {
 
                   {hasSearched && sharedFolders.length === 0 && !searchError && (
                     <Center py="md">
-                      <Text size="sm" c="dimmed">{'\uACF5\uC720\uB41C \uC791\uC5C5\uACF5\uAC04\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
+                      <Text size="sm" c="dimmed">{'\uACF5\uC720\uB41C \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4\uC774 \uC5C6\uC2B5\uB2C8\uB2E4'}</Text>
                     </Center>
                   )}
 
@@ -488,7 +488,7 @@ export default function WorkspaceSettings() {
                                 )}
                                 <Box>
                                   <Text size="sm" fw={600}>
-                                    {folder.ownerName || 'Unknown'}{'\uB2D8\uC758 \uC791\uC5C5\uACF5\uAC04'}
+                                    {folder.ownerName || 'Unknown'}{'\uB2D8\uC758 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}
                                   </Text>
                                   <Text size="xs" c="dimmed">{folder.ownerEmail}</Text>
                                 </Box>
@@ -596,20 +596,20 @@ export default function WorkspaceSettings() {
                     <ThemeIcon size={24} variant="light" color="gray" radius="xl">
                       <IconShieldCheck size={14} />
                     </ThemeIcon>
-                    <Text fw={600}>{'\uC791\uC5C5\uACF5\uAC04 \uC548\uB0B4'}</Text>
+                    <Text fw={600}>{'\uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 \uC548\uB0B4'}</Text>
                   </Group>
                   <Stack gap="sm">
                     <Group gap="xs" wrap="nowrap" align="flex-start">
                       <Text size="sm" c="indigo" fw={600} style={{ flexShrink: 0 }}>{'\u2022'}</Text>
                       <Text size="sm" c="dimmed">
-                        <Text span fw={500} c="dark">{'\uB0B4 \uC791\uC5C5\uACF5\uAC04'}</Text>
+                        <Text span fw={500} c="dark">{'\uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}</Text>
                         {': \uB370\uC774\uD130\uAC00 \uB0B4 Google Drive\uC5D0 \uC800\uC7A5\uB429\uB2C8\uB2E4. \uC678\uBD80 \uC11C\uBC84\uB97C \uC0AC\uC6A9\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.'}
                       </Text>
                     </Group>
                     <Group gap="xs" wrap="nowrap" align="flex-start">
                       <Text size="sm" c="teal" fw={600} style={{ flexShrink: 0 }}>{'\u2022'}</Text>
                       <Text size="sm" c="dimmed">
-                        <Text span fw={500} c="dark">{'\uACF5\uC720 \uC791\uC5C5\uACF5\uAC04'}</Text>
+                        <Text span fw={500} c="dark">{'\uACF5\uC720 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}</Text>
                         {': \uB2E4\uB978 \uC0AC\uB78C\uC758 Drive\uC5D0 \uC800\uC7A5\uB41C \uB370\uC774\uD130\uB97C \uD568\uAED8 \uC0AC\uC6A9\uD569\uB2C8\uB2E4.'}
                       </Text>
                     </Group>
@@ -622,7 +622,7 @@ export default function WorkspaceSettings() {
                     <Group gap="xs" wrap="nowrap" align="flex-start">
                       <Text size="sm" c="gray" fw={600} style={{ flexShrink: 0 }}>{'\u2022'}</Text>
                       <Text size="sm" c="dimmed">
-                        {'\uC5B8\uC81C\uB4E0 \uB0B4 \uC791\uC5C5\uACF5\uAC04\uC73C\uB85C \uB3CC\uC544\uC62C \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
+                        {'\uC5B8\uC81C\uB4E0 \uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4\uC73C\uB85C \uB3CC\uC544\uC62C \uC218 \uC788\uC2B5\uB2C8\uB2E4.'}
                       </Text>
                     </Group>
                   </Stack>

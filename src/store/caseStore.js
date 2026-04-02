@@ -60,13 +60,13 @@ export const useCaseStore = create((set, get) => ({
 
       let structure
       if (ws?.type === 'shared' && ws.rootId) {
-        // \uACF5\uC720 \uC791\uC5C5\uACF5\uAC04: \uAE30\uC874 \uAD6C\uC870\uC5D0 \uC5F0\uACB0
+        // \uACF5\uC720 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4: \uAE30\uC874 \uAD6C\uC870\uC5D0 \uC5F0\uACB0
         structure = await connectToExistingStructure(ws.rootId)
       } else {
-        // \uB0B4 \uC791\uC5C5\uACF5\uAC04: \uAE30\uC874\uCC98\uB7FC \uC0DD\uC131/\uC5F0\uACB0
+        // \uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4: \uAE30\uC874\uCC98\uB7FC \uC0DD\uC131/\uC5F0\uACB0
         structure = await initializeDriveStructure()
         if (!ws) {
-          const config = { type: 'own', rootId: structure.rootId, label: '\uB0B4 \uC791\uC5C5\uACF5\uAC04' }
+          const config = { type: 'own', rootId: structure.rootId, label: '\uB0B4 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4' }
           saveWorkspaceConfig(config)
           set({ workspace: config })
         }

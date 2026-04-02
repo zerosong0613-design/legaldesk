@@ -342,7 +342,7 @@ export async function getFileMetadata(fileId) {
   return res.json()
 }
 
-// --- \uACF5\uC720 \uC791\uC5C5\uACF5\uAC04 ---
+// --- \uACF5\uC720 \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 ---
 
 export async function findSharedLegalDeskFolders() {
   const q = `name='${ROOT_FOLDER_NAME}' and mimeType='${FOLDER_MIME}' and sharedWithMe=true and trashed=false`
