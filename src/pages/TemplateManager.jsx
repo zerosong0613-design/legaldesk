@@ -33,10 +33,20 @@ export default function TemplateManager() {
   const [isCreatingDoc, setIsCreatingDoc] = useState(null)
   const [isImporting, setIsImporting] = useState(null)
 
-  const templates = activeTab === 'criminal' ? CRIMINAL_TEMPLATES
+  // 새 템플릿 만들기
+  const [showNewForm, setShowNewForm] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [isCreatingNew, setIsCreatingNew] = useState(false)
+
+  const builtinTemplates = activeTab === 'criminal' ? CRIMINAL_TEMPLATES
     : activeTab === 'consult' ? CONSULT_TEMPLATES
     : CIVIL_TEMPLATES
   const categoryKey = activeTab
+
+  // 사용자가 만든 커스텀 템플릿 목록
+  const userTemplates = (customTemplates?._userTemplates?.[categoryKey] || [])
+    .map((ut) => ({ ...ut, isUserCreated: true }))
+  const templates = [...builtinTemplates, ...userTemplates]
 
   const getCustomHtml = (templateId) => {
     return customTemplates?.[categoryKey]?.[templateId] || null
@@ -92,6 +102,99 @@ export default function TemplateManager() {
       }
     } catch (err) {
       showToast(`초기화 실패: ${err.message}`, 'error')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // 새 템플릿 만들기
+  const handleCreateNew = async () => {
+    if (!newName.trim()) return
+    setIsCreatingNew(true)
+    try {
+      const templateId = `custom_${Date.now()}`
+      const lawyerName = profile?.lawyerName || '[변호사명]'
+      const officeName = profile?.officeName || '[사무소명]'
+      const phone = profile?.phone || '[연락처]'
+
+      // 기본 틀 HTML 생성
+      const baseHtml = `
+<style>
+  body { font-family: 'Batang', serif; font-size: 12pt; line-height: 1.8; }
+  h1 { text-align: center; font-size: 18pt; margin-bottom: 24pt; }
+  h2 { font-size: 14pt; margin-top: 18pt; }
+  .center { text-align: center; }
+  .right { text-align: right; }
+  .indent { margin-left: 24pt; }
+  .field { color: #1a73e8; }
+  table { width: 100%; border-collapse: collapse; margin: 12pt 0; }
+  td, th { border: 1px solid #999; padding: 6pt 10pt; }
+  th { background: #f5f5f5; font-weight: bold; }
+</style>
+<h1>${newName.trim()}</h1>
+<table>
+  <tr><th width="15%">작성자</th><td>${officeName} 변호사 ${lawyerName}</td></tr>
+  <tr><th>연락처</th><td>${phone}</td></tr>
+  <tr><th>일자</th><td>[날짜]</td></tr>
+  <tr><th>의뢰인</th><td>[의뢰인]</td></tr>
+</table>
+<h2>1. 제목</h2>
+<p class="indent field">[내용을 입력하세요]</p>
+<h2>2. 제목</h2>
+<p class="indent field">[내용을 입력하세요]</p>
+<h2>3. 제목</h2>
+<p class="indent field">[내용을 입력하세요]</p>
+<br/>
+<p class="right">[날짜]</p>
+<p class="right">${officeName}</p>
+<p class="right">변호사 ${lawyerName}</p>`
+
+      // Google Docs 생성
+      const doc = await createGoogleDoc(dataFolderId, `[템플릿] ${newName.trim()}`, baseHtml)
+
+      // 메타 저장
+      const updated = { ...(customTemplates || {}) }
+      if (!updated._userTemplates) updated._userTemplates = {}
+      if (!updated._userTemplates[categoryKey]) updated._userTemplates[categoryKey] = []
+      updated._userTemplates[categoryKey].push({
+        id: templateId,
+        label: newName.trim(),
+        icon: '📝',
+      })
+      // 기본 HTML 저장
+      if (!updated[categoryKey]) updated[categoryKey] = {}
+      updated[categoryKey][templateId] = baseHtml
+      await saveTemplates(updated)
+
+      // Docs 맵에 등록
+      setDocsMap({ ...docsMap, [templateId]: { docId: doc.id, webViewLink: doc.webViewLink } })
+
+      window.open(doc.webViewLink, '_blank')
+      showToast(`"${newName.trim()}" 템플릿이 생성되었습니다. Google Docs에서 편집하세요.`, 'success')
+      setNewName('')
+      setShowNewForm(false)
+    } catch (err) {
+      showToast(`생성 실패: ${err.message}`, 'error')
+    } finally {
+      setIsCreatingNew(false)
+    }
+  }
+
+  // 사용자 템플릿 삭제
+  const handleDeleteUserTemplate = async (tmpl) => {
+    setIsSaving(true)
+    try {
+      const updated = { ...(customTemplates || {}) }
+      if (updated._userTemplates?.[categoryKey]) {
+        updated._userTemplates[categoryKey] = updated._userTemplates[categoryKey].filter((t) => t.id !== tmpl.id)
+      }
+      if (updated[categoryKey]) {
+        delete updated[categoryKey][tmpl.id]
+      }
+      await saveTemplates(updated)
+      showToast(`${tmpl.label} 템플릿이 삭제되었습니다.`, 'success')
+    } catch (err) {
+      showToast(`삭제 실패: ${err.message}`, 'error')
     } finally {
       setIsSaving(false)
     }
@@ -197,6 +300,42 @@ export default function TemplateManager() {
           </Tabs.List>
         </Tabs>
 
+        {/* 새 템플릿 만들기 */}
+        {showNewForm ? (
+          <Card padding="md" withBorder bg="blue.0">
+            <Group gap="sm">
+              <TextInput
+                placeholder="새 서면 이름 (예: 이행최고서, 경고장)"
+                value={newName}
+                onChange={(e) => setNewName(e.currentTarget.value)}
+                style={{ flex: 1 }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateNew() }}
+              />
+              <Button
+                loading={isCreatingNew}
+                disabled={!newName.trim()}
+                onClick={handleCreateNew}
+              >
+                만들기
+              </Button>
+              <Button variant="default" onClick={() => { setShowNewForm(false); setNewName('') }}>
+                취소
+              </Button>
+            </Group>
+            <Text size="xs" c="dimmed" mt={4}>
+              기본 틀이 포함된 Google Docs가 생성됩니다. Docs에서 편집 후 "가져오기"를 눌러주세요.
+            </Text>
+          </Card>
+        ) : (
+          <Button
+            variant="light"
+            leftSection={<Text size="lg">+</Text>}
+            onClick={() => setShowNewForm(true)}
+          >
+            새 서면 템플릿 만들기
+          </Button>
+        )}
+
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
           {templates.map((tmpl) => {
             const hasCustom = !!getCustomHtml(tmpl.id)
@@ -207,12 +346,23 @@ export default function TemplateManager() {
                     <Text size="lg">{tmpl.icon}</Text>
                     <div>
                       <Text size="sm" fw={600}>{tmpl.label}</Text>
-                      {hasCustom && (
-                        <Text size="xs" c="teal" fw={500}>수정됨</Text>
-                      )}
+                      {tmpl.isUserCreated
+                        ? <Text size="xs" c="blue" fw={500}>직접 만든 서면</Text>
+                        : hasCustom && <Text size="xs" c="teal" fw={500}>수정됨</Text>
+                      }
                     </div>
                   </Group>
                   <Group gap={4}>
+                    {tmpl.isUserCreated && (
+                      <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        color="red"
+                        onClick={() => handleDeleteUserTemplate(tmpl)}
+                      >
+                        삭제
+                      </Button>
+                    )}
                     {hasCustom && (
                       <Button
                         size="compact-xs"

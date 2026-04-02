@@ -48,10 +48,16 @@ export const CONSULT_TEMPLATES = [
 /** @deprecated — 하위 호환용 */
 export const TEMPLATE_LIST = CIVIL_TEMPLATES
 
-export function getTemplateList(caseType) {
-  if (caseType === '형사') return CRIMINAL_TEMPLATES
-  if (caseType === '자문') return CONSULT_TEMPLATES
-  return CIVIL_TEMPLATES
+export function getTemplateList(caseType, customTemplates) {
+  let builtins
+  let categoryKey
+  if (caseType === '형사') { builtins = CRIMINAL_TEMPLATES; categoryKey = 'criminal' }
+  else if (caseType === '자문') { builtins = CONSULT_TEMPLATES; categoryKey = 'consult' }
+  else { builtins = CIVIL_TEMPLATES; categoryKey = 'civil' }
+
+  // 사용자가 만든 커스텀 템플릿도 포함
+  const userTemplates = customTemplates?._userTemplates?.[categoryKey] || []
+  return [...builtins, ...userTemplates]
 }
 
 /**

@@ -595,7 +595,7 @@ export default function DocumentList({ caseData }) {
           <Text size="sm" c="dimmed">
             사건 정보가 자동으로 채워진 Google Docs 파일이 생성됩니다.
           </Text>
-          {getTemplateList(caseData.type).map((tmpl) => (
+          {getTemplateList(caseData.type, customTemplates).map((tmpl) => (
             <Button
               key={tmpl.id}
               variant="light"
