@@ -18,6 +18,11 @@ const CIVIL_ACTIVITY_TYPES = [
   { value: 'other_activity', label: '기타활동', icon: '📋' },
 ]
 
+const CONSULT_ACTIVITY_TYPES = [
+  { value: 'consult', label: '상담', icon: '💬' },
+  { value: 'other_activity', label: '기타활동', icon: '📋' },
+]
+
 const METHODS = [
   { value: 'visit', label: '방문', icon: '🏢' },
   { value: 'call', label: '전화', icon: '📞' },
@@ -44,8 +49,11 @@ function getCurrentTime() {
 
 export default function ConsultRecordForm({ initialData, onSubmit, onCancel, caseType }) {
   const isEditing = !!initialData
-  const isCriminal = caseType === '형사'
-  const activityTypes = isCriminal ? CRIMINAL_ACTIVITY_TYPES : CIVIL_ACTIVITY_TYPES
+  const activityTypes = caseType === '형사'
+    ? CRIMINAL_ACTIVITY_TYPES
+    : caseType === '자문'
+      ? CONSULT_ACTIVITY_TYPES
+      : CIVIL_ACTIVITY_TYPES
 
   const [form, setForm] = useState({
     activityType: initialData?.activityType || 'consult',

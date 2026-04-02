@@ -27,7 +27,7 @@ const CONSULT_STATUSES = ['\uC811\uC218', '\uC9C4\uD589', '\uC644\uB8CC', '\uBCF
 
 const TABS = [
   { id: 'info', label: '\uC790\uBB38\uC815\uBCF4', icon: IconInfoCircle },
-  { id: 'consultation', label: '\uC0C1\uB2F4', icon: IconMessageCircle },
+  { id: 'consultation', label: '\uD65C\uB3D9\uAE30\uB85D', icon: IconMessageCircle },
   { id: 'timeline', label: '\uD0C0\uC784\uB77C\uC778', icon: IconTimeline },
   { id: 'docs', label: '\uBB38\uC11C', icon: IconFiles },
   { id: 'billing', label: '\uBE44\uC6A9', icon: IconReceipt },
@@ -308,7 +308,7 @@ export default function ConsultationDetail() {
       {/* Content */}
       <Container size="xl" py="lg">
         {activeTab === 'info' && <InfoTab caseData={currentCase} />}
-        {activeTab === 'consultation' && <ConsultRecordTab caseData={currentCase} />}
+        {activeTab === 'consultation' && <ConsultRecordTab caseData={{ ...currentCase, type: '자문' }} />}
         {activeTab === 'timeline' && <Timeline caseData={currentCase} />}
         {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
         {activeTab === 'billing' && <CaseBillingTab caseData={currentCase} />}
