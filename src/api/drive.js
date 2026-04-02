@@ -14,6 +14,7 @@ const FILES_FOLDER_NAME = 'files'
 const CASES_INDEX_NAME = 'cases.json'
 const SCHEDULES_INDEX_NAME = 'schedules.json'
 const PROFILE_FILE_NAME = 'profile.json'
+const TEMPLATES_FILE_NAME = 'templates.json'
 
 async function getToken() {
   const token = await useAuthStore.getState().getValidToken()
@@ -214,8 +215,9 @@ export async function initializeDriveStructure() {
     schedulesFile = await createJsonFile(SCHEDULES_INDEX_NAME, dataFolder.id, initialSchedules)
   }
 
-  // profile.json은 첫 로그인 시 없을 수 있음 (온보딩에서 생성)
+  // profile.json / templates.json은 첫 로그인 시 없을 수 있음
   const profileFile = await findFile(PROFILE_FILE_NAME, dataFolder.id)
+  const templatesFile = await findFile(TEMPLATES_FILE_NAME, dataFolder.id)
 
   return {
     rootId: root.id,
@@ -226,6 +228,7 @@ export async function initializeDriveStructure() {
     casesFileId: casesFile.id,
     schedulesFileId: schedulesFile.id,
     profileFileId: profileFile?.id || null,
+    templatesFileId: templatesFile?.id || null,
   }
 }
 
@@ -249,6 +252,27 @@ export async function writeProfile(dataFolderId, profileFileId, data) {
   // 첫 생성
   payload.createdAt = new Date().toISOString()
   const file = await createJsonFile(PROFILE_FILE_NAME, dataFolderId, payload)
+  return file.id
+}
+
+// --- Templates operations ---
+
+export async function readTemplates(templatesFileId) {
+  if (!templatesFileId) return null
+  try {
+    return await readJsonFile(templatesFileId)
+  } catch {
+    return null
+  }
+}
+
+export async function writeTemplates(dataFolderId, templatesFileId, data) {
+  const payload = { ...data, updatedAt: new Date().toISOString() }
+  if (templatesFileId) {
+    await updateJsonFile(templatesFileId, payload)
+    return templatesFileId
+  }
+  const file = await createJsonFile(TEMPLATES_FILE_NAME, dataFolderId, payload)
   return file.id
 }
 
@@ -414,6 +438,7 @@ export async function connectToExistingStructure(rootId) {
 
   const schedulesFile = await findFile(SCHEDULES_INDEX_NAME, dataFolder.id)
   const profileFile = await findFile(PROFILE_FILE_NAME, dataFolder.id)
+  const templatesFile = await findFile(TEMPLATES_FILE_NAME, dataFolder.id)
 
   return {
     rootId,
@@ -424,6 +449,7 @@ export async function connectToExistingStructure(rootId) {
     casesFileId: casesFile.id,
     schedulesFileId: schedulesFile?.id || null,
     profileFileId: profileFile?.id || null,
+    templatesFileId: templatesFile?.id || null,
   }
 }
 

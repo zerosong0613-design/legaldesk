@@ -534,8 +534,38 @@ const GENERATORS = {
  * @param {object} profile - 변호사 프로필
  * @returns {string} HTML 문자열
  */
-export function generateTemplate(templateId, caseData, profile) {
+/**
+ * 기본 (하드코딩) 템플릿 HTML 생성
+ */
+export function getDefaultTemplate(templateId, caseData, profile) {
   const gen = GENERATORS[templateId]
   if (!gen) throw new Error(`알 수 없는 템플릿: ${templateId}`)
   return gen(caseData, profile)
+}
+
+/**
+ * 템플릿 HTML 생성 (커스텀 우선, 없으면 기본값)
+ * @param {string} templateId
+ * @param {object} caseData
+ * @param {object} profile
+ * @param {object|null} customTemplates - Drive에서 로드한 커스텀 템플릿
+ */
+export function generateTemplate(templateId, caseData, profile, customTemplates) {
+  // 커스텀 템플릿이 있으면 사용
+  const caseType = caseData.type === '형사' ? 'criminal' : 'civil'
+  const custom = customTemplates?.[caseType]?.[templateId]
+  if (custom) {
+    // 플레이스홀더 치환
+    return custom
+      .replace(/\[변호사명\]/g, profile?.lawyerName || '')
+      .replace(/\[사무소명\]/g, profile?.officeName || '')
+      .replace(/\[연락처\]/g, profile?.phone || '')
+      .replace(/\[의뢰인\]/g, caseData.clientName || '')
+      .replace(/\[상대방\]/g, caseData.opponent || caseData.opposingParty || '')
+      .replace(/\[법원\]/g, caseData.court || '')
+      .replace(/\[사건번호\]/g, caseData.caseNumber || '')
+      .replace(/\[날짜\]/g, today())
+  }
+  // 기본 하드코딩 템플릿
+  return getDefaultTemplate(templateId, caseData, profile)
 }

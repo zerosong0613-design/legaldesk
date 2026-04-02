@@ -16,6 +16,7 @@ import CriminalDetail from './pages/CriminalDetail'
 import Billing from './pages/Billing'
 import WorkspaceSettings from './pages/WorkspaceSettings'
 import SharedCaseDetail from './pages/SharedCaseDetail'
+import TemplateManager from './pages/TemplateManager'
 import Onboarding from './pages/Onboarding'
 
 function AppContent() {
@@ -82,6 +83,7 @@ function AppContent() {
         <Route path="/criminal/:id" element={<CriminalDetail />} />
         <Route path="/consultation/:id" element={<ConsultationDetail />} />
         <Route path="/billing" element={<Billing />} />
+        <Route path="/templates" element={<TemplateManager />} />
         <Route path="/shared/:fileId" element={<SharedCaseDetail />} />
         <Route path="/workspace" element={<WorkspaceSettings />} />
       </Routes>

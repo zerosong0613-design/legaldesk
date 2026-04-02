@@ -159,6 +159,19 @@ export default function Layout({ children }) {
               }}
             />
 
+            {/* 서면 템플릿 */}
+            <NavLink
+              label={'서면 템플릿'}
+              leftSection={<IconFileText size={18} />}
+              active={location.pathname === '/templates'}
+              color="grape"
+              variant="light"
+              onClick={() => {
+                navigate('/templates')
+                setNavOpened(false)
+              }}
+            />
+
             {/* \uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4 */}
             <NavLink
               label={'\uC6CC\uD06C\uC2A4\uD398\uC774\uC2A4'}

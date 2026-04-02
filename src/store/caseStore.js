@@ -16,6 +16,8 @@ import {
   findSharedCaseFiles,
   readProfile,
   writeProfile,
+  readTemplates,
+  writeTemplates,
 } from '../api/drive'
 import { useAuthStore } from '../auth/useAuth'
 import { useScheduleStore } from './scheduleStore'
@@ -45,6 +47,8 @@ export const useCaseStore = create((set, get) => ({
   casesFileId: null,
   profileFileId: null,
   profile: null,
+  templatesFileId: null,
+  customTemplates: null,
   isInitialized: false,
   isLoading: false,
   error: null,
@@ -72,8 +76,9 @@ export const useCaseStore = create((set, get) => ({
         }
       }
 
-      // 프로필 로드
+      // 프로필 + 템플릿 로드
       const profileData = await readProfile(structure.profileFileId)
+      const templatesData = await readTemplates(structure.templatesFileId)
 
       set({
         driveRootId: structure.rootId,
@@ -84,6 +89,8 @@ export const useCaseStore = create((set, get) => ({
         casesFileId: structure.casesFileId,
         profileFileId: structure.profileFileId,
         profile: profileData,
+        templatesFileId: structure.templatesFileId,
+        customTemplates: templatesData,
         isInitialized: true,
       })
       await get().loadCases()
@@ -438,6 +445,14 @@ export const useCaseStore = create((set, get) => ({
     const { dataFolderId, profileFileId } = get()
     const newId = await writeProfile(dataFolderId, profileFileId, data)
     set({ profile: { ...data, updatedAt: new Date().toISOString() }, profileFileId: newId })
+  },
+
+  // ─── 서면 템플릿 ───
+
+  saveTemplates: async (templates) => {
+    const { dataFolderId, templatesFileId } = get()
+    const newId = await writeTemplates(dataFolderId, templatesFileId, templates)
+    set({ customTemplates: templates, templatesFileId: newId })
   },
 
   // ─── 사건별 공유 ───

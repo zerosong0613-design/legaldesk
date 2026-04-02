@@ -255,7 +255,7 @@ function FileCard({ file, onNavigateFolder, onDelete, onMemoSaved, onRenamed }) 
 
 export default function DocumentList({ caseData }) {
   const { showToast } = useUiStore()
-  const { profile } = useCaseStore()
+  const { profile, customTemplates } = useCaseStore()
   const fileInputRef = useRef(null)
   const [files, setFiles] = useState([])
   const [isLoading, setIsLoading] = useState(false)
@@ -277,7 +277,7 @@ export default function DocumentList({ caseData }) {
     if (!tmpl) return
     setIsCreatingDoc(true)
     try {
-      const html = generateTemplate(templateId, caseData, profile)
+      const html = generateTemplate(templateId, caseData, profile, customTemplates)
       const title = `[${caseData.caseNumber || caseData.id}] ${tmpl.label}`
       const result = await createGoogleDoc(currentFolderId, title, html)
       showToast(`${tmpl.label} 파일이 생성되었습니다.`, 'success')
