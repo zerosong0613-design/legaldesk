@@ -1,5 +1,5 @@
 /**
- * 민사 서면 템플릿 5종
+ * 민사/형사 서면 템플릿
  * 사건 데이터를 받아 HTML 형식 Google Docs 내용을 반환
  */
 
@@ -23,13 +23,29 @@ const STYLE = `
 </style>
 `
 
-export const TEMPLATE_LIST = [
+export const CIVIL_TEMPLATES = [
   { id: 'content_cert', label: '내용증명', icon: '📨' },
   { id: 'complaint', label: '소장', icon: '📋' },
   { id: 'answer', label: '답변서', icon: '📝' },
   { id: 'brief', label: '준비서면', icon: '📄' },
   { id: 'settlement', label: '화해권고서', icon: '🤝' },
 ]
+
+export const CRIMINAL_TEMPLATES = [
+  { id: 'criminal_complaint', label: '고소장', icon: '🔴' },
+  { id: 'criminal_accusation', label: '고발장', icon: '🟠' },
+  { id: 'defense_opinion', label: '변호인 의견서', icon: '📑' },
+  { id: 'bail_request', label: '보석허가청구서', icon: '🔓' },
+  { id: 'appeal', label: '항소장', icon: '⚖️' },
+]
+
+/** @deprecated — 하위 호환용 */
+export const TEMPLATE_LIST = CIVIL_TEMPLATES
+
+export function getTemplateList(caseType) {
+  if (caseType === '형사') return CRIMINAL_TEMPLATES
+  return CIVIL_TEMPLATES
+}
 
 /**
  * 내용증명
@@ -262,12 +278,253 @@ function settlement(caseData, profile) {
 `
 }
 
+// ─── 형사 서면 ───
+
+/**
+ * 고소장
+ */
+function criminalComplaint(caseData, profile) {
+  const lawyer = profile?.lawyerName || '[변호사명]'
+  const office = profile?.officeName || '[사무소명]'
+  const phone = profile?.phone || '[연락처]'
+  const client = caseData.clientName || '[고소인]'
+  const opponent = caseData.opponent || caseData.opposingParty || '[피고소인]'
+  const criminal = caseData.criminalInfo || {}
+
+  return `${STYLE}
+<h1>고 소 장</h1>
+
+<table>
+  <tr><th width="15%">고소인</th><td>${client}</td></tr>
+  <tr><th>대리인</th><td>변호사 ${lawyer} (${office}, ${phone})</td></tr>
+  <tr><th>피고소인</th><td>${opponent}</td></tr>
+</table>
+
+<h2>고 소 취 지</h2>
+<p class="indent">피고소인의 아래 범죄사실을 고소하오니, 수사하여 처벌하여 주시기 바랍니다.</p>
+
+<h2>범 죄 사 실</h2>
+
+<h3>1. 당사자 관계</h3>
+<p class="indent field">[고소인과 피고소인의 관계를 기재하세요]</p>
+
+<h3>2. 범죄 일시 및 장소</h3>
+<p class="indent field">[범죄 일시, 장소를 구체적으로 기재하세요]</p>
+
+<h3>3. 범죄 행위</h3>
+<p class="indent field">[피고소인의 구체적인 범죄 행위를 기재하세요]</p>
+
+<h3>4. 적용 법조</h3>
+<p class="indent field">[적용될 법조문을 기재하세요 (예: 형법 제347조 사기)]</p>
+
+<h2>증 거 자 료</h2>
+<p class="indent">1. <span class="field">[증거명]</span></p>
+<p class="indent">2. <span class="field">[증거명]</span></p>
+
+<h2>결 론</h2>
+<p class="indent">위와 같은 범죄사실에 대하여 피고소인을 엄벌에 처하여 주시기 바랍니다.</p>
+
+<br/>
+<p class="right">${today()}</p>
+<p class="right">고소인 대리인</p>
+<p class="right">${office}</p>
+<p class="right">변호사 ${lawyer}</p>
+`
+}
+
+/**
+ * 고발장
+ */
+function criminalAccusation(caseData, profile) {
+  const lawyer = profile?.lawyerName || '[변호사명]'
+  const office = profile?.officeName || '[사무소명]'
+  const client = caseData.clientName || '[고발인]'
+  const opponent = caseData.opponent || caseData.opposingParty || '[피고발인]'
+
+  return `${STYLE}
+<h1>고 발 장</h1>
+
+<table>
+  <tr><th width="15%">고발인</th><td>${client}</td></tr>
+  <tr><th>대리인</th><td>변호사 ${lawyer} (${office})</td></tr>
+  <tr><th>피고발인</th><td>${opponent}</td></tr>
+</table>
+
+<h2>고 발 취 지</h2>
+<p class="indent">피고발인의 아래 범죄사실을 고발하오니, 수사하여 처벌하여 주시기 바랍니다.</p>
+
+<h2>범 죄 사 실</h2>
+<p class="indent field">[구체적인 범죄 사실을 기재하세요]</p>
+
+<h2>적 용 법 조</h2>
+<p class="indent field">[적용 법조문을 기재하세요]</p>
+
+<h2>증 거 자 료</h2>
+<p class="indent">1. <span class="field">[증거명]</span></p>
+
+<br/>
+<p class="right">${today()}</p>
+<p class="right">고발인 대리인: ${office}</p>
+<p class="right">변호사 ${lawyer}</p>
+`
+}
+
+/**
+ * 변호인 의견서
+ */
+function defenseOpinion(caseData, profile) {
+  const lawyer = profile?.lawyerName || '[변호사명]'
+  const office = profile?.officeName || '[사무소명]'
+  const client = caseData.clientName || '[피의자/피고인]'
+  const criminal = caseData.criminalInfo || {}
+  const caseNumber = caseData.caseNumber || criminal.policeCaseNumber || '[사건번호]'
+  const charges = criminal.charges || '[죄명]'
+
+  return `${STYLE}
+<h1>변 호 인 의 견 서</h1>
+
+<table>
+  <tr><th width="15%">사건번호</th><td>${caseNumber}</td></tr>
+  <tr><th>죄명</th><td>${charges}</td></tr>
+  <tr><th>피의자</th><td>${client}</td></tr>
+  <tr><th>변호인</th><td>변호사 ${lawyer} (${office})</td></tr>
+</table>
+
+<h2>1. 사건 개요</h2>
+<p class="indent field">[사건 경위를 간략히 기재하세요]</p>
+
+<h2>2. 변호인 의견</h2>
+
+<h3>가. 사실관계에 대한 의견</h3>
+<p class="indent field">[피의자 진술 및 사실관계에 대한 변호인 의견]</p>
+
+<h3>나. 법률적 의견</h3>
+<p class="indent field">[구성요건 해당성, 위법성, 책임 등에 대한 법률적 의견]</p>
+
+<h3>다. 양형에 관한 의견</h3>
+<p class="indent field">[양형 참작 사유: 초범, 반성, 피해 회복 등]</p>
+
+<h2>3. 결론</h2>
+<p class="indent field">[불기소 처분 / 선처 요청 등 결론을 기재하세요]</p>
+
+<br/>
+<p class="right">${today()}</p>
+<p class="right">변호인 ${office}</p>
+<p class="right">변호사 ${lawyer}</p>
+`
+}
+
+/**
+ * 보석허가청구서
+ */
+function bailRequest(caseData, profile) {
+  const lawyer = profile?.lawyerName || '[변호사명]'
+  const office = profile?.officeName || '[사무소명]'
+  const client = caseData.clientName || '[피고인]'
+  const court = caseData.court || '[관할법원]'
+  const criminal = caseData.criminalInfo || {}
+  const caseNumber = caseData.caseNumber || '[사건번호]'
+  const charges = criminal.charges || '[죄명]'
+
+  return `${STYLE}
+<h1>보석허가청구서</h1>
+
+<table>
+  <tr><th width="15%">사건</th><td>${caseNumber} ${charges}</td></tr>
+  <tr><th>피고인</th><td>${client}</td></tr>
+  <tr><th>변호인</th><td>변호사 ${lawyer} (${office})</td></tr>
+</table>
+
+<p class="center"><b>${court} 귀중</b></p>
+
+<h2>청 구 취 지</h2>
+<p class="indent">피고인에 대한 보석을 허가하여 주시기 바랍니다.</p>
+
+<h2>청 구 이 유</h2>
+
+<h3>1. 구속의 부당성</h3>
+<p class="indent field">[구속 사유가 소멸되었거나 부당한 이유를 기재하세요]</p>
+
+<h3>2. 도주 우려 부존재</h3>
+<p class="indent field">[주거 부정, 가족관계, 직업 등 도주 우려가 없는 사유]</p>
+
+<h3>3. 증거인멸 우려 부존재</h3>
+<p class="indent field">[수사 완료, 증거 확보 등 증거인멸 우려가 없는 사유]</p>
+
+<h3>4. 보석 조건</h3>
+<p class="indent field">[보증금 납입, 주거 제한 등 보석 조건 제안]</p>
+
+<h2>소 명 자 료</h2>
+<p class="indent">1. <span class="field">[소명자료명]</span></p>
+
+<br/>
+<p class="right">${today()}</p>
+<p class="right">변호인 ${office}</p>
+<p class="right">변호사 ${lawyer}</p>
+`
+}
+
+/**
+ * 항소장
+ */
+function appeal(caseData, profile) {
+  const lawyer = profile?.lawyerName || '[변호사명]'
+  const office = profile?.officeName || '[사무소명]'
+  const client = caseData.clientName || '[피고인]'
+  const court = caseData.court || '[관할법원]'
+  const criminal = caseData.criminalInfo || {}
+  const caseNumber = caseData.caseNumber || '[사건번호]'
+  const charges = criminal.charges || '[죄명]'
+
+  return `${STYLE}
+<h1>항 소 장</h1>
+
+<table>
+  <tr><th width="15%">사건</th><td>${caseNumber} ${charges}</td></tr>
+  <tr><th>피고인</th><td>${client}</td></tr>
+  <tr><th>변호인</th><td>변호사 ${lawyer} (${office})</td></tr>
+</table>
+
+<p class="center"><b>${court} 귀중</b></p>
+
+<h2>항 소 취 지</h2>
+<p class="indent">원심판결을 파기하고, 피고인에게 무죄를 선고하여 주시기 바랍니다.</p>
+<p class="indent"><span class="field">[또는 원하는 항소 취지를 기재하세요]</span></p>
+
+<h2>항 소 이 유</h2>
+
+<h3>1. 사실오인</h3>
+<p class="indent field">[원심의 사실 인정이 잘못된 부분을 기재하세요]</p>
+
+<h3>2. 법리오해</h3>
+<p class="indent field">[원심의 법률 적용이 잘못된 부분을 기재하세요]</p>
+
+<h3>3. 양형부당</h3>
+<p class="indent field">[원심의 양형이 부당한 사유를 기재하세요]</p>
+
+<p class="indent">항소이유서는 추후 별도 제출하겠습니다.</p>
+
+<br/>
+<p class="right">${today()}</p>
+<p class="right">피고인 변호인</p>
+<p class="right">${office}</p>
+<p class="right">변호사 ${lawyer}</p>
+`
+}
+
 const GENERATORS = {
+  // 민사
   content_cert: contentCertification,
   complaint,
   answer,
   brief,
   settlement,
+  // 형사
+  criminal_complaint: criminalComplaint,
+  criminal_accusation: criminalAccusation,
+  defense_opinion: defenseOpinion,
+  bail_request: bailRequest,
+  appeal,
 }
 
 /**

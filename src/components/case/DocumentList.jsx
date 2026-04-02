@@ -18,7 +18,7 @@ import {
 import { useCaseStore } from '../../store/caseStore'
 import { useUiStore } from '../../store/uiStore'
 import Modal from '../ui/Modal'
-import { TEMPLATE_LIST, generateTemplate } from '../../utils/legalTemplates'
+import { getTemplateList, generateTemplate } from '../../utils/legalTemplates'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
 
@@ -595,7 +595,7 @@ export default function DocumentList({ caseData }) {
           <Text size="sm" c="dimmed">
             사건 정보가 자동으로 채워진 Google Docs 파일이 생성됩니다.
           </Text>
-          {TEMPLATE_LIST.map((tmpl) => (
+          {getTemplateList(caseData.type).map((tmpl) => (
             <Button
               key={tmpl.id}
               variant="light"
