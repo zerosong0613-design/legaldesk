@@ -7,11 +7,12 @@ import {
 } from '@mantine/core'
 import {
   IconArrowLeft, IconTimeline, IconCalendarEvent, IconMessageCircle,
-  IconMail, IconFiles, IconInfoCircle, IconCheck, IconReceipt,
+  IconMail, IconFiles, IconInfoCircle, IconCheck, IconReceipt, IconShare,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import Badge from '../components/ui/Badge'
+import ShareCaseModal from '../components/case/ShareCaseModal'
 import HearingList from '../components/case/HearingList'
 import Timeline from '../components/case/Timeline'
 import EmailList from '../components/case/EmailList'
@@ -182,6 +183,7 @@ export default function CaseDetail() {
   const navigate = useNavigate()
   const { currentCase, loadCaseDetail, isLoading } = useCaseStore()
   const [activeTab, setActiveTab] = useState('info')
+  const [showShareModal, setShowShareModal] = useState(false)
 
   useEffect(() => {
     loadCaseDetail(id)
@@ -216,6 +218,9 @@ export default function CaseDetail() {
               <Group gap="xs">
                 <Text size="lg" fw={700} truncate>{currentCase.clientName}</Text>
                 <Badge status={currentCase.status} />
+                {currentCase.sharedWith?.length > 0 && (
+                  <MantineBadge variant="light" size="xs" color="blue">공유중</MantineBadge>
+                )}
               </Group>
               <Text size="sm" c="dimmed" ff="monospace">
                 {currentCase.caseNumber || '\uC0AC\uAC74\uBC88\uD638 \uBBF8\uC815'}
@@ -223,6 +228,9 @@ export default function CaseDetail() {
                 {currentCase.type && ` | ${currentCase.type}`}
               </Text>
             </div>
+            <ActionIcon variant="light" color="blue" onClick={() => setShowShareModal(true)}>
+              <IconShare size={16} />
+            </ActionIcon>
           </Group>
 
           <Tabs value={activeTab} onChange={setActiveTab} variant="default">
@@ -248,6 +256,11 @@ export default function CaseDetail() {
         {activeTab === 'billing' && <CaseBillingTab caseData={currentCase} />}
       </Container>
 
+      <ShareCaseModal
+        caseData={currentCase}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
     </>
   )
 }

@@ -16,6 +16,7 @@ import { readCasesIndex } from '../api/drive'
 import { useCaseStore } from '../store/caseStore'
 import { useScheduleStore } from '../store/scheduleStore'
 import { useUiStore } from '../store/uiStore'
+import SharedCaseCard from '../components/case/SharedCaseCard'
 import MiniCalendar from '../components/ui/MiniCalendar'
 import Modal from '../components/ui/Modal'
 import ScheduleForm from '../components/schedule/ScheduleForm'
@@ -85,7 +86,7 @@ function isThisWeek(dateStr) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { cases, consultations, casesFileId } = useCaseStore()
+  const { cases, consultations, casesFileId, sharedCases, sharedCasesLoading, loadSharedCases } = useCaseStore()
   const { schedules, createSchedule, updateSchedule, deleteSchedule, importFromCalendar } = useScheduleStore()
   const { searchQuery, setSearchQuery } = useUiStore()
   const showToast = useUiStore((s) => s.showToast)
@@ -94,6 +95,11 @@ export default function Dashboard() {
   const [calImportEvents, setCalImportEvents] = useState(null)
   const [calImportSelected, setCalImportSelected] = useState(new Set())
   const [isImporting, setIsImporting] = useState(false)
+
+  // 공유받은 사건 로드
+  useEffect(() => {
+    loadSharedCases()
+  }, [])
 
   // 빌링 데이터 로드
   const [billingData, setBillingData] = useState({ retainers: [], disbursements: [], invoices: [] })
@@ -792,6 +798,39 @@ export default function Dashboard() {
 
         </>
         )}
+
+        {/* 공유받은 사건 */}
+        {sharedCases.length > 0 && (
+          <Card padding="lg" withBorder>
+            <Group justify="space-between" mb="md">
+              <Group gap="xs">
+                <ThemeIcon size={24} variant="light" color="blue" radius="xl">
+                  <IconFileText size={14} />
+                </ThemeIcon>
+                <Text fw={600}>공유받은 사건</Text>
+                <Badge size="xs" variant="light" color="blue">{sharedCases.length}</Badge>
+              </Group>
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={loadSharedCases}
+                loading={sharedCasesLoading}
+              >
+                새로고침
+              </Button>
+            </Group>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+              {sharedCases.map((sc) => (
+                <SharedCaseCard
+                  key={sc.driveFileId}
+                  caseData={sc}
+                  onClick={() => navigate(`/shared/${sc.driveFileId}`)}
+                />
+              ))}
+            </SimpleGrid>
+          </Card>
+        )}
+
       </Stack>
 
       <Modal

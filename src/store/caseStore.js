@@ -9,7 +9,13 @@ import {
   createCaseFile,
   createCaseFilesFolder,
   deleteFile,
+  shareCaseFiles,
+  unshareCaseFiles,
+  listFilePermissions,
+  setFileAppProperties,
+  findSharedCaseFiles,
 } from '../api/drive'
+import { useAuthStore } from '../auth/useAuth'
 import { useScheduleStore } from './scheduleStore'
 
 function loadWorkspaceConfig() {
@@ -39,6 +45,8 @@ export const useCaseStore = create((set, get) => ({
   isLoading: false,
   error: null,
   workspace: loadWorkspaceConfig(),
+  sharedCases: [],
+  sharedCasesLoading: false,
 
   // Drive \uD3F4\uB354 \uAD6C\uC870 \uCD08\uAE30\uD654
   initDrive: async () => {
@@ -412,6 +420,112 @@ export const useCaseStore = create((set, get) => ({
       }
     } catch (err) {
       set({ error: `메모 저장 실패: ${err.message}` })
+    }
+  },
+
+  // ─── 사건별 공유 ───
+
+  shareCase: async (caseId, email, role) => {
+    const { cases, consultations } = get()
+    const item = cases.find((c) => c.id === caseId) || consultations.find((c) => c.id === caseId)
+    if (!item?.driveFileId) throw new Error('사건 파일을 찾을 수 없습니다.')
+
+    // 1) _summary 동기화
+    const user = useAuthStore.getState().user
+    const detail = await readCaseDetail(item.driveFileId)
+    detail._summary = {
+      clientName: item.clientName,
+      caseNumber: item.caseNumber,
+      caseName: item.caseName || item.subject || '',
+      type: item.type,
+      status: item.status,
+      court: item.court || '',
+      category: item.category || 'case',
+      ownerEmail: user?.email || '',
+      ownerName: user?.name || '',
+    }
+    await writeCaseDetail(item.driveFileId, detail)
+
+    // 2) Drive 권한 부여 + appProperties 태깅
+    await shareCaseFiles(item.driveFileId, item.driveFolderId, email, role)
+
+    // 3) cases.json에 sharedWith 기록
+    const sharedWith = [...(item.sharedWith || [])]
+    const idx = sharedWith.findIndex((s) => s.email === email)
+    if (idx >= 0) {
+      sharedWith[idx] = { email, role, sharedAt: new Date().toISOString() }
+    } else {
+      sharedWith.push({ email, role, sharedAt: new Date().toISOString() })
+    }
+    await get().updateCase(caseId, { sharedWith })
+  },
+
+  unshareCase: async (caseId, email) => {
+    const { cases, consultations } = get()
+    const item = cases.find((c) => c.id === caseId) || consultations.find((c) => c.id === caseId)
+    if (!item?.driveFileId) throw new Error('사건 파일을 찾을 수 없습니다.')
+
+    await unshareCaseFiles(item.driveFileId, item.driveFolderId, email)
+
+    const sharedWith = (item.sharedWith || []).filter((s) => s.email !== email)
+    await get().updateCase(caseId, { sharedWith })
+  },
+
+  loadSharedCases: async () => {
+    set({ sharedCasesLoading: true })
+    try {
+      const files = await findSharedCaseFiles()
+      const sharedCases = []
+      for (const file of files) {
+        try {
+          const detail = await readCaseDetail(file.id)
+          if (detail._summary) {
+            // 권한 레벨 확인
+            const perms = await listFilePermissions(file.id)
+            const user = useAuthStore.getState().user
+            const myPerm = perms.find((p) => p.emailAddress === user?.email)
+            sharedCases.push({
+              ...detail._summary,
+              id: detail.id,
+              driveFileId: file.id,
+              isShared: true,
+              myRole: myPerm?.role || 'reader',
+              ownerEmail: detail._summary.ownerEmail,
+              ownerName: detail._summary.ownerName,
+            })
+          }
+        } catch {
+          // 개별 파일 읽기 실패는 무시
+        }
+      }
+      set({ sharedCases, sharedCasesLoading: false })
+    } catch (err) {
+      set({ sharedCases: [], sharedCasesLoading: false })
+    }
+  },
+
+  loadSharedCaseDetail: async (driveFileId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const detail = await readCaseDetail(driveFileId)
+      const summary = detail._summary || {}
+      // 권한 확인
+      const perms = await listFilePermissions(driveFileId)
+      const user = useAuthStore.getState().user
+      const myPerm = perms.find((p) => p.emailAddress === user?.email)
+
+      set({
+        currentCase: {
+          ...summary,
+          ...detail,
+          driveFileId,
+          isShared: true,
+          myRole: myPerm?.role || 'reader',
+        },
+        isLoading: false,
+      })
+    } catch (err) {
+      set({ error: `공유 사건 로드 실패: ${err.message}`, isLoading: false })
     }
   },
 

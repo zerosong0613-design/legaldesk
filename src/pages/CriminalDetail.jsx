@@ -8,11 +8,12 @@ import {
 import {
   IconArrowLeft, IconTimeline, IconCalendarEvent, IconMessageCircle,
   IconMail, IconFiles, IconInfoCircle, IconCheck, IconReceipt,
-  IconPlus, IconTrash, IconShieldLock,
+  IconPlus, IconTrash, IconShieldLock, IconShare,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import Badge from '../components/ui/Badge'
+import ShareCaseModal from '../components/case/ShareCaseModal'
 import HearingList from '../components/case/HearingList'
 import Timeline from '../components/case/Timeline'
 import EmailList from '../components/case/EmailList'
@@ -226,6 +227,7 @@ export default function CriminalDetail() {
   const navigate = useNavigate()
   const { currentCase, loadCaseDetail, isLoading } = useCaseStore()
   const [activeTab, setActiveTab] = useState('info')
+  const [showShareModal, setShowShareModal] = useState(false)
 
   useEffect(() => {
     loadCaseDetail(id)
@@ -252,6 +254,9 @@ export default function CriminalDetail() {
                 <Badge status={currentCase.status} />
                 <MantineBadge size="xs" variant="light" color="indigo">{stageLabel}</MantineBadge>
                 {criminal.detained && <MantineBadge size="xs" variant="filled" color="red">구속중</MantineBadge>}
+                {currentCase.sharedWith?.length > 0 && (
+                  <MantineBadge variant="light" size="xs" color="blue">공유중</MantineBadge>
+                )}
               </Group>
               <Text size="sm" c="dimmed" ff="monospace">
                 {currentCase.caseNumber || criminal.policeCaseNumber || '사건번호 미정'}
@@ -259,6 +264,9 @@ export default function CriminalDetail() {
                 {currentCase.court && ` | ${currentCase.court}`}
               </Text>
             </div>
+            <ActionIcon variant="light" color="blue" onClick={() => setShowShareModal(true)}>
+              <IconShare size={16} />
+            </ActionIcon>
           </Group>
 
           <Tabs value={activeTab} onChange={setActiveTab} variant="default">
@@ -280,6 +288,12 @@ export default function CriminalDetail() {
         {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
         {activeTab === 'billing' && <CaseBillingTab caseData={currentCase} />}
       </Container>
+
+      <ShareCaseModal
+        caseData={currentCase}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
     </>
   )
 }

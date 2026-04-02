@@ -390,3 +390,82 @@ export async function listFolderPermissions(folderId) {
   const data = await res.json()
   return data.permissions || []
 }
+
+// ── 사건별 개별 공유 ──
+
+export async function listFilePermissions(fileId) {
+  const res = await driveRequest(
+    `${DRIVE_API}/files/${fileId}/permissions?fields=permissions(id,type,role,emailAddress,displayName,photoLink)`
+  )
+  const data = await res.json()
+  return data.permissions || []
+}
+
+export async function removePermission(fileId, permissionId) {
+  await driveRequest(`${DRIVE_API}/files/${fileId}/permissions/${permissionId}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function setFileAppProperties(fileId, properties) {
+  const res = await driveRequest(`${DRIVE_API}/files/${fileId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': JSON_MIME },
+    body: JSON.stringify({ appProperties: properties }),
+  })
+  return res.json()
+}
+
+/**
+ * 사건 상세 JSON + 첨부 폴더를 특정 이메일에 공유
+ */
+export async function shareCaseFiles(caseDetailFileId, caseAttachmentsFolderId, email, role = 'writer') {
+  const shareOne = (fileId) =>
+    driveRequest(`${DRIVE_API}/files/${fileId}/permissions`, {
+      method: 'POST',
+      headers: { 'Content-Type': JSON_MIME },
+      body: JSON.stringify({ type: 'user', role, emailAddress: email }),
+    }).then((r) => r.json())
+
+  const results = [await shareOne(caseDetailFileId)]
+  if (caseAttachmentsFolderId) {
+    results.push(await shareOne(caseAttachmentsFolderId))
+  }
+
+  // appProperties 태깅 (공유 사건 검색용)
+  await setFileAppProperties(caseDetailFileId, {
+    legaldesk_type: 'case',
+    legaldesk_version: '2',
+  })
+
+  return results
+}
+
+/**
+ * 사건 공유 해제 — 이메일로 권한 찾아서 삭제
+ */
+export async function unshareCaseFiles(caseDetailFileId, caseAttachmentsFolderId, email) {
+  const revokeOne = async (fileId) => {
+    const perms = await listFilePermissions(fileId)
+    const target = perms.find((p) => p.emailAddress === email)
+    if (target) await removePermission(fileId, target.id)
+  }
+
+  await revokeOne(caseDetailFileId)
+  if (caseAttachmentsFolderId) {
+    await revokeOne(caseAttachmentsFolderId)
+  }
+}
+
+/**
+ * 나에게 공유된 LegalDesk 사건 파일 검색
+ */
+export async function findSharedCaseFiles() {
+  const q = encodeURIComponent(
+    "appProperties has { key='legaldesk_type' and value='case' } and sharedWithMe=true and trashed=false"
+  )
+  const fields = encodeURIComponent('files(id,name,owners,sharingUser,appProperties)')
+  const res = await driveRequest(`${DRIVE_API}/files?q=${q}&fields=${fields}&pageSize=100`)
+  const data = await res.json()
+  return data.files || []
+}

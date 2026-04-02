@@ -15,6 +15,7 @@ import CriminalList from './pages/CriminalList'
 import CriminalDetail from './pages/CriminalDetail'
 import Billing from './pages/Billing'
 import WorkspaceSettings from './pages/WorkspaceSettings'
+import SharedCaseDetail from './pages/SharedCaseDetail'
 
 function AppContent() {
   const { user, isLoading: authLoading, initialize } = useAuthStore()
@@ -75,6 +76,7 @@ function AppContent() {
         <Route path="/criminal/:id" element={<CriminalDetail />} />
         <Route path="/consultation/:id" element={<ConsultationDetail />} />
         <Route path="/billing" element={<Billing />} />
+        <Route path="/shared/:fileId" element={<SharedCaseDetail />} />
         <Route path="/workspace" element={<WorkspaceSettings />} />
       </Routes>
     </Layout>

@@ -8,11 +8,12 @@ import {
 import {
   IconArrowLeft, IconTimeline, IconMessageCircle,
   IconFiles, IconInfoCircle, IconEdit, IconCalendarEvent,
-  IconCheck, IconX, IconPlus, IconTrash, IconReceipt,
+  IconCheck, IconX, IconPlus, IconTrash, IconReceipt, IconShare,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
 import Badge from '../components/ui/Badge'
+import ShareCaseModal from '../components/case/ShareCaseModal'
 import ConsultRecordTab from '../components/case/ConsultRecordTab'
 import Timeline from '../components/case/Timeline'
 import DocumentList from '../components/case/DocumentList'
@@ -237,6 +238,7 @@ export default function ConsultationDetail() {
   const navigate = useNavigate()
   const { currentCase, loadCaseDetail, isLoading } = useCaseStore()
   const [activeTab, setActiveTab] = useState('info')
+  const [showShareModal, setShowShareModal] = useState(false)
 
   useEffect(() => {
     loadCaseDetail(id)
@@ -291,6 +293,9 @@ export default function ConsultationDetail() {
                 )}
               </Text>
             </div>
+            <ActionIcon variant="light" color="blue" onClick={() => setShowShareModal(true)}>
+              <IconShare size={16} />
+            </ActionIcon>
           </Group>
 
           <Tabs value={activeTab} onChange={setActiveTab} variant="default">
@@ -313,6 +318,12 @@ export default function ConsultationDetail() {
         {activeTab === 'docs' && <DocumentList caseData={currentCase} />}
         {activeTab === 'billing' && <CaseBillingTab caseData={currentCase} />}
       </Container>
+
+      <ShareCaseModal
+        caseData={currentCase}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
     </>
   )
 }
