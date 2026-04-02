@@ -15,6 +15,7 @@ const CASES_INDEX_NAME = 'cases.json'
 const SCHEDULES_INDEX_NAME = 'schedules.json'
 const PROFILE_FILE_NAME = 'profile.json'
 const TEMPLATES_FILE_NAME = 'templates.json'
+const TEMPLATES_FOLDER_NAME = 'templates'
 
 async function getToken() {
   const token = await useAuthStore.getState().getValidToken()
@@ -229,6 +230,9 @@ export async function initializeDriveStructure() {
   const profileFile = await findFile(PROFILE_FILE_NAME, dataFolder.id)
   const templatesFile = await findFile(TEMPLATES_FILE_NAME, dataFolder.id)
 
+  // LegalDesk/templates/ 폴더 (Docs 기반 서면 템플릿)
+  const templatesFolderId = (await findOrCreateFolder(TEMPLATES_FOLDER_NAME, root.id)).id
+
   return {
     rootId: root.id,
     dataFolderId: dataFolder.id,
@@ -239,6 +243,7 @@ export async function initializeDriveStructure() {
     schedulesFileId: schedulesFile.id,
     profileFileId: profileFile?.id || null,
     templatesFileId: templatesFile?.id || null,
+    templatesFolderId,
   }
 }
 
@@ -263,6 +268,44 @@ export async function writeProfile(dataFolderId, profileFileId, data) {
   payload.createdAt = new Date().toISOString()
   const file = await createJsonFile(PROFILE_FILE_NAME, dataFolderId, payload)
   return file.id
+}
+
+// --- File copy & Docs template operations ---
+
+/**
+ * Drive 파일 복사 (서면 작성 시 템플릿 → 사건 폴더로 복사)
+ */
+export async function copyFile(fileId, newName, destFolderId) {
+  const res = await driveRequest(`${DRIVE_API}/files/${fileId}/copy?fields=id,name,webViewLink`, {
+    method: 'POST',
+    headers: { 'Content-Type': JSON_MIME },
+    body: JSON.stringify({
+      name: newName,
+      parents: [destFolderId],
+    }),
+  })
+  return res.json()
+}
+
+/**
+ * 파일을 Google Docs로 업로드 (Word, PDF 등 → Docs 자동 변환)
+ */
+export async function uploadFileAsGoogleDoc(folderId, file) {
+  const metadata = {
+    name: file.name.replace(/\.[^.]+$/, ''),
+    mimeType: 'application/vnd.google-apps.document',
+    parents: [folderId],
+  }
+
+  const form = new FormData()
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: JSON_MIME }))
+  form.append('file', file)
+
+  const res = await driveRequest(
+    `${UPLOAD_API}/files?uploadType=multipart&fields=id,name,webViewLink`,
+    { method: 'POST', body: form }
+  )
+  return res.json()
 }
 
 // --- Templates operations ---
@@ -449,6 +492,7 @@ export async function connectToExistingStructure(rootId) {
   const schedulesFile = await findFile(SCHEDULES_INDEX_NAME, dataFolder.id)
   const profileFile = await findFile(PROFILE_FILE_NAME, dataFolder.id)
   const templatesFile = await findFile(TEMPLATES_FILE_NAME, dataFolder.id)
+  const templatesFolder = await findFolder(TEMPLATES_FOLDER_NAME, rootId)
 
   return {
     rootId,
@@ -460,6 +504,7 @@ export async function connectToExistingStructure(rootId) {
     schedulesFileId: schedulesFile?.id || null,
     profileFileId: profileFile?.id || null,
     templatesFileId: templatesFile?.id || null,
+    templatesFolderId: templatesFolder?.id || null,
   }
 }
 

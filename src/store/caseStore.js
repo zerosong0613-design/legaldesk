@@ -48,6 +48,7 @@ export const useCaseStore = create((set, get) => ({
   profileFileId: null,
   profile: null,
   templatesFileId: null,
+  templatesFolderId: null,
   customTemplates: null,
   isInitialized: false,
   isLoading: false,
@@ -90,6 +91,7 @@ export const useCaseStore = create((set, get) => ({
         profileFileId: structure.profileFileId,
         profile: profileData,
         templatesFileId: structure.templatesFileId,
+        templatesFolderId: structure.templatesFolderId,
         customTemplates: templatesData,
         isInitialized: true,
       })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   Container, Stack, Group, Text, Tabs, Card, Button,
   Textarea, ActionIcon, Alert, SimpleGrid, Box,
@@ -7,11 +7,11 @@ import {
 import {
   IconFileText, IconEdit, IconRefresh, IconCheck,
   IconScale, IconGavel, IconEye, IconCode,
-  IconBrandGoogleDrive, IconDownload,
+  IconBrandGoogleDrive, IconDownload, IconUpload,
 } from '@tabler/icons-react'
 import { useCaseStore } from '../store/caseStore'
 import { useUiStore } from '../store/uiStore'
-import { createGoogleDoc, exportGoogleDocAsHtml, deleteFile } from '../api/drive'
+import { createGoogleDoc, exportGoogleDocAsHtml, deleteFile, uploadFileAsGoogleDoc } from '../api/drive'
 import Modal from '../components/ui/Modal'
 import {
   CIVIL_TEMPLATES, CRIMINAL_TEMPLATES, CONSULT_TEMPLATES,
@@ -19,7 +19,7 @@ import {
 } from '../utils/legalTemplates'
 
 export default function TemplateManager() {
-  const { customTemplates, saveTemplates, profile, dataFolderId } = useCaseStore()
+  const { customTemplates, saveTemplates, profile, dataFolderId, templatesFolderId } = useCaseStore()
   const { showToast } = useUiStore()
 
   const [activeTab, setActiveTab] = useState('civil')
@@ -37,6 +37,8 @@ export default function TemplateManager() {
   const [showNewForm, setShowNewForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [isCreatingNew, setIsCreatingNew] = useState(false)
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false)
+  const uploadRef = useRef(null)
 
   const builtinTemplates = activeTab === 'criminal' ? CRIMINAL_TEMPLATES
     : activeTab === 'consult' ? CONSULT_TEMPLATES
@@ -205,6 +207,51 @@ export default function TemplateManager() {
     }
   }
 
+  // 문서 파일 업로드 → Docs 변환 → 템플릿 등록
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    if (!templatesFolderId) {
+      showToast('템플릿 폴더가 아직 준비되지 않았습니다.', 'error')
+      return
+    }
+
+    setIsUploadingDoc(true)
+    try {
+      // Drive templates/ 폴더에 Google Docs로 업로드
+      const doc = await uploadFileAsGoogleDoc(templatesFolderId, file)
+      const templateId = `docs_${Date.now()}`
+      const label = file.name.replace(/\.[^.]+$/, '')
+
+      // Export해서 HTML로 저장
+      const html = await exportGoogleDocAsHtml(doc.id)
+
+      // 메타 + HTML 저장
+      const updated = { ...(customTemplates || {}) }
+      if (!updated._userTemplates) updated._userTemplates = {}
+      if (!updated._userTemplates[categoryKey]) updated._userTemplates[categoryKey] = []
+      updated._userTemplates[categoryKey].push({
+        id: templateId,
+        label,
+        icon: '📎',
+        docsId: doc.id,
+        webViewLink: doc.webViewLink,
+      })
+      if (!updated[categoryKey]) updated[categoryKey] = {}
+      updated[categoryKey][templateId] = html
+      await saveTemplates(updated)
+
+      setDocsMap({ ...docsMap, [templateId]: { docId: doc.id, webViewLink: doc.webViewLink } })
+      showToast(`"${label}" 파일이 템플릿으로 등록되었습니다.`, 'success')
+    } catch (err) {
+      showToast(`업로드 실패: ${err.message}`, 'error')
+    } finally {
+      setIsUploadingDoc(false)
+    }
+  }
+
   // Google Docs로 편집: 현재 템플릿 HTML을 Google Doc으로 생성
   const handleOpenInDocs = async (tmpl) => {
     // 이미 만든 Doc이 있으면 바로 열기
@@ -336,13 +383,31 @@ export default function TemplateManager() {
             </Text>
           </Card>
         ) : (
-          <Button
-            variant="light"
-            leftSection={<Text size="lg">+</Text>}
-            onClick={() => setShowNewForm(true)}
-          >
-            새 서면 템플릿 만들기
-          </Button>
+          <Group gap="sm">
+            <Button
+              variant="light"
+              leftSection={<Text size="lg">+</Text>}
+              onClick={() => setShowNewForm(true)}
+            >
+              새 서면 템플릿 만들기
+            </Button>
+            <Button
+              variant="light"
+              color="teal"
+              leftSection={<IconUpload size={16} />}
+              loading={isUploadingDoc}
+              onClick={() => uploadRef.current?.click()}
+            >
+              문서로 추가
+            </Button>
+            <input
+              ref={uploadRef}
+              type="file"
+              accept=".doc,.docx,.pdf,.txt,.rtf,.odt,.hwp"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+            />
+          </Group>
         )}
 
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
