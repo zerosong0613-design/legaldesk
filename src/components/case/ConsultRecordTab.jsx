@@ -118,6 +118,7 @@ export default function ConsultRecordTab({ caseData }) {
           initialData={editingRecord}
           onSubmit={editingRecord ? handleUpdate : handleAdd}
           onCancel={closeForm}
+          caseType={caseData.type}
         />
       </Modal>
 

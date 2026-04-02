@@ -10,6 +10,7 @@ const ACTIVITY_TYPE_MAP = {
   police_attend: { label: '경찰입회', icon: '🚔' },
   prosecution_attend: { label: '검찰입회', icon: '⚖️' },
   visit: { label: '접견', icon: '🏛️' },
+  negotiation: { label: '상대방 협의', icon: '🤝' },
   other_activity: { label: '기타활동', icon: '📋' },
 }
 
@@ -120,6 +121,22 @@ function OtherActivityDetail({ c }) {
   )
 }
 
+function NegotiationDetail({ c }) {
+  return (
+    <>
+      <Group gap="xs">
+        <Text size="lg">🤝</Text>
+        <Text fw={600}>상대방 협의</Text>
+      </Group>
+      <Divider />
+      <DetailField label="상대방 / 상대 대리인" value={c.investigatorName} />
+      <DetailField label="장소" value={c.location} />
+      <DetailField label="협의 내용" value={c.content} />
+      <DetailField label="조치사항 / 후속 계획" value={c.actionItems} />
+    </>
+  )
+}
+
 export default function ConsultRecordDetail({
   consultation,
   isOpen,
@@ -155,6 +172,7 @@ export default function ConsultRecordDetail({
     police_attend: '경찰입회 상세',
     prosecution_attend: '검찰입회 상세',
     visit: '접견 상세',
+    negotiation: '상대방 협의 상세',
     other_activity: '활동 상세',
   }
 
@@ -171,6 +189,7 @@ export default function ConsultRecordDetail({
         {type === 'consult' && <ConsultDetail c={consultation} />}
         {(type === 'police_attend' || type === 'prosecution_attend') && <AttendDetail c={consultation} />}
         {type === 'visit' && <VisitDetail c={consultation} />}
+        {type === 'negotiation' && <NegotiationDetail c={consultation} />}
         {type === 'other_activity' && <OtherActivityDetail c={consultation} />}
 
         <Divider />

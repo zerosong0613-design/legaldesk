@@ -4,6 +4,7 @@ const ACTIVITY_TYPE_MAP = {
   police_attend: { label: '경찰입회', icon: '🚔' },
   prosecution_attend: { label: '검찰입회', icon: '⚖️' },
   visit: { label: '접견', icon: '🏛️' },
+  negotiation: { label: '상대방 협의', icon: '🤝' },
   other_activity: { label: '기타활동', icon: '📋' },
 }
 
@@ -49,6 +50,11 @@ function getPreviewText(consultation) {
   if (type === 'visit') {
     return consultation.location
       ? `${consultation.location}${consultation.clientCondition ? ` — ${consultation.clientCondition}` : ''}`
+      : consultation.content || ''
+  }
+  if (type === 'negotiation') {
+    return consultation.investigatorName
+      ? `${consultation.investigatorName}${consultation.location ? ` — ${consultation.location}` : ''}`
       : consultation.content || ''
   }
   return consultation.content || ''

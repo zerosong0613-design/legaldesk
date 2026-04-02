@@ -4,11 +4,17 @@ import {
   UnstyledButton, Box, Switch, Divider,
 } from '@mantine/core'
 
-const ACTIVITY_TYPES = [
+const CRIMINAL_ACTIVITY_TYPES = [
   { value: 'consult', label: '상담', icon: '💬' },
   { value: 'police_attend', label: '경찰입회', icon: '🚔' },
   { value: 'prosecution_attend', label: '검찰입회', icon: '⚖️' },
   { value: 'visit', label: '접견', icon: '🏛️' },
+  { value: 'other_activity', label: '기타활동', icon: '📋' },
+]
+
+const CIVIL_ACTIVITY_TYPES = [
+  { value: 'consult', label: '상담', icon: '💬' },
+  { value: 'negotiation', label: '상대방 협의', icon: '🤝' },
   { value: 'other_activity', label: '기타활동', icon: '📋' },
 ]
 
@@ -36,8 +42,10 @@ function getCurrentTime() {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-export default function ConsultRecordForm({ initialData, onSubmit, onCancel }) {
+export default function ConsultRecordForm({ initialData, onSubmit, onCancel, caseType }) {
   const isEditing = !!initialData
+  const isCriminal = caseType === '형사'
+  const activityTypes = isCriminal ? CRIMINAL_ACTIVITY_TYPES : CIVIL_ACTIVITY_TYPES
 
   const [form, setForm] = useState({
     activityType: initialData?.activityType || 'consult',
@@ -75,6 +83,7 @@ export default function ConsultRecordForm({ initialData, onSubmit, onCancel }) {
     if (isConsultType && !form.content.trim()) return
     if (isAttendType && !form.location.trim()) return
     if (isVisitType && !form.content.trim()) return
+    if (form.activityType === 'negotiation' && !form.content.trim()) return
 
     setIsSubmitting(true)
     try {
@@ -107,7 +116,7 @@ export default function ConsultRecordForm({ initialData, onSubmit, onCancel }) {
         <div>
           <Text size="sm" fw={500} mb={4}>활동 유형</Text>
           <Group gap={6} wrap="wrap">
-            {ACTIVITY_TYPES.map((t) => (
+            {activityTypes.map((t) => (
               <UnstyledButton
                 key={t.value}
                 onClick={() => handleChange('activityType', t.value)}
@@ -310,6 +319,47 @@ export default function ConsultRecordForm({ initialData, onSubmit, onCancel }) {
               maxRows={6}
               value={form.clientRequest}
               onChange={(e) => handleChange('clientRequest', e.currentTarget.value)}
+            />
+          </>
+        )}
+
+        {/* ===== 상대방 협의 유형 (민사) ===== */}
+        {form.activityType === 'negotiation' && (
+          <>
+            <TextInput
+              label="상대방 / 상대 대리인"
+              placeholder="상대방 또는 상대 대리인 이름"
+              value={form.investigatorName}
+              onChange={(e) => handleChange('investigatorName', e.currentTarget.value)}
+            />
+
+            <TextInput
+              label="장소 (선택)"
+              placeholder="예: 법원 조정실, 상대 사무실"
+              value={form.location}
+              onChange={(e) => handleChange('location', e.currentTarget.value)}
+            />
+
+            <Textarea
+              label="협의 내용"
+              required
+              withAsterisk
+              minRows={6}
+              autosize
+              maxRows={12}
+              placeholder="협의/협상 내용을 기록하세요"
+              value={form.content}
+              onChange={(e) => handleChange('content', e.currentTarget.value)}
+            />
+
+            <Textarea
+              label="조치사항 / 후속 계획 (선택)"
+              minRows={3}
+              autosize
+              maxRows={6}
+              placeholder="합의 방향, 다음 단계 등"
+              value={form.actionItems}
+              onChange={(e) => handleChange('actionItems', e.currentTarget.value)}
             />
           </>
         )}
