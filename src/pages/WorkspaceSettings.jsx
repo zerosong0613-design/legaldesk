@@ -323,7 +323,7 @@ export default function WorkspaceSettings() {
                     ) : permissions.length > 0 && (
                       <Stack gap="xs" mt="md">
                         <Group justify="space-between">
-                          <Text size="xs" fw={600} c="dimmed">{'\uD604\uC7AC \uBA4B\uBC84'}</Text>
+                          <Text size="xs" fw={600} c="dimmed">{'\uD604\uC7AC \uBA64\uBC84'}</Text>
                           <ActionIcon variant="subtle" size="xs" onClick={loadPermissions}>
                             <IconRefresh size={12} />
                           </ActionIcon>
