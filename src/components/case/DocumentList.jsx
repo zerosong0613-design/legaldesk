@@ -13,8 +13,12 @@ import {
 import {
   listFilesInFolder, uploadFileToDrive, deleteFile,
   createSubFolder, updateFileDescription, getFileMetadata, renameFile,
+  createGoogleDoc,
 } from '../../api/drive'
+import { useCaseStore } from '../../store/caseStore'
 import { useUiStore } from '../../store/uiStore'
+import Modal from '../ui/Modal'
+import { TEMPLATE_LIST, generateTemplate } from '../../utils/legalTemplates'
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder'
 
@@ -251,6 +255,7 @@ function FileCard({ file, onNavigateFolder, onDelete, onMemoSaved, onRenamed }) 
 
 export default function DocumentList({ caseData }) {
   const { showToast } = useUiStore()
+  const { profile } = useCaseStore()
   const fileInputRef = useRef(null)
   const [files, setFiles] = useState([])
   const [isLoading, setIsLoading] = useState(false)
@@ -262,6 +267,32 @@ export default function DocumentList({ caseData }) {
   const rootFolderId = caseData.driveFolderId
   const [folderStack, setFolderStack] = useState([]) // [{ id, name }, ...]
   const currentFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1].id : rootFolderId
+
+  // 서면 템플릿
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [isCreatingDoc, setIsCreatingDoc] = useState(false)
+
+  const handleCreateTemplate = async (templateId) => {
+    const tmpl = TEMPLATE_LIST.find((t) => t.id === templateId)
+    if (!tmpl) return
+    setIsCreatingDoc(true)
+    try {
+      const html = generateTemplate(templateId, caseData, profile)
+      const title = `[${caseData.caseNumber || caseData.id}] ${tmpl.label}`
+      const result = await createGoogleDoc(currentFolderId, title, html)
+      showToast(`${tmpl.label} 파일이 생성되었습니다.`, 'success')
+      setShowTemplateModal(false)
+      await loadFiles()
+      // 새로 만든 Google Docs 바로 열기
+      if (result.webViewLink) {
+        window.open(result.webViewLink, '_blank')
+      }
+    } catch (err) {
+      showToast(`서면 생성 실패: ${err.message}`, 'error')
+    } finally {
+      setIsCreatingDoc(false)
+    }
+  }
 
   // New folder creation
   const [showNewFolder, setShowNewFolder] = useState(false)
@@ -417,6 +448,15 @@ export default function DocumentList({ caseData }) {
           <Button
             size="xs"
             variant="light"
+            color="grape"
+            leftSection={<IconFileText size={14} />}
+            onClick={() => setShowTemplateModal(true)}
+          >
+            서면 작성
+          </Button>
+          <Button
+            size="xs"
+            variant="light"
             leftSection={<IconFolderPlus size={14} />}
             onClick={() => setShowNewFolder(!showNewFolder)}
           >
@@ -544,6 +584,33 @@ export default function DocumentList({ caseData }) {
           />
         ))}
       </Stack>
+
+      {/* 서면 템플릿 모달 */}
+      <Modal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        title="서면 작성"
+      >
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">
+            사건 정보가 자동으로 채워진 Google Docs 파일이 생성됩니다.
+          </Text>
+          {TEMPLATE_LIST.map((tmpl) => (
+            <Button
+              key={tmpl.id}
+              variant="light"
+              fullWidth
+              justify="flex-start"
+              size="md"
+              leftSection={<span style={{ fontSize: 18 }}>{tmpl.icon}</span>}
+              loading={isCreatingDoc}
+              onClick={() => handleCreateTemplate(tmpl.id)}
+            >
+              {tmpl.label}
+            </Button>
+          ))}
+        </Stack>
+      </Modal>
     </Stack>
   )
 }

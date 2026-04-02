@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Stack, Group, Text, Center, ActionIcon } from '@mantine/core'
-import { IconPlus, IconClipboardList } from '@tabler/icons-react'
+import { Stack, Group, Text, Center, ActionIcon, Button, Alert } from '@mantine/core'
+import { IconPlus, IconClipboardList, IconSparkles } from '@tabler/icons-react'
 import { useCaseStore } from '../../store/caseStore'
 import { useUiStore } from '../../store/uiStore'
+import { summarizeText } from '../../api/ai'
 import Modal from '../ui/Modal'
 import ConsultRecordCard from './ConsultRecordCard'
 import ConsultRecordForm from './ConsultRecordForm'
@@ -13,6 +14,8 @@ export default function ConsultRecordTab({ caseData }) {
   const { showToast } = useUiStore()
 
   const [showForm, setShowForm] = useState(false)
+  const [aiSummary, setAiSummary] = useState(null)
+  const [isSummarizing, setIsSummarizing] = useState(false)
   const [editingRecord, setEditingRecord] = useState(null)
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [showDetail, setShowDetail] = useState(false)
@@ -82,10 +85,54 @@ export default function ConsultRecordTab({ caseData }) {
           <Text size="sm" fw={600}>
             활동기록 ({records.length})
           </Text>
-          <ActionIcon variant="light" color="indigo" onClick={openForm}>
-            <IconPlus size={16} />
-          </ActionIcon>
+          <Group gap={4}>
+            {records.length > 0 && (
+              <Button
+                size="compact-xs"
+                variant="light"
+                color="violet"
+                leftSection={<IconSparkles size={12} />}
+                loading={isSummarizing}
+                onClick={async () => {
+                  setIsSummarizing(true)
+                  setAiSummary(null)
+                  try {
+                    const text = records.map((r) => {
+                      const type = r.activityType || 'consult'
+                      const date = r.date || ''
+                      const content = r.content || r.suspectStatement || r.actionItems || ''
+                      return `[${date}] ${type}: ${content}`
+                    }).join('\n\n')
+                    const summary = await summarizeText(text, 'activity')
+                    setAiSummary(summary)
+                  } catch (err) {
+                    showToast(err.message, 'error')
+                  } finally {
+                    setIsSummarizing(false)
+                  }
+                }}
+              >
+                AI 요약
+              </Button>
+            )}
+            <ActionIcon variant="light" color="indigo" onClick={openForm}>
+              <IconPlus size={16} />
+            </ActionIcon>
+          </Group>
         </Group>
+
+        {aiSummary && (
+          <Alert
+            color="violet"
+            variant="light"
+            withCloseButton
+            onClose={() => setAiSummary(null)}
+            title="AI 요약"
+            icon={<IconSparkles size={16} />}
+          >
+            <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{aiSummary}</Text>
+          </Alert>
+        )}
 
         {records.length === 0 ? (
           <Center py="xl">

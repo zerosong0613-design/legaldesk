@@ -1,8 +1,51 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   TextInput, Textarea, Button, Group, Stack, Text,
-  UnstyledButton, Box, Switch, Divider,
+  UnstyledButton, Box, Switch, Divider, ActionIcon, Tooltip,
 } from '@mantine/core'
+import { IconMicrophone, IconPlayerStop } from '@tabler/icons-react'
+import useSpeechToText from '../../hooks/useSpeechToText'
+
+/**
+ * STT 마이크 버튼이 달린 Textarea
+ */
+function SttTextarea({ value, onChange, ...props }) {
+  const handleResult = useCallback((transcript) => {
+    // 기존 텍스트 뒤에 인식된 텍스트 추가
+    const newVal = value ? `${value} ${transcript}` : transcript
+    onChange(newVal)
+  }, [value, onChange])
+
+  const { isListening, isSupported, toggle } = useSpeechToText({
+    onResult: handleResult,
+  })
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <Textarea
+        value={value}
+        onChange={(e) => onChange(e.currentTarget.value)}
+        {...props}
+        styles={{
+          input: isListening ? { borderColor: 'var(--mantine-color-red-5)', boxShadow: '0 0 0 1px var(--mantine-color-red-5)' } : {},
+        }}
+      />
+      {isSupported && (
+        <Tooltip label={isListening ? '녹음 중지' : '음성 입력'}>
+          <ActionIcon
+            variant={isListening ? 'filled' : 'light'}
+            color={isListening ? 'red' : 'gray'}
+            size="sm"
+            style={{ position: 'absolute', top: 30, right: 8 }}
+            onClick={toggle}
+          >
+            {isListening ? <IconPlayerStop size={14} /> : <IconMicrophone size={14} />}
+          </ActionIcon>
+        </Tooltip>
+      )}
+    </div>
+  )
+}
 
 const CRIMINAL_ACTIVITY_TYPES = [
   { value: 'consult', label: '상담', icon: '💬' },
@@ -186,16 +229,16 @@ export default function ConsultRecordForm({ initialData, onSubmit, onCancel, cas
               </Group>
             </div>
 
-            <Textarea
+            <SttTextarea
               label="상담 내용"
               required
               withAsterisk
               minRows={6}
               autosize
               maxRows={12}
-              placeholder={isKakao ? '카카오톡 대화 내용을 붙여넣기 하세요' : 'STT 변환 텍스트 붙여넣기 또는 직접 입력'}
+              placeholder={isKakao ? '카카오톡 대화 내용을 붙여넣기 하세요' : '직접 입력 또는 🎤 음성 입력'}
               value={form.content}
-              onChange={(e) => handleChange('content', e.currentTarget.value)}
+              onChange={(val) => handleChange('content', val)}
             />
             {isKakao && (
               <Text size="xs" c="dimmed" mt={-8}>
@@ -233,24 +276,24 @@ export default function ConsultRecordForm({ initialData, onSubmit, onCancel, cas
               onChange={(e) => handleChange('investigatorName', e.currentTarget.value)}
             />
 
-            <Textarea
+            <SttTextarea
               label="피의자 진술 요지"
               minRows={4}
               autosize
               maxRows={10}
-              placeholder="피의자의 주요 진술 내용을 요약하세요"
+              placeholder="피의자의 주요 진술 내용을 요약하세요 (🎤 음성 입력 가능)"
               value={form.suspectStatement}
-              onChange={(e) => handleChange('suspectStatement', e.currentTarget.value)}
+              onChange={(val) => handleChange('suspectStatement', val)}
             />
 
-            <Textarea
+            <SttTextarea
               label="수사관 질문 요약"
               minRows={4}
               autosize
               maxRows={10}
-              placeholder="수사관의 주요 질문 사항을 요약하세요"
+              placeholder="수사관의 주요 질문 사항을 요약하세요 (🎤 음성 입력 가능)"
               value={form.investigatorQuestions}
-              onChange={(e) => handleChange('investigatorQuestions', e.currentTarget.value)}
+              onChange={(val) => handleChange('investigatorQuestions', val)}
             />
 
             <div>
@@ -308,16 +351,16 @@ export default function ConsultRecordForm({ initialData, onSubmit, onCancel, cas
               onChange={(e) => handleChange('clientCondition', e.currentTarget.value)}
             />
 
-            <Textarea
+            <SttTextarea
               label="접견 내용"
               required
               withAsterisk
               minRows={6}
               autosize
               maxRows={12}
-              placeholder="접견 중 논의한 내용을 기록하세요"
+              placeholder="접견 중 논의한 내용을 기록하세요 (🎤 음성 입력 가능)"
               value={form.content}
-              onChange={(e) => handleChange('content', e.currentTarget.value)}
+              onChange={(val) => handleChange('content', val)}
             />
 
             <Textarea
@@ -348,16 +391,16 @@ export default function ConsultRecordForm({ initialData, onSubmit, onCancel, cas
               onChange={(e) => handleChange('location', e.currentTarget.value)}
             />
 
-            <Textarea
+            <SttTextarea
               label="협의 내용"
               required
               withAsterisk
               minRows={6}
               autosize
               maxRows={12}
-              placeholder="협의/협상 내용을 기록하세요"
+              placeholder="협의/협상 내용을 기록하세요 (🎤 음성 입력 가능)"
               value={form.content}
-              onChange={(e) => handleChange('content', e.currentTarget.value)}
+              onChange={(val) => handleChange('content', val)}
             />
 
             <Textarea

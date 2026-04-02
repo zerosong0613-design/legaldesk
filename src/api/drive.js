@@ -111,6 +111,33 @@ async function createJsonFile(name, parentId, data) {
   return res.json()
 }
 
+/**
+ * HTML 내용으로 Google Docs 파일 생성 (Drive가 자동 변환)
+ */
+export async function createGoogleDoc(folderId, title, htmlContent) {
+  const metadata = {
+    name: title,
+    mimeType: 'application/vnd.google-apps.document',
+    parents: [folderId],
+  }
+
+  const form = new FormData()
+  form.append(
+    'metadata',
+    new Blob([JSON.stringify(metadata)], { type: JSON_MIME })
+  )
+  form.append(
+    'file',
+    new Blob([htmlContent], { type: 'text/html' })
+  )
+
+  const res = await driveRequest(
+    `${UPLOAD_API}/files?uploadType=multipart&fields=id,name,webViewLink`,
+    { method: 'POST', body: form }
+  )
+  return res.json()
+}
+
 export async function updateJsonFile(fileId, data) {
   const form = new FormData()
   form.append(
