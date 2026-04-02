@@ -216,7 +216,7 @@ export async function readProfile(profileFileId) {
 export async function writeProfile(dataFolderId, profileFileId, data) {
   const payload = { ...data, updatedAt: new Date().toISOString() }
   if (profileFileId) {
-    await writeJsonFile(profileFileId, payload)
+    await updateJsonFile(profileFileId, payload)
     return profileFileId
   }
   // 첫 생성
