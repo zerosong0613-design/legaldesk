@@ -101,6 +101,18 @@ export default function WorkspaceSettings() {
   })
   const [isSavingProfile, setIsSavingProfile] = useState(false)
 
+  // profile 상태가 바뀌면 폼도 동기화 (온보딩 후 진입, 다른 기기 동기화 등)
+  useEffect(() => {
+    if (profile) {
+      setProfileForm({
+        lawyerName: profile.lawyerName || '',
+        officeName: profile.officeName || '',
+        phone: profile.phone || '',
+        barNumber: profile.barNumber || '',
+      })
+    }
+  }, [profile])
+
   const isOwnWorkspace = !workspace || workspace.type === 'own'
 
   const searchSharedFolders = async () => {
