@@ -1,17 +1,22 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   TextInput, Textarea, Button, Group, Stack, Text,
-  UnstyledButton, Box, Switch, Divider, ActionIcon, Tooltip,
+  UnstyledButton, Box, Switch, Divider, ActionIcon, Tooltip, Loader,
 } from '@mantine/core'
-import { IconMicrophone, IconPlayerStop } from '@tabler/icons-react'
+import { IconMicrophone, IconPlayerStop, IconUpload } from '@tabler/icons-react'
 import useSpeechToText from '../../hooks/useSpeechToText'
+import { transcribeAudio } from '../../api/ai'
+import { useUiStore } from '../../store/uiStore'
 
 /**
- * STT 마이크 버튼이 달린 Textarea
+ * STT 마이크 + 파일 업로드 버튼이 달린 Textarea
  */
 function SttTextarea({ value, onChange, ...props }) {
+  const { showToast } = useUiStore()
+  const fileRef = useRef(null)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+
   const handleResult = useCallback((transcript) => {
-    // 기존 텍스트 뒤에 인식된 텍스트 추가
     const newVal = value ? `${value} ${transcript}` : transcript
     onChange(newVal)
   }, [value, onChange])
@@ -19,6 +24,26 @@ function SttTextarea({ value, onChange, ...props }) {
   const { isListening, isSupported, toggle } = useSpeechToText({
     onResult: handleResult,
   })
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = '' // reset
+
+    setIsTranscribing(true)
+    try {
+      const text = await transcribeAudio(file)
+      if (text) {
+        const newVal = value ? `${value}\n${text}` : text
+        onChange(newVal)
+        showToast('음성 파일이 텍스트로 변환되었습니다.', 'success')
+      }
+    } catch (err) {
+      showToast(err.message, 'error')
+    } finally {
+      setIsTranscribing(false)
+    }
+  }
 
   return (
     <div style={{ position: 'relative' }}>
@@ -30,19 +55,39 @@ function SttTextarea({ value, onChange, ...props }) {
           input: isListening ? { borderColor: 'var(--mantine-color-red-5)', boxShadow: '0 0 0 1px var(--mantine-color-red-5)' } : {},
         }}
       />
-      {isSupported && (
-        <Tooltip label={isListening ? '녹음 중지' : '음성 입력'}>
+      <Group gap={2} style={{ position: 'absolute', top: 30, right: 8 }}>
+        {isTranscribing && <Loader size={14} color="blue" />}
+        <Tooltip label="녹음 파일 업로드 (mp3, m4a, wav)">
           <ActionIcon
-            variant={isListening ? 'filled' : 'light'}
-            color={isListening ? 'red' : 'gray'}
+            variant="light"
+            color="blue"
             size="sm"
-            style={{ position: 'absolute', top: 30, right: 8 }}
-            onClick={toggle}
+            onClick={() => fileRef.current?.click()}
+            disabled={isTranscribing}
           >
-            {isListening ? <IconPlayerStop size={14} /> : <IconMicrophone size={14} />}
+            <IconUpload size={14} />
           </ActionIcon>
         </Tooltip>
-      )}
+        {isSupported && (
+          <Tooltip label={isListening ? '녹음 중지' : '실시간 음성 입력'}>
+            <ActionIcon
+              variant={isListening ? 'filled' : 'light'}
+              color={isListening ? 'red' : 'gray'}
+              size="sm"
+              onClick={toggle}
+            >
+              {isListening ? <IconPlayerStop size={14} /> : <IconMicrophone size={14} />}
+            </ActionIcon>
+          </Tooltip>
+        )}
+      </Group>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="audio/*,.mp3,.m4a,.wav,.ogg,.webm"
+        onChange={handleFileUpload}
+        style={{ display: 'none' }}
+      />
     </div>
   )
 }
